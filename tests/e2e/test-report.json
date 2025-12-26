@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-12-26T05:38:24.391Z",
+  "baseUrl": "http://localhost:5173",
+  "results": {
+    "total": 4,
+    "passed": 0,
+    "failed": 4
+  },
+  "issues": [
+    {
+      "story": "登录",
+      "severity": "high",
+      "description": "登录异常: page.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('button[type=\"submit\"]')\n",
+      "timestamp": "2025-12-26T05:38:15.616Z"
+    },
+    {
+      "story": "创建线索",
+      "severity": "high",
+      "description": "创建线索异常: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/leads\nCall log:\n  - navigating to \"http://localhost:5173/leads\", waiting until \"load\"\n",
+      "timestamp": "2025-12-26T05:38:18.120Z"
+    },
+    {
+      "story": "线索转客户",
+      "severity": "high",
+      "description": "线索转客户异常: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/leads\nCall log:\n  - navigating to \"http://localhost:5173/leads\", waiting until \"load\"\n",
+      "timestamp": "2025-12-26T05:38:20.503Z"
+    },
+    {
+      "story": "创建产品",
+      "severity": "high",
+      "description": "创建产品异常: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/products\nCall log:\n  - navigating to \"http://localhost:5173/products\", waiting until \"load\"\n",
+      "timestamp": "2025-12-26T05:38:22.890Z"
+    }
+  ],
+  "testData": {}
+}

@@ -1,0 +1,753 @@
+{
+  "info": {
+    "name": "艾居来 CRM - API Collection",
+    "description": "艾居来智慧酒店CRM系统完整API测试集合\n\n使用说明：\n1. 导入此Collection到Postman\n2. 创建环境变量：baseUrl = http://localhost:3000\n3. 先执行 \"用户登录\" 获取token\n4. token会自动保存到环境变量中\n5. 按模块顺序测试各个接口",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. 认证模块",
+      "item": [
+        {
+          "name": "用户登录",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.token) {",
+                  "        pm.environment.set('token', jsonData.data.token);",
+                  "        pm.environment.set('userId', jsonData.data.user.id);",
+                  "        console.log('Token saved:', jsonData.data.token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "管理员登录\n账号：admin / admin123"
+          }
+        },
+        {
+          "name": "销售人员登录",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"sales001\",\n    \"password\": \"sales123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. 产品管理",
+      "item": [
+        {
+          "name": "查询产品列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "pageSize", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "创建产品",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.product_id) {",
+                  "        pm.environment.set('productId', jsonData.data.product_id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"productCode\": \"TEST-001\",\n    \"productName\": \"测试智能门锁\",\n    \"brand\": \"艾居来\",\n    \"categoryId\": 1,\n    \"costPrice\": 500,\n    \"salePrice\": 800,\n    \"unit\": \"套\",\n    \"description\": \"测试用产品\",\n    \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          }
+        },
+        {
+          "name": "查询产品详情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "更新产品",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"salePrice\": 850,\n    \"description\": \"更新后的描述\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. 线索管理",
+      "item": [
+        {
+          "name": "创建线索",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.id) {",
+                  "        pm.environment.set('leadId', jsonData.data.id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customerName\": \"深圳豪华大酒店\",\n    \"hotelName\": \"豪华大酒店\",\n    \"province\": \"广东省\",\n    \"city\": \"深圳市\",\n    \"district\": \"福田区\",\n    \"roomCount\": 300,\n    \"phone\": \"13800138000\",\n    \"wechat\": \"hotel_luxury\",\n    \"channelSource\": \"website\",\n    \"intentionLevel\": \"high\",\n    \"requirement\": \"需要全套智能客房系统\",\n    \"estimatedAmount\": 800000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/leads",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leads"]
+            }
+          }
+        },
+        {
+          "name": "查询线索列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/leads?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leads"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "pageSize", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "添加跟进记录",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"followType\": \"phone\",\n    \"content\": \"电话沟通，客户对智能门锁很感兴趣\",\n    \"intentionLevel\": \"high\",\n    \"nextPlan\": \"下周安排上门演示\",\n    \"nextFollowDate\": \"2025-01-05\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/leads/{{leadId}}/follow-up",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leads", "{{leadId}}", "follow-up"]
+            }
+          }
+        },
+        {
+          "name": "线索转客户",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.id) {",
+                  "        pm.environment.set('customerId', jsonData.data.id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customerType\": \"chain_hotel\",\n    \"customerLevel\": \"A\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/leads/{{leadId}}/convert",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "leads", "{{leadId}}", "convert"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. 客户管理",
+      "item": [
+        {
+          "name": "查询客户列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "pageSize", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "查询客户详情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}"]
+            }
+          }
+        },
+        {
+          "name": "添加客户联系人",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"contactName\": \"李经理\",\n    \"position\": \"采购经理\",\n    \"mobile\": \"13900139000\",\n    \"wechat\": \"lijingli\",\n    \"email\": \"li@hotel.com\",\n    \"isPrimary\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/{{customerId}}/contacts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "{{customerId}}", "contacts"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. 报价管理",
+      "item": [
+        {
+          "name": "创建报价单",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.quotationId) {",
+                  "        pm.environment.set('quotationId', jsonData.data.quotationId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customerId\": \"{{customerId}}\",\n    \"quotationTitle\": \"智能客房改造方案\",\n    \"validUntil\": \"2025-02-28\",\n    \"totalAmount\": 50000,\n    \"items\": [\n        {\n            \"productId\": 1,\n            \"quantity\": 50,\n            \"unitPrice\": 880,\n            \"discount\": 0.95,\n            \"totalPrice\": 41800\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/quotations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "quotations"]
+            }
+          }
+        },
+        {
+          "name": "查询报价列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/quotations?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "quotations"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "pageSize", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "提交报价单",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/quotations/{{quotationId}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "quotations", "{{quotationId}}", "submit"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. 合同管理",
+      "item": [
+        {
+          "name": "创建合同",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.contractId) {",
+                  "        pm.environment.set('contractId', jsonData.data.contractId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"contractTitle\": \"智能客房改造合同\",\n    \"customerId\": \"{{customerId}}\",\n    \"sourceQuotationId\": \"{{quotationId}}\",\n    \"contractAmount\": 50000,\n    \"signDate\": \"2025-12-25\",\n    \"paymentTerms\": {\n        \"stages\": [\n            {\"stage\": \"签约款\", \"ratio\": 0.3},\n            {\"stage\": \"发货款\", \"ratio\": 0.4},\n            {\"stage\": \"验收款\", \"ratio\": 0.3}\n        ]\n    },\n    \"deliveryTerms\": {\"deliveryDays\": 30},\n    \"warrantyTerms\": {\"warrantyYears\": 2}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/contracts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "contracts"]
+            }
+          }
+        },
+        {
+          "name": "签署合同",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customerSignDate\": \"2025-12-25\",\n    \"companySignDate\": \"2025-12-25\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/contracts/{{contractId}}/sign",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "contracts", "{{contractId}}", "sign"]
+            }
+          }
+        },
+        {
+          "name": "查询合同执行进度",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/contracts/{{contractId}}/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "contracts", "{{contractId}}", "progress"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. 收款管理",
+      "item": [
+        {
+          "name": "创建收款记录",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.paymentId) {",
+                  "        pm.environment.set('paymentId', jsonData.data.paymentId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"contractId\": \"{{contractId}}\",\n    \"customerId\": \"{{customerId}}\",\n    \"paymentStage\": \"签约款\",\n    \"paidAmount\": 15000,\n    \"paymentMethod\": \"bank_transfer\",\n    \"paymentDate\": \"2025-12-25\",\n    \"bankAccount\": \"6222021234567890\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments"]
+            }
+          }
+        },
+        {
+          "name": "确认收款",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"confirmNote\": \"已核实到账\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/{{paymentId}}/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "{{paymentId}}", "confirm"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. 发货管理",
+      "item": [
+        {
+          "name": "创建发货单",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.shipmentId) {",
+                  "        pm.environment.set('shipmentId', jsonData.data.shipmentId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"contractId\": \"{{contractId}}\",\n    \"shipmentTitle\": \"首批发货\",\n    \"shippingAddress\": \"深圳市福田区XXX路\",\n    \"contactPerson\": \"李经理\",\n    \"contactPhone\": \"13900139000\",\n    \"shipmentAmount\": 25000,\n    \"plannedShipDate\": \"2025-12-30\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/shipments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shipments"]
+            }
+          }
+        },
+        {
+          "name": "确认发货",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"logisticsCompany\": \"顺丰速运\",\n    \"trackingNo\": \"SF1234567890\",\n    \"actualShipDate\": \"2025-12-26\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/shipments/{{shipmentId}}/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shipments", "{{shipmentId}}", "confirm"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. 发票管理",
+      "item": [
+        {
+          "name": "创建发票",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.invoiceId) {",
+                  "        pm.environment.set('invoiceId', jsonData.data.invoiceId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"contractId\": \"{{contractId}}\",\n    \"customerId\": \"{{customerId}}\",\n    \"paymentId\": \"{{paymentId}}\",\n    \"invoiceType\": \"vat_special\",\n    \"invoiceAmount\": 15000,\n    \"taxNumber\": \"91440300000000000X\",\n    \"bankName\": \"工商银行\",\n    \"bankAccount\": \"1234567890\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoices"]
+            }
+          }
+        },
+        {
+          "name": "确认开票",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"invoiceNo\": \"INV20251225001\",\n    \"invoiceDate\": \"2025-12-25\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices/{{invoiceId}}/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoices", "{{invoiceId}}", "confirm"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. 售后管理",
+      "item": [
+        {
+          "name": "创建工单",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.ticketId) {",
+                  "        pm.environment.set('ticketId', jsonData.data.ticketId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customerId\": \"{{customerId}}\",\n    \"contractId\": \"{{contractId}}\",\n    \"ticketTitle\": \"智能门锁无法开启\",\n    \"ticketType\": \"fault\",\n    \"priority\": \"high\",\n    \"problemDescription\": \"3楼305房间门锁无法正常开启\",\n    \"reporterName\": \"李经理\",\n    \"reporterPhone\": \"13900139000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/service-tickets",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "service-tickets"]
+            }
+          }
+        },
+        {
+          "name": "处理工单",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"problemAnalysis\": \"电池电量不足导致\",\n    \"solution\": \"更换电池，测试正常\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/service-tickets/{{ticketId}}/resolve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "service-tickets", "{{ticketId}}", "resolve"]
+            }
+          }
+        },
+        {
+          "name": "关闭工单",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/service-tickets/{{ticketId}}/close",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "service-tickets", "{{ticketId}}", "close"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

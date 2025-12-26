@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-12-26T05:35:33.187Z",
+  "results": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1
+  },
+  "issues": [
+    {
+      "story": "通用",
+      "severity": "high",
+      "description": "无法点击: 点击线索管理菜单 (选择器: a:has-text(\"线索管理\"), .el-menu-item:has-text(\"线索\"))",
+      "screenshot": null,
+      "timestamp": "2025-12-26T05:35:32.184Z"
+    }
+  ]
+}
