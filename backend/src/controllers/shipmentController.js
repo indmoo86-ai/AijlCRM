@@ -37,7 +37,9 @@ exports.createShipment = async (req, res) => {
     let shipmentAmount = 0;
     if (items && items.length > 0) {
       for (const item of items) {
-        shipmentAmount += item.thisShipmentQuantity * (item.unitPrice || 0);
+        const quantity = parseFloat(item.thisShipmentQuantity) || 0;
+        const price = parseFloat(item.unitPrice) || 0;
+        shipmentAmount += quantity * price;
       }
     }
 
@@ -50,7 +52,7 @@ exports.createShipment = async (req, res) => {
       contact_person: contactPerson,
       contact_phone: contactPhone,
       planned_ship_date: plannedShipDate,
-      shipment_amount: shipmentAmount,
+      shipment_amount: shipmentAmount || 0,
       status: 'draft',
       notes,
       owner_id: req.user.id,
