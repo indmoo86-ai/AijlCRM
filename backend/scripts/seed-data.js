@@ -110,9 +110,17 @@ const createPermissions = async () => {
 
   const createdPermissions = [];
   for (const permData of permissions) {
+    // Convert 'module' to 'module_name' and add permission_type
+    const permissionData = {
+      ...permData,
+      module_name: permData.module,
+      permission_type: 'action'
+    };
+    delete permissionData.module;
+
     const [permission] = await Permission.findOrCreate({
-      where: { permission_code: permData.permission_code },
-      defaults: permData
+      where: { permission_code: permissionData.permission_code },
+      defaults: permissionData
     });
     createdPermissions.push(permission);
   }
@@ -129,8 +137,8 @@ const assignRolePermissions = async (roles, permissions) => {
 
   // 权限分组
   const permissionsByModule = permissions.reduce((acc, perm) => {
-    if (!acc[perm.module]) acc[perm.module] = [];
-    acc[perm.module].push(perm);
+    if (!acc[perm.module_name]) acc[perm.module_name] = [];
+    acc[perm.module_name].push(perm);
     return acc;
   }, {});
 
@@ -138,17 +146,19 @@ const assignRolePermissions = async (roles, permissions) => {
   const adminRole = roles.find(r => r.role_code === 'admin');
   for (const perm of permissions) {
     await RolePermission.findOrCreate({
-      where: { role_id: adminRole.role_id, permission_id: perm.permission_id }
+      where: { role_id: adminRole.role_id, permission_id: perm.permission_id },
+      defaults: { role_id: adminRole.role_id, permission_id: perm.permission_id, creator_id: 1 }
     });
   }
   console.log(`  ✓ 系统管理员: ${permissions.length} 个权限`);
 
   // 销售主管 - 除系统管理外的所有权限
   const salesManagerRole = roles.find(r => r.role_code === 'sales_manager');
-  const salesManagerPerms = permissions.filter(p => p.module !== '系统管理');
+  const salesManagerPerms = permissions.filter(p => p.module_name !== '系统管理');
   for (const perm of salesManagerPerms) {
     await RolePermission.findOrCreate({
-      where: { role_id: salesManagerRole.role_id, permission_id: perm.permission_id }
+      where: { role_id: salesManagerRole.role_id, permission_id: perm.permission_id },
+      defaults: { role_id: salesManagerRole.role_id, permission_id: perm.permission_id, creator_id: 1 }
     });
   }
   console.log(`  ✓ 销售主管: ${salesManagerPerms.length} 个权限`);
@@ -156,21 +166,23 @@ const assignRolePermissions = async (roles, permissions) => {
   // 销售人员 - 线索、客户、产品、报价、合同权限
   const salesRole = roles.find(r => r.role_code === 'sales');
   const salesPerms = permissions.filter(p =>
-    ['线索管理', '客户管理', '产品管理', '报价管理', '合同管理'].includes(p.module)
+    ['线索管理', '客户管理', '产品管理', '报价管理', '合同管理'].includes(p.module_name)
   );
   for (const perm of salesPerms) {
     await RolePermission.findOrCreate({
-      where: { role_id: salesRole.role_id, permission_id: perm.permission_id }
+      where: { role_id: salesRole.role_id, permission_id: perm.permission_id },
+      defaults: { role_id: salesRole.role_id, permission_id: perm.permission_id, creator_id: 1 }
     });
   }
   console.log(`  ✓ 销售人员: ${salesPerms.length} 个权限`);
 
   // 新媒体运营 - 线索管理权限
   const mediaRole = roles.find(r => r.role_code === 'media_operator');
-  const mediaPerms = permissions.filter(p => p.module === '线索管理');
+  const mediaPerms = permissions.filter(p => p.module_name === '线索管理');
   for (const perm of mediaPerms) {
     await RolePermission.findOrCreate({
-      where: { role_id: mediaRole.role_id, permission_id: perm.permission_id }
+      where: { role_id: mediaRole.role_id, permission_id: perm.permission_id },
+      defaults: { role_id: mediaRole.role_id, permission_id: perm.permission_id, creator_id: 1 }
     });
   }
   console.log(`  ✓ 新媒体运营: ${mediaPerms.length} 个权限`);
@@ -178,11 +190,12 @@ const assignRolePermissions = async (roles, permissions) => {
   // 财务人员 - 收款、发票权限（含查看合同）
   const financeRole = roles.find(r => r.role_code === 'finance');
   const financePerms = permissions.filter(p =>
-    ['收款管理', '发票管理'].includes(p.module) || p.permission_code === 'contract:view'
+    ['收款管理', '发票管理'].includes(p.module_name) || p.permission_code === 'contract:view'
   );
   for (const perm of financePerms) {
     await RolePermission.findOrCreate({
-      where: { role_id: financeRole.role_id, permission_id: perm.permission_id }
+      where: { role_id: financeRole.role_id, permission_id: perm.permission_id },
+      defaults: { role_id: financeRole.role_id, permission_id: perm.permission_id, creator_id: 1 }
     });
   }
   console.log(`  ✓ 财务人员: ${financePerms.length} 个权限`);
@@ -190,11 +203,12 @@ const assignRolePermissions = async (roles, permissions) => {
   // 运维人员 - 发货、售后权限（含查看合同）
   const operationRole = roles.find(r => r.role_code === 'operation');
   const operationPerms = permissions.filter(p =>
-    ['发货管理', '售后管理'].includes(p.module) || p.permission_code === 'contract:view'
+    ['发货管理', '售后管理'].includes(p.module_name) || p.permission_code === 'contract:view'
   );
   for (const perm of operationPerms) {
     await RolePermission.findOrCreate({
-      where: { role_id: operationRole.role_id, permission_id: perm.permission_id }
+      where: { role_id: operationRole.role_id, permission_id: perm.permission_id },
+      defaults: { role_id: operationRole.role_id, permission_id: perm.permission_id, creator_id: 1 }
     });
   }
   console.log(`  ✓ 运维人员: ${operationPerms.length} 个权限`);
@@ -254,7 +268,8 @@ const createUsers = async (roles) => {
     const role = roles.find(r => r.role_code === roleCode);
     if (role) {
       await UserRole.findOrCreate({
-        where: { user_id: user.id, role_id: role.role_id }
+        where: { user_id: user.id, role_id: role.role_id },
+        defaults: { user_id: user.id, role_id: role.role_id, creator_id: 1 }
       });
     }
 
