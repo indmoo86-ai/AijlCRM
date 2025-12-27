@@ -380,3 +380,5681 @@ const signingData = {
 
 ---
 
+## 场景6.4: 合同变更管理（补充协议）
+
+**需求编号**: CONTRACT-004
+**场景名称**: 创建补充协议管理合同变更
+**用户故事**: 作为销售人员，我希望能够通过补充协议的方式记录合同变更（增加/减少产品、调整金额等），以便保持合同变更的可追溯性
+
+**前置条件**:
+- 用户已登录（admin / 123456）
+- 已签订合同（场景6.3完成）
+- 合同状态为"执行中"（executing）
+- 客户提出新的需求或变更
+
+**测试数据**:
+```javascript
+const timestamp = Date.now();
+const amendmentData = {
+  contractId: null, // 从场景6.1获取
+  contractNo: "CT202501080001",
+  amendmentNo: `AMD${timestamp}`,
+  amendmentDate: '2025-02-01',
+  amendmentType: '增加产品', // 增加产品/减少产品/调整价格/调整条款
+  amendmentReason: '客户新增产品需求',
+  changeDescription: '客户要求新增20台智能开关（型号：SWITCH-001），单价280元/台',
+  originalAmount: 50000,
+  adjustmentAmount: 5600, // 20 * 280
+  adjustmentType: 'increase', // increase增加/decrease减少
+  newAmount: 55600, // 50000 + 5600
+  newItems: [
+    {
+      productId: 2,
+      productCode: 'SWITCH-001',
+      productName: '智能开关 基础款',
+      productUnit: '台',
+      specifications: '86型 单开双控',
+      quantity: 20,
+      unitPrice: 280,
+      totalPrice: 5600,
+      remark: '补充协议新增产品'
+    }
+  ],
+  paymentAdjustment: {
+    adjustPaymentTerms: true, // 是否调整付款计划
+    newPaymentTerms: [
+      {stage: 1, stageName: '签约款', percentage: 30, amount: 16680, dueDate: '2025-01-15', status: 'received'},
+      {stage: 2, stageName: '发货款', percentage: 40, amount: 22240, dueDate: '2025-02-01', status: 'pending'},
+      {stage: 3, stageName: '验收款', percentage: 30, amount: 16680, dueDate: '2025-03-01', status: 'pending'}
+    ]
+  },
+  effectiveDate: '2025-02-01',
+  attachments: []
+}
+```
+
+**测试步骤**:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1 | 访问合同详情页 | contractId | `/contracts/${contractId}` | 显示执行中的合同 | 状态为"执行中" |
+| 2 | 验证原合同金额 | - | `.contract-amount` | 显示50000元 | 原始金额正确 |
+| 3 | 切换到补充协议Tab | - | `[role="tab"]:has-text("补充协议")` 或 `[role="tab"]:has-text("变更记录")` | 显示补充协议列表 | Tab激活 |
+| 4 | 验证初始状态 | - | `.amendment-list` | 空列表或提示 | 提示"暂无补充协议" |
+| 5 | 点击新建补充协议按钮 | - | `button:has-text("新建补充协议")` 或 `button:has-text("新建变更")` | 打开补充协议表单对话框 | 对话框标题"新建补充协议" |
+| 6 | 验证协议编号自动生成 | - | `input[placeholder*="协议编号"]` 或 `.amendment-no` | 自动生成AMD开头编号 | 如AMD1704096000000 |
+| 7 | 选择协议日期 | "2025-02-01" | `.el-date-picker[placeholder*="协议日期"]` | 日期选择成功 | 显示"2025-02-01" |
+| 8 | 选择变更类型 | "增加产品" | `.el-select[placeholder*="类型"]` | 打开下拉菜单 | 下拉选项显示 |
+| 9 | 确认变更类型 | 点击"增加产品" | `.el-option:has-text("增加产品")` | 选择成功 | 显示"增加产品" |
+| 10 | 填写变更原因 | "客户新增产品需求" | `input[placeholder*="变更原因"]` | 填写成功 | 输入框有内容 |
+| 11 | 填写变更描述 | "客户要求新增20台智能开关..." | `textarea[placeholder*="变更描述"]` | 填写成功 | 文本域有内容 |
+| 12 | 验证原合同金额显示 | - | `input[placeholder*="原合同金额"]` 或 `.original-amount` | 自动填充50000 | 金额正确且禁用编辑 |
+| 13 | 填写调整金额 | 5600 | `input[placeholder*="调整金额"]` | 填写成功 | 输入框value为5600 |
+| 14 | 选择调整类型 | "增加" | `.el-radio:has-text("增加")` 或下拉选择 | 选择成功 | 增加被选中 |
+| 15 | 验证新合同金额自动计算 | - | `.new-amount` 或计算结果显示 | 自动显示55600 | 50000 + 5600 = 55600 |
+| 16 | 切换到产品明细Tab | - | Tab切换或滚动到产品区域 | 显示产品明细区域 | 区域激活 |
+| 17 | 点击添加产品明细 | - | `button:has-text("添加产品")` 或 `button:has-text("选择产品")` | 打开产品选择对话框 | 产品选择器显示 |
+| 18 | 搜索智能开关产品 | "智能开关" | `input[placeholder*="搜索"]` | 筛选产品列表 | 显示匹配产品 |
+| 19 | 选择智能开关产品 | productId: 2 | 产品列表中的选择框 | 产品被选中 | 复选框勾选 |
+| 20 | 确认产品选择 | - | `button:has-text("确定")` | 产品信息自动填充 | 产品编码、名称、单价自动填入 |
+| 21 | 验证产品信息填充 | - | 产品明细行 | 显示SWITCH-001, 智能开关, 280 | 信息正确 |
+| 22 | 填写产品数量 | 20 | `input[placeholder*="数量"]` | 填写成功 | 输入框value为20 |
+| 23 | 验证总价自动计算 | - | `.item-total-price` | 自动显示5600 | 20 * 280 = 5600 |
+| 24 | 填写产品备注 | "补充协议新增产品" | `input[placeholder*="备注"]` | 填写成功 | 输入框有内容 |
+| 25 | 截图产品明细 | - | - | 保存截图 | 文件:`amendment-product-detail.png` |
+| 26 | 验证产品金额与调整金额一致 | - | 底部合计 | 产品总价5600 = 调整金额5600 | 金额匹配 |
+| 27 | 切换到付款调整Tab | - | Tab或区域切换 | 显示付款调整区域 | 区域激活 |
+| 28 | 勾选调整付款计划 | - | `checkbox:has-text("调整付款计划")` | 复选框被勾选 | 付款计划表格启用 |
+| 29 | 验证原付款计划显示 | - | `.original-payment-terms` | 显示3个阶段，总计50000 | 原计划正确 |
+| 30 | 查看调整后付款计划 | - | `.new-payment-terms` | 显示3个阶段，总计55600 | 新计划自动计算 |
+| 31 | 验证第1阶段调整 | - | 第1行 | 签约款: 16680 (30%) | 55600 * 30% |
+| 32 | 验证第2阶段调整 | - | 第2行 | 发货款: 22240 (40%) | 55600 * 40% |
+| 33 | 验证第3阶段调整 | - | 第3行 | 验收款: 16680 (30%) | 55600 * 30% |
+| 34 | 验证已收款不变 | - | 第1阶段 | 状态仍为"已收款" | 已收金额不受影响 |
+| 35 | 选择生效日期 | "2025-02-01" | `.el-date-picker[placeholder*="生效日期"]` | 日期选择成功 | 显示"2025-02-01" |
+| 36 | 上传补充协议文件（可选） | - | `.el-upload` | 文件选择器打开 | 可上传附件 |
+| 37 | 截图完整表单 | - | - | 保存截图 | 文件:`amendment-form-complete.png` |
+| 38 | 点击保存按钮 | - | `button:has-text("保存")` 或 `button:has-text("提交")` | 提交表单 | 按钮loading |
+| 39 | 等待API响应 | 等待2-3秒 | - | 收到响应 | loading结束 |
+| 40 | 验证成功提示 | - | `.el-message--success` | 显示成功消息 | 提示"补充协议创建成功" |
+| 41 | 验证对话框关闭 | - | - | 表单对话框消失 | 返回补充协议列表 |
+| 42 | 验证列表显示新协议 | - | `.amendment-list` | 列表显示1条记录 | 包含AMD编号 |
+| 43 | 验证协议信息显示 | - | 补充协议行 | 显示类型、金额、日期 | 增加产品, +5600, 2025-02-01 |
+| 44 | 点击协议查看详情 | - | 点击协议行 | 展开或进入详情 | 显示完整信息 |
+| 45 | 验证产品明细 | - | 详情中的产品表格 | 显示新增产品 | 智能开关 20台 |
+| 46 | 切换到基本信息Tab | - | `[role="tab"]:has-text("基本信息")` | 返回合同基本信息 | Tab切换 |
+| 47 | 验证合同金额已更新 | - | `.contract-amount` | 显示55600元 | 金额已更新 |
+| 48 | 验证金额变化标记 | - | `.amount-changed-badge` 或提示 | 显示"已变更"标记 | 视觉提示 |
+| 49 | 切换到合同明细Tab | - | `[role="tab"]:has-text("合同明细")` | 显示产品列表 | Tab激活 |
+| 50 | 验证产品明细已增加 | - | 产品表格 | 显示原有产品+新增产品 | 总行数增加 |
+| 51 | 验证新增产品标记 | - | 新增产品行 | 显示"补充协议新增"标记 | 来源标识 |
+| 52 | 验证合同明细总额 | - | 底部合计 | 显示55600元 | 总额正确 |
+| 53 | 切换到付款条款Tab | - | `[role="tab"]:has-text("付款条款")` | 显示付款计划 | Tab激活 |
+| 54 | 验证付款计划已更新 | - | 付款阶段列表 | 金额已调整为新计划 | 第1阶段16680 |
+| 55 | 验证已收款阶段不变 | - | 第1阶段 | 仍显示已收款状态 | 状态和金额不变 |
+| 56 | 刷新页面验证数据 | 按F5 | - | 页面重新加载 | 数据持久化 |
+| 57 | 验证合同金额持久化 | - | `.contract-amount` | 仍显示55600 | 数据正确 |
+| 58 | 验证补充协议持久化 | 切换到补充协议Tab | - | 显示1条记录 | 数据正确 |
+
+**预期API响应**:
+```json
+{
+  "success": true,
+  "code": 201,
+  "message": "补充协议创建成功",
+  "data": {
+    "amendmentId": 1,
+    "amendmentNo": "AMD1704096000000",
+    "contractId": 1,
+    "contractNo": "CT202501080001",
+    "amendmentDate": "2025-02-01",
+    "amendmentType": "增加产品",
+    "amendmentReason": "客户新增产品需求",
+    "changeDescription": "客户要求新增20台智能开关（型号：SWITCH-001），单价280元/台",
+    "originalAmount": 50000,
+    "adjustmentAmount": 5600,
+    "adjustmentType": "increase",
+    "newAmount": 55600,
+    "newItems": [
+      {
+        "productId": 2,
+        "productCode": "SWITCH-001",
+        "productName": "智能开关 基础款",
+        "quantity": 20,
+        "unitPrice": 280,
+        "totalPrice": 5600
+      }
+    ],
+    "paymentAdjustment": {
+      "adjustPaymentTerms": true,
+      "newPaymentTerms": [
+        {"stage": 1, "amount": 16680, "percentage": 30},
+        {"stage": 2, "amount": 22240, "percentage": 40},
+        {"stage": 3, "amount": 16680, "percentage": 30}
+      ]
+    },
+    "effectiveDate": "2025-02-01",
+    "status": "draft",
+    "createdAt": "2025-02-01T09:00:00.000Z",
+    "createdBy": 1
+  }
+}
+```
+
+**截图要求**:
+- `amendment-form-empty.png` - 空白补充协议表单
+- `amendment-product-detail.png` - 产品明细填写完成
+- `amendment-payment-adjustment.png` - 付款计划调整
+- `amendment-form-complete.png` - 完整填写的表单
+- `amendment-created-success.png` - 创建成功后的列表
+- `contract-amount-updated.png` - 合同金额更新后
+
+**业务规则验证**:
+1. 只有执行中的合同才能创建补充协议
+2. 补充协议编号自动生成，格式AMD+时间戳
+3. 调整金额可以为正（增加）或负（减少）
+4. 新合同金额 = 原金额 ± 调整金额
+5. 如果新增产品，产品明细总额必须等于调整金额
+6. 如果调整付款计划，新计划总额必须等于新合同金额
+7. 已收款的付款阶段金额不受影响
+8. 补充协议生效后，合同金额和明细自动更新
+
+**错误场景测试**:
+1. 调整金额为0 → 提示"调整金额不能为0"
+2. 产品明细总额≠调整金额 → 提示"产品金额与调整金额不符"
+3. 新付款计划总额≠新合同金额 → 提示"付款计划总额有误"
+4. 减少金额超过原金额 → 提示"调整后金额不能为负"
+
+---
+
+## 场景6.5-6.10: 合同管理剩余场景（批量补充）
+
+由于篇幅和时间考虑，以下6个场景采用标准格式但步骤相对精简（每个20-30步），确保覆盖核心测试点：
+
+---
+
+## 场景6.5: 合同执行跟踪
+
+**需求编号**: CONTRACT-005
+**场景名称**: 合同执行进度跟踪（发货、收款、开票进度）
+**前置条件**: 已签订合同，有部分发货、收款记录
+
+**测试数据**:
+```javascript
+const trackingData = {
+  contractId: null,
+  contractAmount: 55600,
+  shippedAmount: 30000, // 已发货54%
+  receivedAmount: 16680, // 已收款30%  
+  invoicedAmount: 0      // 未开票0%
+}
+```
+
+**测试步骤**（25步）:
+
+| 步骤 | 操作 | 预期结果 | 验证点 |
+|------|------|---------|--------|
+| 1-5 | 进入合同详情页，切换到执行进度Tab | 显示进度仪表盘 | 4个进度指标 |
+| 6-8 | 验证发货进度 | 显示54% (30000/55600) | 进度条、数值、颜色 |
+| 9-11 | 验证收款进度 | 显示30% (16680/55600) | 进度条、数值 |
+| 12-14 | 验证开票进度 | 显示0% | 进度条灰色 |
+| 15-17 | 验证整体进度 | 综合进度28% | 加权平均计算 |
+| 18-20 | 查看发货明细列表 | 显示已发货记录2条 | 列表、金额 |
+| 21-23 | 查看收款明细列表 | 显示已收款记录1条 | 列表、阶段 |
+| 24-25 | 查看开票明细列表 | 空列表 | 提示"暂无开票" |
+
+**截图**: `contract-execution-dashboard.png`
+
+---
+
+## 场景6.6: 合同提醒与预警
+
+**需求编号**: CONTRACT-006  
+**场景名称**: 合同关键日期提醒（付款到期、交付到期、质保到期）
+
+**测试步骤**（20步）:
+
+| 步骤 | 操作 | 预期结果 | 验证点 |
+|------|------|---------|--------|
+| 1-3 | 登录系统，进入Dashboard | 显示待办任务列表 | 任务数量徽章 |
+| 4-6 | 查看合同提醒任务 | 显示"付款即将到期"任务 | 任务标题、优先级 |
+| 7-9 | 点击任务进入合同详情 | 自动跳转到合同页 | URL包含contractId |
+| 10-12 | 查看付款计划 | 高亮显示即将到期阶段 | 黄色/红色标记 |
+| 13-15 | 查看到期天数 | 显示"还有3天到期" | 倒计时提示 |
+| 16-18 | 标记任务为已处理 | 任务状态更新 | 从待办移除 |
+| 19-20 | 验证系统自动提醒 | 邮件/站内信发送 | 通知记录 |
+
+---
+
+## 场景6.7: 合同文件管理
+
+**需求编号**: CONTRACT-007
+**场景名称**: 合同文件上传、版本管理、下载
+
+**测试步骤**（28步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-3 | 进入合同详情，切换到文件管理Tab | - | `[role="tab"]:has-text("文件")` | 显示文件列表 | Tab激活 |
+| 4-6 | 点击上传文件按钮 | - | `button:has-text("上传")` | 打开上传对话框 | 对话框显示 |
+| 7-9 | 选择PDF文件 | contract_v1.pdf | 文件选择器 | 文件选择成功 | 文件名显示 |
+| 10-12 | 填写版本说明 | "初始合同版本" | `input[placeholder*="版本说明"]` | 填写成功 | 输入框有值 |
+| 13-15 | 确认上传 | - | `button:has-text("确定")` | 文件上传中 | 进度条显示 |
+| 16-18 | 验证上传成功 | - | 文件列表 | 显示v1.0版本 | 版本号、日期、大小 |
+| 19-21 | 上传第二个版本 | contract_v2.pdf, "补充协议后更新" | 同上 | 版本号自动递增v2.0 | 版本管理 |
+| 22-24 | 下载文件 | 点击v1.0下载按钮 | `button.download` | 文件下载成功 | 浏览器下载 |
+| 25-28 | 查看历史版本，对比差异 | - | `.version-history` | 显示所有版本，可对比 | 版本列表完整 |
+
+---
+
+## 场景6.8: 合同状态管理与流转
+
+**需求编号**: CONTRACT-008
+**场景名称**: 合同状态流转（草稿→签订→执行→完成→归档）
+
+**测试步骤**（22步）:
+
+| 步骤 | 操作 | 预期结果 | 验证点 |
+|------|------|---------|--------|
+| 1-2 | 创建新合同 | 状态为"草稿" | status=draft, 灰色标签 |
+| 3-4 | 验证可编辑性 | 金额、明细可编辑 | 输入框enabled |
+| 5-6 | 签订合同 | 状态变为"执行中" | status=executing, 绿色 |
+| 7-8 | 验证金额锁定 | 金额字段禁用 | 输入框disabled |
+| 9-10 | 完成全部发货 | shipped_amount = contract_amount | 进度100% |
+| 11-12 | 完成全部收款 | received_amount = contract_amount | 进度100% |
+| 13-14 | 完成全部开票 | invoiced_amount = contract_amount | 进度100% |
+| 15-16 | 点击完成合同 | 状态变为"已完成" | status=completed |
+| 17-18 | 验证不能再编辑 | 所有操作禁用 | 按钮disabled |
+| 19-20 | 质保期满后 | 系统自动归档 | status=archived |
+| 21-22 | 验证归档合同 | 只读模式，可查看历史 | 归档标记 |
+
+---
+
+## 场景6.9: 合同搜索与筛选
+
+**需求编号**: CONTRACT-009
+**场景名称**: 合同多维度搜索和高级筛选
+
+**测试步骤**（30步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-3 | 进入合同列表页 | - | `/contracts` | 显示所有合同 | 列表加载，分页显示 |
+| 4-6 | 按合同编号搜索 | "CT2025" | `input[placeholder*="编号"]` | 筛选包含CT2025的合同 | 结果过滤正确 |
+| 7-9 | 按客户名称搜索 | "测试酒店" | `input[placeholder*="客户"]` | 筛选该客户的合同 | 客户匹配 |
+| 10-12 | 按状态筛选 | "执行中" | `.el-select[placeholder*="状态"]` | 只显示executing状态 | 状态过滤 |
+| 13-15 | 按签订日期范围筛选 | 2025-01 to 2025-02 | `.el-date-picker-range` | 日期区间过滤 | 时间范围正确 |
+| 16-18 | 按金额范围筛选 | 50000-100000 | 金额区间输入 | 金额区间过滤 | 数值范围正确 |
+| 19-21 | 组合筛选 | 执行中 + 金额>50000 | 多个筛选条件 | AND逻辑组合 | 结果同时满足所有条件 |
+| 22-24 | 验证结果统计 | - | `.result-count` | 显示"共找到X条结果" | 数量准确 |
+| 25-27 | 清空筛选条件 | - | `button:has-text("重置")` | 恢复显示全部 | 筛选重置 |
+| 28-30 | 导出筛选结果 | - | `button:has-text("导出")` | 下载Excel文件 | 文件包含筛选数据 |
+
+---
+
+## 场景6.10: 合同统计报表
+
+**需求编号**: CONTRACT-010
+**场景名称**: 合同统计分析（按状态、按月、按客户）
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 选择器 | 预期结果 | 验证点 |
+|------|------|--------|---------|--------|
+| 1-3 | 进入合同统计页面 | `/contracts/statistics` | 显示统计Dashboard | 多个图表组件 |
+| 4-6 | 查看总体统计卡片 | `.summary-cards` | 显示合同总数、总金额、平均金额 | 数据汇总正确 |
+| 7-9 | 查看按状态统计饼图 | `.status-pie-chart` | 显示草稿/执行中/已完成占比 | 图表渲染，可交互 |
+| 10-12 | 点击饼图区块 | 点击"执行中" | 下方列表过滤显示执行中合同 | 联动过滤 |
+| 13-15 | 查看按月统计折线图 | `.monthly-trend-chart` | 显示每月签约数量和金额趋势 | X轴月份，Y轴数值 |
+| 16-18 | 悬停查看月度数据 | 鼠标悬停 | Tooltip显示详细数据 | 提示框正确 |
+| 19-21 | 查看TOP客户列表 | `.top-customers-table` | 显示合同金额TOP10客户 | 按金额降序排列 |
+| 22-24 | 查看执行进度分布柱状图 | `.progress-distribution-chart` | 显示0-25%、26-50%等区间合同数 | 柱状图分组 |
+| 25-26 | 导出统计报表 | `button:has-text("导出报表")` | 下载包含所有图表数据的Excel | 完整数据导出 |
+
+---
+
+✅ **合同管理9个场景全部完成！**
+
+
+---
+
+# P0 - 收款管理（7个场景）
+
+## 场景PAY-002至PAY-008: 收款管理完整场景
+
+收款管理模块的7个待补充场景，覆盖收款方式、分期跟踪、部分收款、核销更新、统计分析、逾期提醒、查询导出等核心功能。
+
+---
+
+## 场景PAY-002: 收款方式管理
+
+**需求编号**: PAY-002
+**场景名称**: 收款方式选择和银行信息管理
+
+**测试步骤**（24步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-3 | 进入合同详情，点击新建收款 | - | `button:has-text("登记收款")` | 打开收款表单 | 对话框显示 |
+| 4-6 | 选择收款方式 | "银行转账" | `.el-select[placeholder*="收款方式"]` | 下拉菜单展开 | 选项列表显示 |
+| 7-9 | 确认选择银行转账 | - | `.el-option:has-text("银行转账")` | 选择成功 | 显示"银行转账" |
+| 10-12 | 填写收款银行 | "中国工商银行深圳科技园支行" | `input[placeholder*="银行"]` | 填写成功 | 输入框有值 |
+| 13-15 | 填写银行账号 | "6222000012345678" | `input[placeholder*="账号"]` | 填写成功 | 输入框有值 |
+| 16-18 | 填写账户名称 | "艾居来科技有限公司" | `input[placeholder*="户名"]` | 填写成功 | 输入框有值 |
+| 19-21 | 上传收款凭证 | 选择转账截图 | `.el-upload` | 图片上传成功 | 预览显示 |
+| 22-24 | 保存收款记录，验证银行信息显示 | - | `button:has-text("保存")` | 创建成功，详情显示银行信息 | 数据完整 |
+
+**截图**: `payment-bank-transfer-info.png`
+
+---
+
+## 场景PAY-003: 分期收款跟踪
+
+**需求编号**: PAY-003
+**场景名称**: 合同分期收款计划跟踪管理
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 预期结果 | 验证点 |
+|------|------|---------|--------|
+| 1-3 | 进入合同详情页 | 显示付款计划3个阶段 | 付款计划表格 |
+| 4-6 | 查看第1期状态 | 显示"已收款"绿色标记 | status=received |
+| 7-9 | 查看第2期状态 | 显示"待收款"黄色标记 | status=pending |
+| 10-12 | 查看第3期状态 | 显示"待收款"黄色标记 | status=pending |
+| 13-15 | 点击第2期"登记收款"按钮 | 打开收款表单 | 阶段信息自动填充 |
+| 16-18 | 验证金额自动填充 | 金额=22240（第2期金额） | 输入框预填充 |
+| 19-21 | 填写实际收款信息，保存 | 收款成功 | 第2期状态更新为"已收款" |
+| 22-24 | 验证整体收款进度更新 | 显示70% ((16680+22240)/55600) | 进度条、百分比 |
+| 25-26 | 验证第3期仍为待收款 | 状态不变 | 黄色标记 |
+
+---
+
+## 场景PAY-004: 部分收款支持
+
+**需求编号**: PAY-004  
+**场景名称**: 支持部分收款并累加计算
+
+**测试步骤**（28步）:
+
+| 步骤 | 操作 | 输入数据 | 预期结果 | 验证点 |
+|------|------|---------|---------|--------|
+| 1-4 | 进入第2期付款阶段，登记第一笔部分收款 | 金额10000 | 收款记录创建成功 | payment_amount=10000 |
+| 5-8 | 验证阶段状态 | - | 显示"部分收款"橙色标记 | 部分收款视觉标识 |
+| 9-12 | 验证已收/应收显示 | - | 显示"10000/22240" | 累加计算正确 |
+| 13-16 | 登记第二笔收款 | 金额12240 | 收款记录创建成功 | 第2笔记录 |
+| 17-20 | 验证阶段状态更新 | - | 变为"已完成"绿色标记 | status=completed |
+| 21-24 | 验证总收款金额 | - | 显示22240 | 10000+12240=22240 |
+| 25-28 | 验证合同总收款更新 | - | received_amount增加22240 | 合同金额累加 |
+
+---
+
+## 场景PAY-005: 收款核销与自动更新
+
+**需求编号**: PAY-005
+**场景名称**: 收款确认后自动更新合同已收款金额
+
+**测试步骤**（22步）:
+
+| 步骤 | 操作 | 预期结果 | 验证点 |
+|------|------|---------|--------|
+| 1-3 | 查看合同收款前状态 | received_amount = 16680 | 数据基线 |
+| 4-6 | 创建新收款记录（草稿） | 金额22240，status=draft | 创建成功 |
+| 7-9 | 验证合同金额未变化 | received_amount仍为16680 | 草稿不触发更新 |
+| 10-12 | 确认收款记录 | 状态变为confirmed | status更新 |
+| 13-15 | 验证合同金额自动更新 | received_amount = 38920 | 自动核销：16680+22240 |
+| 16-18 | 作废收款记录 | 填写作废原因，提交 | status=voided |
+| 19-22 | 验证合同金额自动回退 | received_amount回到16680 | 自动回退逻辑正确 |
+
+---
+
+## 场景PAY-006: 应收账款统计
+
+**需求编号**: PAY-006
+**场景名称**: 应收账款统计分析和账龄分析
+
+**测试步骤**（30步）:
+
+| 步骤 | 操作 | 选择器 | 预期结果 | 验证点 |
+|------|------|--------|---------|--------|
+| 1-4 | 进入应收账款统计页面 | `/payments/statistics` | 显示统计Dashboard | 多个统计卡片 |
+| 5-8 | 查看总体统计 | `.summary-cards` | 显示合同总额、已收、应收 | 数值汇总 |
+| 9-12 | 验证收款率计算 | `.collection-rate` | 显示整体收款率% | 已收/应收*100% |
+| 13-16 | 查看账龄分析表 | `.aging-analysis-table` | 分组：未逾期、0-30天、30-60天、60天+ | 分组统计 |
+| 17-20 | 查看客户应收排名 | `.top-receivables-table` | TOP10客户按应收金额降序 | 排序正确 |
+| 21-24 | 查看逾期应收 | `.overdue-receivables` | 红色高亮显示逾期记录 | 颜色标记 |
+| 25-28 | 筛选特定账龄 | 选择"30-60天" | 过滤对应区间数据 | 筛选正确 |
+| 29-30 | 导出应收明细 | `button:has-text("导出")` | 下载Excel文件 | 包含所有应收数据 |
+
+---
+
+## 场景PAY-007: 收款逾期提醒
+
+**需求编号**: PAY-007
+**场景名称**: 收款到期自动提醒和逾期预警
+
+**测试步骤**（18步）:
+
+| 步骤 | 操作 | 预期结果 | 验证点 |
+|------|------|---------|--------|
+| 1-3 | 系统定时任务扫描 | 检测到期日期临近3天内的付款阶段 | 后台任务执行 |
+| 4-6 | 自动生成待办任务 | 创建"收款提醒"任务 | task_type=payment_reminder |
+| 7-9 | 登录系统查看待办 | 显示收款提醒任务 | 任务列表有数据 |
+| 10-12 | 查看逾期收款 | 红色标记，显示"逾期X天" | 逾期视觉提示 |
+| 13-15 | 点击任务进入合同 | 自动跳转到合同详情 | URL正确 |
+| 16-18 | 处理并标记任务完成 | 任务状态更新为completed | 待办移除 |
+
+---
+
+## 场景PAY-008: 收款记录查询导出
+
+**需求编号**: PAY-008
+**场景名称**: 收款记录多维度查询和批量导出
+
+**测试步骤**（32步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-4 | 进入收款记录列表页 | - | `/payments` | 显示所有收款记录 | 列表分页显示 |
+| 5-8 | 按收款日期筛选 | 2025-01~2025-02 | `.el-date-picker-range` | 日期区间过滤 | 时间范围正确 |
+| 9-12 | 按客户名称筛选 | "测试酒店" | `input[placeholder*="客户"]` | 客户名称模糊匹配 | 过滤正确 |
+| 13-16 | 按收款方式筛选 | "银行转账" | `.el-select[placeholder*="方式"]` | 只显示银行转账记录 | 方式过滤 |
+| 17-20 | 按收款状态筛选 | "已确认" | `.el-select[placeholder*="状态"]` | 只显示confirmed状态 | 状态过滤 |
+| 21-24 | 验证筛选结果统计 | - | `.filter-result-summary` | 显示"共X条，合计X元" | 数量和金额汇总 |
+| 25-28 | 组合多个筛选条件 | 时间+客户+状态 | - | AND逻辑组合 | 多条件过滤 |
+| 29-32 | 导出Excel | - | `button:has-text("导出")` | 下载文件，验证内容 | 包含所有筛选数据 |
+
+---
+
+✅ **收款管理7个场景全部完成！**
+
+
+---
+
+# P0 - 发票管理（3个场景）
+
+## 场景INV-002至INV-004: 发票管理核心场景
+
+补充发票管理模块剩余3个核心场景，覆盖发票类型管理、收款关联、状态流转等关键功能。
+
+---
+
+## 场景INV-002: 发票类型与信息管理
+
+**需求编号**: INV-002
+**场景名称**: 增值税专用发票和普通发票信息管理
+
+**测试步骤**（36步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-3 | 进入合同详情，点击开具发票 | - | `button:has-text("开具发票")` | 打开发票表单 | 对话框显示 |
+| 4-6 | 选择发票类型 | "增值税专用发票" | `.el-select[placeholder*="发票类型"]` | 类型选择成功 | 下拉选中 |
+| 7-9 | 验证专票必填字段显示 | - | 表单字段 | 显示6个必填字段 | 抬头、税号、地址、电话、银行、账号 |
+| 10-12 | 填写发票抬头 | "深圳测试酒店管理有限公司" | `input[placeholder*="抬头"]` | 填写成功 | 输入框有值 |
+| 13-15 | 填写纳税人识别号 | "91440300MA5XXXXX" | `input[placeholder*="税号"]` | 填写成功，格式验证 | 18位统一社会信用代码 |
+| 16-18 | 填写公司地址 | "深圳市南山区科技园南区" | `input[placeholder*="地址"]` | 填写成功 | 输入框有值 |
+| 19-21 | 填写公司电话 | "0755-12345678" | `input[placeholder*="电话"]` | 填写成功 | 输入框有值 |
+| 22-24 | 填写开户银行 | "中国工商银行深圳科技园支行" | `input[placeholder*="开户"]` | 填写成功 | 输入框有值 |
+| 25-27 | 填写银行账号 | "4000123456789012" | `input[placeholder*="账号"]` | 填写成功 | 输入框有值 |
+| 28-30 | 切换为普通发票 | "普通发票" | 类型选择 | 字段简化 | 只显示发票抬头 |
+| 31-33 | 验证其他字段隐藏 | - | 表单 | 税号等字段不再必填 | 字段隐藏或非必填 |
+| 34-36 | 保存发票信息 | - | `button:has-text("保存")` | 创建成功，类型信息正确 | 数据保存 |
+
+**截图**: `invoice-vat-special-form.png`, `invoice-vat-normal-form.png`
+
+---
+
+## 场景INV-003: 发票与收款关联
+
+**需求编号**: INV-003
+**场景名称**: 发票关联收款记录管理
+
+**测试步骤**（24步）:
+
+| 步骤 | 操作 | 选择器 | 预期结果 | 验证点 |
+|------|------|--------|---------|--------|
+| 1-4 | 创建发票，选择关联合同 | 合同选择器 | 合同信息自动填充 | 合同编号、客户名称 |
+| 5-8 | 查看该合同收款记录 | `.payment-list` | 显示已确认收款列表 | 可选收款记录 |
+| 9-12 | 选择关联收款记录 | 选择已确认收款 | 关联成功 | payment_id设置 |
+| 13-16 | 验证发票金额自动填充 | `.invoice-amount` | 金额等于收款金额 | 自动填充 |
+| 17-20 | 查看收款记录详情 | 跳转到收款详情 | 显示"已开票"状态标记 | 关联状态 |
+| 21-24 | 取消关联，验证状态恢复 | 清除payment_id | 收款状态变回"未开票" | 状态同步 |
+
+---
+
+## 场景INV-004: 发票状态管理
+
+**需求编号**: INV-004
+**场景名称**: 发票状态流转（草稿→已开具→已作废）
+
+**测试步骤**（30步）:
+
+| 步骤 | 操作 | 预期结果 | 验证点 |
+|------|------|---------|--------|
+| 1-3 | 创建发票记录 | 状态为"草稿" | status=draft，灰色标签 |
+| 4-6 | 验证合同已开票金额未变 | invoiced_amount不变 | 草稿不触发更新 |
+| 7-9 | 点击开具发票按钮 | 打开确认对话框 | 对话框显示 |
+| 10-12 | 填写开票日期 | 选择日期 | 日期选择成功 |
+| 13-15 | 上传发票扫描件 | 选择PDF文件 | 文件上传成功 | 预览显示 |
+| 16-18 | 确认开具 | 状态变为"已开具" | status=confirmed，绿色标签 |
+| 19-21 | 验证合同已开票金额增加 | invoiced_amount更新 | 自动核销，金额增加 |
+| 22-24 | 点击作废按钮 | 打开作废对话框 | 对话框显示 |
+| 25-27 | 填写作废原因 | "发票信息有误，需重开" | 原因必填 |
+| 28-30 | 确认作废，验证金额回退 | status=voided，invoiced_amount减少 | 自动回退逻辑 |
+
+**业务规则**:
+1. 只有草稿状态的发票才能开具
+2. 只有已开具的发票才能作废
+3. 作废必须填写原因
+4. 作废后不能恢复，只能重新创建
+
+---
+
+✅ **发票管理3个场景全部完成！**
+
+---
+
+# 模块8: 售后服务管理 (4个场景)
+
+## 场景SVC-003: 工单操作日志记录
+
+**需求编号**: SVC-003
+**场景名称**: 售后工单全流程操作日志自动记录
+
+**测试数据**:
+```javascript
+const ticketData = {
+  ticketNo: `SVC${Date.now()}`,
+  contractId: null,  // 从已有合同中选择
+  customerId: null,  // 自动关联
+  productId: 1,
+  issueType: '设备故障',
+  issueDescription: '门锁无法正常开启，显示屏无反应',
+  priority: 'high',
+  reportedBy: '客户-张经理',
+  reportedDate: '2025-01-10 09:30:00',
+  assignedTo: null,  // 将分配给技术员
+  status: 'pending'
+};
+
+// 预期的操作日志记录
+const expectedLogs = [
+  {action: '创建工单', operator: '客服-李娜', timestamp: '2025-01-10 09:30:00', details: '工单创建成功'},
+  {action: '分配工单', operator: '客服-李娜', timestamp: '2025-01-10 09:35:00', details: '分配给: 技术员-王工'},
+  {action: '接受工单', operator: '技术员-王工', timestamp: '2025-01-10 10:00:00', details: '工单已接受'},
+  {action: '开始处理', operator: '技术员-王工', timestamp: '2025-01-10 14:00:00', details: '已到达现场'},
+  {action: '更新进度', operator: '技术员-王工', timestamp: '2025-01-10 15:30:00', details: '故障原因：电池耗尽，正在更换'},
+  {action: '更换配件', operator: '技术员-王工', timestamp: '2025-01-10 15:45:00', details: '更换电池 x1'},
+  {action: '完成处理', operator: '技术员-王工', timestamp: '2025-01-10 16:00:00', details: '故障已修复'},
+  {action: '客户确认', operator: '客户-张经理', timestamp: '2025-01-10 16:15:00', details: '客户签字确认'},
+  {action: '关闭工单', operator: '技术员-王工', timestamp: '2025-01-10 16:20:00', details: '工单已关闭'}
+];
+```
+
+**测试步骤**（28步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1 | 进入售后工单列表页 | - | `a[href="/service-tickets"]` | 页面加载成功 | 页面标题 |
+| 2 | 点击新建工单按钮 | - | `button:has-text("新建工单")` | 打开工单创建表单 | 表单显示 |
+| 3 | 选择关联合同 | contractId | `select#contract-select` | 客户信息自动填充 | 客户名称显示 |
+| 4 | 选择故障产品 | productId=1 | `select#product-select` | 产品信息显示 | 产品名称 |
+| 5 | 选择问题类型 | 设备故障 | `select#issue-type` | 类型选择成功 | 下拉选项 |
+| 6 | 输入问题描述 | 详细描述 | `textarea#issue-desc` | 文本输入成功 | 字数统计 |
+| 7 | 设置优先级 | high | `select#priority` | 优先级高 | 红色标记 |
+| 8 | 填写报修人信息 | 张经理 | `input#reported-by` | 信息填写成功 | 输入框值 |
+| 9 | 提交创建工单 | - | `button:has-text("提交")` | 工单创建成功 | 成功提示 |
+| 10 | **验证日志记录** | - | API: GET /api/service-tickets/:id/logs | **第1条日志**: action=创建工单 | 日志自动生成 |
+| 11 | 进入工单详情页 | - | 点击工单编号 | 显示工单详情 | 详情页加载 |
+| 12 | 点击操作日志标签页 | - | `tab:has-text("操作日志")` | 显示日志列表 | 1条记录 |
+| 13 | 点击分配工单按钮 | - | `button:has-text("分配工单")` | 打开分配对话框 | 对话框显示 |
+| 14 | 选择技术员 | 王工 | `select#assign-to` | 技术员选择成功 | 下拉选项 |
+| 15 | 确认分配 | - | `button:has-text("确定")` | 分配成功 | 状态变为已分配 |
+| 16 | **验证日志记录** | - | 刷新日志列表 | **第2条日志**: action=分配工单, details=分配给王工 | 日志增加 |
+| 17 | 切换到技术员账号登录 | - | 退出登录，重新登录 | 登录成功 | 技术员界面 |
+| 18 | 查看待处理工单 | - | `a[href="/my-tickets"]` | 显示分配的工单 | 工单列表 |
+| 19 | 点击接受工单 | - | `button:has-text("接受")` | 工单状态变为进行中 | 状态更新 |
+| 20 | **验证日志记录** | - | 查看日志 | **第3条日志**: action=接受工单 | 操作者=王工 |
+| 21 | 点击开始处理按钮 | - | `button:has-text("开始处理")` | 打开进度更新表单 | 表单显示 |
+| 22 | 填写处理进度 | "已到达现场" | `textarea#progress-note` | 进度备注输入 | 文本框值 |
+| 23 | 提交进度更新 | - | `button:has-text("提交")` | 进度更新成功 | 成功提示 |
+| 24 | **验证日志记录** | - | 查看日志 | **第4条日志**: action=更新进度 | 包含进度详情 |
+| 25 | 点击更换配件按钮 | - | `button:has-text("更换配件")` | 打开配件选择表单 | 表单显示 |
+| 26 | 选择配件并确认 | 电池 x1 | `select#spare-part` | 配件记录添加 | 配件列表更新 |
+| 27 | **验证日志记录** | - | 查看日志 | **第5条日志**: action=更换配件, details=电池x1 | 配件信息 |
+| 28 | 完成工单并关闭 | 填写处理结果 | `button:has-text("完成")` | 工单关闭成功 | status=closed |
+
+**API响应示例**:
+
+```json
+// GET /api/service-tickets/1/logs
+{
+  "code": 200,
+  "message": "操作日志获取成功",
+  "data": [
+    {
+      "log_id": 1,
+      "ticket_id": 1,
+      "action": "创建工单",
+      "operator_id": 5,
+      "operator_name": "李娜",
+      "operator_role": "客服",
+      "timestamp": "2025-01-10T09:30:00Z",
+      "details": "工单创建成功",
+      "ip_address": "192.168.1.100",
+      "user_agent": "Mozilla/5.0..."
+    },
+    {
+      "log_id": 2,
+      "ticket_id": 1,
+      "action": "分配工单",
+      "operator_id": 5,
+      "operator_name": "李娜",
+      "timestamp": "2025-01-10T09:35:00Z",
+      "details": "分配给: 技术员-王工",
+      "previous_value": null,
+      "new_value": "user_id=8"
+    },
+    // ... 其他日志记录
+  ]
+}
+```
+
+**业务规则**:
+1. 所有关键操作必须自动记录日志（创建、分配、接受、更新、完成、关闭）
+2. 日志包含操作人、时间戳、操作类型、详细描述
+3. 日志按时间倒序排列（最新的在最上面）
+4. 日志不可修改或删除（审计合规）
+5. 配件更换、状态变更等重要操作需记录变更前后值
+
+**截图**: `service-ticket-operation-log.png`
+
+---
+
+## 场景SVC-004: 配件更换与费用管理
+
+**需求编号**: SVC-004
+**场景名称**: 售后配件更换记录及费用计算
+
+**测试数据**:
+```javascript
+const spareParts = [
+  {
+    partId: 1,
+    partCode: 'BAT-001',
+    partName: '锂电池',
+    partCategory: '电源组件',
+    unitPrice: 50,
+    quantity: 1,
+    warrantyStatus: 'in_warranty',  // 保内免费
+    chargeAmount: 0
+  },
+  {
+    partId: 2,
+    partCode: 'SCR-001',
+    partName: '触摸屏',
+    partCategory: '显示组件',
+    unitPrice: 280,
+    quantity: 1,
+    warrantyStatus: 'out_of_warranty',  // 保外收费
+    chargeAmount: 280
+  },
+  {
+    partId: 3,
+    partCode: 'PCB-001',
+    partName: '主控板',
+    partCategory: '电子组件',
+    unitPrice: 450,
+    quantity: 1,
+    warrantyStatus: 'in_warranty',
+    chargeAmount: 0
+  }
+];
+
+const serviceCharge = {
+  laborFee: 100,  // 人工费
+  transportFee: 50,  // 交通费
+  totalPartsCost: 280,  // 配件总费用
+  totalCharge: 430,  // 总费用 = 人工+交通+配件
+  chargeType: 'customer_paid',  // 客户自费
+  paymentStatus: 'unpaid'
+};
+```
+
+**测试步骤**（32步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 进入工单详情页 | ticketId | `a[href="/service-tickets/1"]` | 工单详情加载 | 工单编号显示 |
+| 3-4 | 点击"配件管理"标签 | - | `tab:has-text("配件管理")` | 显示配件列表 | 空列表或已有配件 |
+| 5-6 | 点击"添加配件"按钮 | - | `button:has-text("添加配件")` | 打开配件选择对话框 | 对话框显示 |
+| 7-8 | 选择配件类别 | 电源组件 | `select#part-category` | 过滤配件列表 | 类别过滤 |
+| 9-10 | 选择具体配件 | BAT-001 | `select#spare-part` | 配件信息显示 | 单价、库存 |
+| 11-12 | 输入更换数量 | 1 | `input#quantity` | 数量输入成功 | 数量验证 |
+| 13-14 | 选择保修状态 | 保内 | `radio:has-text("保内")` | 费用自动为0 | 金额计算 |
+| 15-16 | 确认添加配件 | - | `button:has-text("确定")` | 配件添加成功 | 列表更新 |
+| 17-18 | **验证配件记录** | - | API: GET /api/service-tickets/1/parts | 配件记录已保存 | partId=1, charge=0 |
+| 19-20 | 再次添加配件 | SCR-001 | 重复步骤5-6 | 打开对话框 | 对话框显示 |
+| 21-22 | 选择保外配件 | 触摸屏 | `select#spare-part` | 配件信息显示 | unitPrice=280 |
+| 23-24 | 选择保修状态 | 保外 | `radio:has-text("保外")` | 费用自动计算 | charge=280 |
+| 25-26 | 确认添加 | - | `button:has-text("确定")` | 第二个配件添加 | 列表2条记录 |
+| 27-28 | 点击"费用明细"按钮 | - | `button:has-text("费用明细")` | 显示费用计算表 | 明细表显示 |
+| 29-30 | 填写人工费 | 100 | `input#labor-fee` | 人工费输入 | 数字验证 |
+| 31-32 | 填写交通费 | 50 | `input#transport-fee` | 交通费输入 | 数字验证 |
+
+**API响应示例**:
+
+```json
+// POST /api/service-tickets/1/parts
+{
+  "code": 201,
+  "message": "配件添加成功",
+  "data": {
+    "ticket_part_id": 1,
+    "ticket_id": 1,
+    "part_id": 1,
+    "part_code": "BAT-001",
+    "part_name": "锂电池",
+    "unit_price": 50.00,
+    "quantity": 1,
+    "warranty_status": "in_warranty",
+    "charge_amount": 0.00,
+    "replaced_by": "王工",
+    "replaced_at": "2025-01-10T15:45:00Z"
+  }
+}
+
+// GET /api/service-tickets/1/charge-summary
+{
+  "code": 200,
+  "message": "费用汇总获取成功",
+  "data": {
+    "ticket_id": 1,
+    "parts_cost": 280.00,  // 配件费用合计
+    "parts_list": [
+      {"part_name": "锂电池", "charge": 0.00, "warranty": "保内"},
+      {"part_name": "触摸屏", "charge": 280.00, "warranty": "保外"}
+    ],
+    "labor_fee": 100.00,
+    "transport_fee": 50.00,
+    "other_fee": 0.00,
+    "subtotal": 430.00,
+    "discount": 0.00,
+    "total_charge": 430.00,
+    "payment_status": "unpaid"
+  }
+}
+```
+
+**业务规则**:
+1. 保内配件更换免费，保外配件按单价收费
+2. 人工费和交通费根据公司标准设置
+3. 费用明细必须在工单完成前确认
+4. 配件库存不足时提示并阻止添加
+5. 费用变更需要主管审批（超过500元）
+
+**截图**: `service-parts-replacement.png`, `service-charge-summary.png`
+
+---
+
+## 场景SVC-007: 工单响应与处理超时提醒
+
+**需求编号**: SVC-007
+**场景名称**: 售后工单SLA超时自动提醒机制
+
+**测试数据**:
+```javascript
+// SLA时效标准
+const slaStandards = {
+  high: {
+    responseTime: 2,  // 2小时内响应
+    resolutionTime: 24  // 24小时内解决
+  },
+  medium: {
+    responseTime: 4,  // 4小时内响应
+    resolutionTime: 48  // 48小时内解决
+  },
+  low: {
+    responseTime: 8,  // 8小时内响应
+    resolutionTime: 72  // 72小时内解决
+  }
+};
+
+// 超时提醒规则
+const reminderRules = [
+  {
+    timing: '接近超时',
+    condition: '剩余时间 < 25%',
+    action: '发送预警通知',
+    recipients: ['责任人']
+  },
+  {
+    timing: '已超时',
+    condition: '超过SLA时间',
+    action: '发送告警通知',
+    recipients: ['责任人', '主管', '客服经理']
+  },
+  {
+    timing: '严重超时',
+    condition: '超时 > 50%',
+    action: '发送紧急告警',
+    recipients: ['责任人', '主管', '总经理']
+  }
+];
+
+// 测试工单
+const testTickets = [
+  {
+    ticketNo: 'SVC202501100001',
+    priority: 'high',
+    createdAt: '2025-01-10 08:00:00',
+    slaResponseDeadline: '2025-01-10 10:00:00',  // 2小时后
+    slaResolutionDeadline: '2025-01-11 08:00:00',  // 24小时后
+    status: 'pending'
+  }
+];
+```
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 输入数据/模拟时间 | 选择器 | 预期结果 | 验证点 |
+|------|------|------------------|--------|---------|--------|
+| 1-2 | 创建高优先级工单 | priority=high | API: POST /api/service-tickets | 工单创建成功 | SLA时间自动设置 |
+| 3-4 | **验证SLA时间** | - | 查看工单详情 | responseDeadline=2小时后, resolutionDeadline=24小时后 | SLA计算正确 |
+| 5-6 | 模拟时间推进1.5小时 | currentTime=09:30 | 系统定时任务 | 触发预警检查 | 剩余0.5小时 |
+| 7-8 | **验证预警通知** | - | API: GET /api/notifications | 预警通知已发送 | 接收人=责任技术员 |
+| 9-10 | 查看工单列表 | - | `a[href="/service-tickets"]` | 工单显示黄色预警标记 | 视觉提醒 |
+| 11-12 | 点击工单进入详情 | - | 点击工单编号 | 显示SLA倒计时 | 剩余30分钟 |
+| 13-14 | 模拟时间推进1小时 | currentTime=10:30 | 系统定时任务 | 触发响应超时告警 | 超时30分钟 |
+| 15-16 | **验证超时告警** | - | API: GET /api/notifications | 告警通知已发送 | 接收人=技术员+主管+经理 |
+| 17-18 | 刷新工单列表 | - | F5刷新 | 工单显示红色超时标记 | 状态=response_overdue |
+| 19-20 | 查看SLA统计报表 | - | `a[href="/service/sla-report"]` | 显示超时工单数量 | 响应超时率统计 |
+| 21-22 | 技术员接受工单 | - | `button:has-text("接受")` | 响应超时解除 | 响应阶段完成 |
+| 23-24 | **验证解决倒计时开始** | - | 查看工单详情 | 显示解决剩余时间 | 距离解决deadline |
+| 25-26 | 模拟48小时后完成 | currentTime=48小时后 | 完成工单 | 工单关闭成功 | resolution_time=48h |
+
+**API响应示例**:
+
+```json
+// GET /api/service-tickets/1/sla-status
+{
+  "code": 200,
+  "message": "SLA状态获取成功",
+  "data": {
+    "ticket_id": 1,
+    "priority": "high",
+    "response_sla": {
+      "deadline": "2025-01-10T10:00:00Z",
+      "elapsed_time": 90,  // 已过90分钟
+      "remaining_time": 30,  // 剩余30分钟
+      "status": "warning",  // warning | overdue | met
+      "percentage": 75  // 已用75%时间
+    },
+    "resolution_sla": {
+      "deadline": "2025-01-11T08:00:00Z",
+      "elapsed_time": 90,
+      "remaining_time": 1350,  // 剩余22.5小时
+      "status": "normal",
+      "percentage": 6
+    },
+    "overdue_minutes": 0,  // 超时分钟数
+    "alert_level": "warning"  // normal | warning | danger | critical
+  }
+}
+
+// POST /api/notifications (自动生成的提醒)
+{
+  "notification_id": 1,
+  "type": "sla_warning",
+  "title": "工单响应即将超时",
+  "message": "工单 SVC202501100001 将在30分钟后超时，请尽快响应",
+  "priority": "high",
+  "recipients": [
+    {"user_id": 8, "name": "王工", "role": "technician"}
+  ],
+  "sent_at": "2025-01-10T09:30:00Z",
+  "read_status": false
+}
+```
+
+**业务规则**:
+1. 响应时间从工单创建开始计算，到技术员接受工单为止
+2. 解决时间从工单创建开始计算，到工单关闭为止
+3. 剩余时间 < 25% 时发送预警（黄色）
+4. 超时后每小时发送一次告警（红色）
+5. 非工作时间（周末、节假日）不计入SLA时间
+6. 客户暂停工单期间，SLA时间暂停计算
+
+**截图**: `service-sla-warning.png`, `service-sla-overdue.png`, `service-sla-report.png`
+
+---
+
+## 场景SVC-009: 售后回访记录集成
+
+**需求编号**: SVC-009
+**场景名称**: 工单关闭后自动触发客户回访流程
+
+**测试数据**:
+```javascript
+const followUpData = {
+  ticketId: 1,
+  ticketNo: 'SVC202501100001',
+  customerId: 1,
+  customerName: '丽枫酒店',
+  contactPerson: '张经理',
+  contactPhone: '13800138000',
+  
+  // 自动触发回访
+  followUpTrigger: {
+    trigger_time: '工单关闭后24小时',
+    trigger_status: 'auto',
+    scheduled_date: '2025-01-12 10:00:00'
+  },
+  
+  // 回访问卷
+  questionnaire: [
+    {
+      question: '对本次服务的整体满意度？',
+      type: 'rating',
+      options: [1, 2, 3, 4, 5],
+      answer: 5,
+      required: true
+    },
+    {
+      question: '技术员响应及时性？',
+      type: 'rating',
+      options: [1, 2, 3, 4, 5],
+      answer: 5
+    },
+    {
+      question: '技术员专业性？',
+      type: 'rating',
+      options: [1, 2, 3, 4, 5],
+      answer: 4
+    },
+    {
+      question: '问题是否彻底解决？',
+      type: 'choice',
+      options: ['是', '否', '部分解决'],
+      answer: '是'
+    },
+    {
+      question: '其他意见或建议',
+      type: 'text',
+      answer: '服务很好，希望能提供定期保养服务'
+    }
+  ],
+  
+  // 回访结果
+  followUpResult: {
+    overall_satisfaction: 5,
+    response_timeliness: 5,
+    technician_professionalism: 4,
+    issue_resolved: true,
+    willing_to_recommend: true,
+    feedback: '服务很好，希望能提供定期保养服务',
+    follow_up_by: '客服-李娜',
+    follow_up_date: '2025-01-12 10:15:00',
+    follow_up_method: 'phone'  // phone | email | wechat
+  }
+};
+```
+
+**测试步骤**（30步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 创建并完成一个工单 | 完整工单流程 | 工单详情页 | 工单状态=已关闭 | status=closed |
+| 3-4 | **验证回访任务自动创建** | - | API: GET /api/follow-ups | 回访任务已自动生成 | trigger=auto, status=pending |
+| 5-6 | 进入售后回访列表 | - | `a[href="/follow-ups"]` | 显示待回访列表 | 1条新任务 |
+| 7-8 | 查看回访任务详情 | - | 点击回访记录 | 显示关联工单信息 | ticket_id, customer_name |
+| 9-10 | 点击"开始回访"按钮 | - | `button:has-text("开始回访")` | 打开回访问卷表单 | 问卷显示 |
+| 11-12 | 回答第1题：整体满意度 | 5星 | `input[type="radio"][value="5"]` | 选择成功 | 星级高亮 |
+| 13-14 | 回答第2题：响应及时性 | 5星 | `input[type="radio"][value="5"]` | 选择成功 | 星级高亮 |
+| 15-16 | 回答第3题：技术员专业性 | 4星 | `input[type="radio"][value="4"]` | 选择成功 | 星级高亮 |
+| 17-18 | 回答第4题：问题是否解决 | 是 | `select#issue-resolved` | 选择成功 | 下拉选项 |
+| 19-20 | 填写其他意见 | 文本反馈 | `textarea#feedback` | 文本输入成功 | 字数统计 |
+| 21-22 | 选择回访方式 | 电话 | `select#follow-up-method` | 方式选择成功 | method=phone |
+| 23-24 | 提交回访记录 | - | `button:has-text("提交")` | 回访记录保存成功 | 成功提示 |
+| 25-26 | **验证回访状态更新** | - | API: GET /api/follow-ups/1 | status=completed | 状态已完成 |
+| 27-28 | **验证工单关联** | - | 查看工单详情 | 显示回访结果摘要 | satisfaction=5星 |
+| 29-30 | 查看客户档案 | - | `a[href="/customers/1"]` | 客户档案显示回访历史 | 回访记录列表 |
+
+**API响应示例**:
+
+```json
+// POST /api/service-tickets/1/close (关闭工单时自动触发回访)
+{
+  "code": 200,
+  "message": "工单关闭成功，回访任务已自动创建",
+  "data": {
+    "ticket_id": 1,
+    "status": "closed",
+    "closed_at": "2025-01-11T16:20:00Z",
+    "follow_up_created": true,
+    "follow_up_id": 1,
+    "follow_up_scheduled_date": "2025-01-12T10:00:00Z"
+  }
+}
+
+// POST /api/follow-ups/1/submit
+{
+  "code": 201,
+  "message": "回访记录提交成功",
+  "data": {
+    "follow_up_id": 1,
+    "ticket_id": 1,
+    "customer_id": 1,
+    "overall_satisfaction": 5,
+    "satisfaction_score": 4.5,  // 平均分
+    "issue_resolved": true,
+    "feedback": "服务很好，希望能提供定期保养服务",
+    "follow_up_by": "李娜",
+    "follow_up_date": "2025-01-12T10:15:00Z",
+    "follow_up_method": "phone",
+    "status": "completed",
+    
+    // 自动分析
+    "sentiment_analysis": "positive",  // positive | neutral | negative
+    "keywords": ["服务好", "定期保养"],
+    "requires_follow_up_action": true,  // 需要后续行动
+    "suggested_action": "安排商务拓展定期保养服务"
+  }
+}
+
+// GET /api/service-tickets/1 (工单详情包含回访摘要)
+{
+  "code": 200,
+  "data": {
+    "ticket_id": 1,
+    "ticket_no": "SVC202501100001",
+    // ... 其他工单信息 ...
+    "follow_up_summary": {
+      "follow_up_id": 1,
+      "satisfaction": 5,
+      "satisfaction_label": "非常满意",
+      "issue_resolved": true,
+      "follow_up_date": "2025-01-12T10:15:00Z",
+      "has_feedback": true
+    }
+  }
+}
+```
+
+**业务规则**:
+1. 工单关闭后24小时自动创建回访任务
+2. 整体满意度为必填项（1-5星）
+3. 满意度≤3星时，自动标记为"需要主管跟进"
+4. 回访完成后，更新客户满意度档案
+5. 回访反馈中的改进建议自动转为任务
+6. 连续3次满意度5星的客户，标记为"优质客户"
+
+**截图**: `follow-up-questionnaire.png`, `follow-up-completed.png`, `ticket-with-follow-up.png`
+
+---
+
+✅ **售后服务管理4个场景全部完成！**
+
+
+---
+
+# 模块3: 客户管理 (3个核心场景 - P0)
+
+## 场景CUS-002: 客户跟进记录管理
+
+**需求编号**: CUS-002
+**场景名称**: 客户跟进记录的创建、查看与分析
+
+**测试数据**:
+```javascript
+const followUpRecords = [
+  {
+    customerId: 1,
+    customerName: '丽枫酒店',
+    followUpDate: '2025-01-15 14:30:00',
+    followUpType: 'phone',  // phone | email | visit | wechat
+    followUpPurpose: '产品推介',
+    contactPerson: '张经理',
+    followUpContent: '向客户介绍了新款智能门锁Pro系列，客户表示有兴趣，计划下周安排产品演示',
+    nextFollowUpDate: '2025-01-22 10:00:00',
+    nextFollowUpPlan: '安排产品现场演示，准备样品和演示设备',
+    followUpBy: '销售-李明',
+    customerFeedback: '积极',  // 积极 | 中立 | 消极
+    businessOpportunity: true,  // 是否有商机
+    estimatedDealAmount: 50000
+  },
+  {
+    customerId: 1,
+    followUpDate: '2025-01-22 10:30:00',
+    followUpType: 'visit',
+    followUpPurpose: '产品演示',
+    followUpContent: '完成产品现场演示，客户对Pro系列功能表示满意，特别是远程管理功能。已提供报价单',
+    nextFollowUpDate: '2025-01-25 14:00:00',
+    nextFollowUpPlan: '跟进报价单反馈，准备商务谈判',
+    followUpBy: '销售-李明',
+    customerFeedback: '积极',
+    businessOpportunity: true,
+    estimatedDealAmount: 48000
+  }
+];
+```
+
+**测试步骤**（28步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 进入客户列表页 | - | `a[href="/customers"]` | 客户列表加载成功 | 列表显示 |
+| 3-4 | 点击客户名称进入详情 | customerId=1 | 点击"丽枫酒店" | 客户详情页加载 | 客户信息显示 |
+| 5-6 | 点击"跟进记录"标签页 | - | `tab:has-text("跟进记录")` | 显示跟进记录列表 | 历史记录或空列表 |
+| 7-8 | 点击"新增跟进"按钮 | - | `button:has-text("新增跟进")` | 打开跟进记录表单 | 表单显示 |
+| 9-10 | 选择跟进方式 | phone | `select#follow-up-type` | 电话跟进 | 下拉选项 |
+| 11-12 | 选择跟进目的 | 产品推介 | `select#follow-up-purpose` | 目的选择成功 | 下拉选项 |
+| 13-14 | 选择联系人 | 张经理 | `select#contact-person` | 联系人选择成功 | 客户联系人列表 |
+| 15-16 | 填写跟进内容 | 详细跟进记录 | `textarea#follow-up-content` | 文本输入成功 | 字数统计（最少20字） |
+| 17-18 | 选择客户反馈 | 积极 | `select#customer-feedback` | 反馈选择成功 | 正向标记 |
+| 19-20 | 勾选"有商机" | ✓ | `checkbox#business-opportunity` | 商机标记 | 显示金额输入框 |
+| 21-22 | 输入预估成交金额 | 50000 | `input#estimated-amount` | 金额输入成功 | 数字验证 |
+| 23-24 | 设置下次跟进日期 | 2025-01-22 | `input[type="datetime"]` | 日期选择成功 | 日期选择器 |
+| 25-26 | 填写下次跟进计划 | 计划内容 | `textarea#next-plan` | 计划输入成功 | 文本框 |
+| 27-28 | 提交跟进记录 | - | `button:has-text("提交")` | 跟进记录保存成功 | 成功提示，列表更新 |
+
+**API响应示例**:
+
+```json
+// POST /api/customers/1/follow-ups
+{
+  "code": 201,
+  "message": "跟进记录创建成功",
+  "data": {
+    "follow_up_id": 1,
+    "customer_id": 1,
+    "customer_name": "丽枫酒店",
+    "follow_up_date": "2025-01-15T14:30:00Z",
+    "follow_up_type": "phone",
+    "follow_up_type_label": "电话沟通",
+    "follow_up_purpose": "产品推介",
+    "contact_person": "张经理",
+    "follow_up_content": "向客户介绍了新款智能门锁Pro系列...",
+    "customer_feedback": "积极",
+    "business_opportunity": true,
+    "estimated_deal_amount": 50000.00,
+    "next_follow_up_date": "2025-01-22T10:00:00Z",
+    "next_follow_up_plan": "安排产品现场演示，准备样品和演示设备",
+    "follow_up_by": "李明",
+    "created_at": "2025-01-15T14:35:00Z"
+  }
+}
+
+// GET /api/customers/1/follow-ups (查询跟进记录列表)
+{
+  "code": 200,
+  "message": "跟进记录获取成功",
+  "data": {
+    "customer_id": 1,
+    "customer_name": "丽枫酒店",
+    "total_follow_ups": 2,
+    "latest_follow_up_date": "2025-01-22T10:30:00Z",
+    "next_scheduled_follow_up": "2025-01-25T14:00:00Z",
+    "follow_up_frequency": "每周1次",
+    "records": [
+      {
+        "follow_up_id": 2,
+        "follow_up_date": "2025-01-22T10:30:00Z",
+        "follow_up_type": "visit",
+        "follow_up_purpose": "产品演示",
+        "customer_feedback": "积极",
+        "has_opportunity": true
+      },
+      {
+        "follow_up_id": 1,
+        "follow_up_date": "2025-01-15T14:30:00Z",
+        "follow_up_type": "phone",
+        "follow_up_purpose": "产品推介",
+        "customer_feedback": "积极",
+        "has_opportunity": true
+      }
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 跟进内容最少20字，确保记录有效信息
+2. 标记"有商机"时，预估金额为必填项
+3. 下次跟进日期不能早于当前日期
+4. 跟进记录按时间倒序排列（最新的在最上面）
+5. 超过7天未跟进的客户，系统自动标记提醒
+6. 跟进记录自动关联到客户动态时间轴
+
+**截图**: `customer-follow-up-form.png`, `customer-follow-up-timeline.png`
+
+---
+
+## 场景CUS-005: 客户分级与标签管理
+
+**需求编号**: CUS-005
+**场景名称**: 客户分级规则设置与自动标签分配
+
+**测试数据**:
+```javascript
+// 客户分级规则
+const customerTierRules = {
+  A级: {
+    conditions: [
+      '年成交额 >= 500000',
+      '或 单笔成交额 >= 200000',
+      '或 合作年限 >= 3年 且 信用良好'
+    ],
+    benefits: ['专属客户经理', '优先技术支持', '价格优惠8%'],
+    color: '#FF4D4F'  // 红色
+  },
+  B级: {
+    conditions: [
+      '年成交额 >= 200000',
+      '或 单笔成交额 >= 100000',
+      '或 合作年限 >= 1年'
+    ],
+    benefits: ['定期回访', '技术支持', '价格优惠5%'],
+    color: '#FFA940'  // 橙色
+  },
+  C级: {
+    conditions: [
+      '年成交额 >= 50000',
+      '或 有成交记录'
+    ],
+    benefits: ['标准服务', '价格优惠3%'],
+    color: '#52C41A'  // 绿色
+  },
+  D级: {
+    conditions: ['潜在客户，无成交记录'],
+    benefits: ['产品资料', '定期邮件'],
+    color: '#8C8C8C'  // 灰色
+  }
+};
+
+// 客户标签分类
+const customerTags = {
+  行业标签: ['酒店', '公寓', '写字楼', '学校', '医院'],
+  规模标签: ['大型连锁', '中型企业', '小型企业', '个体'],
+  需求标签: ['智能门锁', '智能窗帘', '智能照明', '智能温控', '全屋智能'],
+  状态标签: ['重点客户', '优质客户', '潜在客户', '流失客户', '黑名单'],
+  来源标签: ['展会', '网络推广', '客户转介绍', '电话营销', '上门拜访']
+};
+
+// 测试客户数据
+const testCustomer = {
+  customerId: 1,
+  customerName: '丽枫酒店',
+  industry: '酒店',
+  scale: '大型连锁',
+  cooperationStartDate: '2023-01-15',
+  totalDealAmount: 650000,  // 历史总成交额
+  lastDealAmount: 220000,  // 最近成交额
+  creditRating: '优秀',
+  
+  // 自动计算的分级
+  autoTier: 'A级',  // 满足：年成交额>=500000 且 合作年限>=2年
+  
+  // 手动添加的标签
+  tags: ['酒店', '大型连锁', '智能门锁', '重点客户', '客户转介绍']
+};
+```
+
+**测试步骤**（30步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 进入客户详情页 | customerId=1 | `a[href="/customers/1"]` | 客户信息加载 | 客户名称显示 |
+| 3-4 | 查看当前客户等级 | - | `.customer-tier` | 显示等级标签 | 可能为空或已有等级 |
+| 5-6 | 点击"客户分级"按钮 | - | `button:has-text("客户分级")` | 打开分级对话框 | 对话框显示 |
+| 7-8 | **查看自动评级建议** | - | `.auto-tier-suggestion` | 系统建议：A级 | 基于成交额和合作年限 |
+| 9-10 | 查看评级依据 | - | `.tier-reason` | 显示匹配的规则条件 | "年成交额65万>=50万" |
+| 11-12 | 确认采用自动评级 | - | `button:has-text("确认")` | 客户等级设置为A级 | tier=A，红色标签 |
+| 13-14 | **验证等级权益显示** | - | `.tier-benefits` | 显示A级权益列表 | 专属经理、优惠8% |
+| 15-16 | 点击"标签管理"按钮 | - | `button:has-text("标签管理")` | 打开标签选择对话框 | 标签分类显示 |
+| 17-18 | 选择行业标签 | 酒店 | `checkbox[value="酒店"]` | 标签选中 | 复选框选中 |
+| 19-20 | 选择规模标签 | 大型连锁 | `checkbox[value="大型连锁"]` | 标签选中 | 复选框选中 |
+| 21-22 | 选择需求标签 | 智能门锁 | `checkbox[value="智能门锁"]` | 标签选中 | 复选框选中 |
+| 23-24 | 选择状态标签 | 重点客户 | `checkbox[value="重点客户"]` | 标签选中，高亮显示 | 重点标记 |
+| 25-26 | 自定义新标签 | "老客户" | `input#custom-tag` | 输入成功 | 输入框值 |
+| 27-28 | 确认保存标签 | - | `button:has-text("保存")` | 标签保存成功 | 标签列表更新 |
+| 29-30 | **验证标签显示** | - | `.customer-tags` | 客户卡片显示所有标签 | 5个标签显示 |
+
+**API响应示例**:
+
+```json
+// POST /api/customers/1/tier (设置客户等级)
+{
+  "code": 200,
+  "message": "客户等级设置成功",
+  "data": {
+    "customer_id": 1,
+    "customer_name": "丽枫酒店",
+    "tier": "A",
+    "tier_label": "A级客户",
+    "tier_color": "#FF4D4F",
+    "auto_calculated": true,
+    "calculation_basis": [
+      "历史总成交额: ¥650,000 (>= ¥500,000)",
+      "合作年限: 2年 (>= 1年)",
+      "信用评级: 优秀"
+    ],
+    "tier_benefits": [
+      "专属客户经理服务",
+      "优先技术支持通道",
+      "价格优惠8%",
+      "年度免费巡检1次"
+    ],
+    "updated_at": "2025-01-15T15:00:00Z",
+    "updated_by": "李明"
+  }
+}
+
+// POST /api/customers/1/tags (添加客户标签)
+{
+  "code": 200,
+  "message": "客户标签更新成功",
+  "data": {
+    "customer_id": 1,
+    "tags": [
+      {"tag_id": 1, "tag_name": "酒店", "category": "行业标签", "color": "#1890FF"},
+      {"tag_id": 5, "tag_name": "大型连锁", "category": "规模标签", "color": "#52C41A"},
+      {"tag_id": 10, "tag_name": "智能门锁", "category": "需求标签", "color": "#722ED1"},
+      {"tag_id": 15, "tag_name": "重点客户", "category": "状态标签", "color": "#FF4D4F"},
+      {"tag_id": 20, "tag_name": "客户转介绍", "category": "来源标签", "color": "#FA8C16"},
+      {"tag_id": 100, "tag_name": "老客户", "category": "自定义标签", "color": "#8C8C8C"}
+    ],
+    "total_tags": 6
+  }
+}
+
+// GET /api/customers?tier=A (按等级筛选客户)
+{
+  "code": 200,
+  "message": "客户列表获取成功",
+  "data": {
+    "total": 5,
+    "tier_filter": "A",
+    "customers": [
+      {
+        "customer_id": 1,
+        "customer_name": "丽枫酒店",
+        "tier": "A",
+        "tags": ["酒店", "大型连锁", "重点客户"],
+        "total_deal_amount": 650000,
+        "last_contact_date": "2025-01-15"
+      },
+      // ... 其他A级客户
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 客户等级自动计算，也可手动调整
+2. 等级调整需要填写调整理由
+3. A级客户自动分配专属客户经理
+4. 等级变动时自动发送通知给相关人员
+5. 标签最多添加10个，超过提示精简
+6. 删除标签时，不影响历史记录中的标签
+7. 每季度自动重新评估客户等级
+
+**截图**: `customer-tier-setting.png`, `customer-tags-management.png`, `customer-tier-benefits.png`
+
+---
+
+## 场景CUS-007: 客户数据导入导出
+
+**需求编号**: CUS-007
+**场景名称**: 批量导入客户数据及Excel导出功能
+
+**测试数据**:
+```javascript
+// Excel导入模板
+const importTemplate = {
+  fileName: '客户数据导入模板.xlsx',
+  sheets: [{
+    sheetName: '客户信息',
+    columns: [
+      '客户名称*', '统一社会信用代码', '所属行业*', '客户类型*',
+      '联系人姓名*', '联系人职位', '联系人电话*', '联系人邮箱',
+      '公司地址', '客户等级', '客户来源', '备注'
+    ],
+    sampleData: [
+      ['丽枫酒店', '91440300XXXXXXXX', '酒店', '企业客户', '张经理', '采购经理', '13800138000', 'zhang@lifeng.com', '深圳市南山区...', 'A', '展会', '重点客户'],
+      ['如家酒店', '91440300YYYYYYYY', '酒店', '企业客户', '李总监', '运营总监', '13900139000', 'li@rujia.com', '深圳市福田区...', 'B', '网络推广', '']
+    ]
+  }]
+};
+
+// 导入结果统计
+const importResult = {
+  totalRows: 50,
+  successCount: 45,
+  failCount: 5,
+  duplicateCount: 3,  // 重复数据
+  errorRows: [
+    {row: 3, reason: '电话号码格式错误'},
+    {row: 7, reason: '客户名称已存在'},
+    {row: 12, reason: '必填字段缺失：联系人电话'},
+    {row: 25, reason: '客户等级不在允许范围'},
+    {row: 38, reason: '邮箱格式错误'}
+  ]
+};
+
+// Excel导出配置
+const exportConfig = {
+  fileName: `客户数据导出_${Date.now()}.xlsx`,
+  filters: {
+    tier: 'A',  // 只导出A级客户
+    industry: '酒店',
+    dateRange: {
+      start: '2024-01-01',
+      end: '2025-01-15'
+    }
+  },
+  columns: [
+    '客户编号', '客户名称', '客户等级', '所属行业', '联系人',
+    '联系电话', '总成交额', '最近跟进日期', '客户状态'
+  ],
+  includeRelatedData: true  // 包含关联数据（合同、跟进记录等）
+};
+```
+
+**测试步骤**（32步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **导入测试** | | | | | |
+| 1-2 | 进入客户列表页 | - | `a[href="/customers"]` | 客户列表加载成功 | 列表显示 |
+| 3-4 | 点击"导入客户"按钮 | - | `button:has-text("导入客户")` | 打开导入对话框 | 对话框显示 |
+| 5-6 | 点击下载模板链接 | - | `a:has-text("下载模板")` | 模板文件下载 | Excel文件下载 |
+| 7-8 | 选择准备好的Excel文件 | 包含50条数据 | `input[type="file"]` | 文件选择成功 | 文件名显示 |
+| 9-10 | 点击"开始导入"按钮 | - | `button:has-text("开始导入")` | 显示导入进度条 | 进度条动画 |
+| 11-12 | **等待导入完成** | - | 进度条100% | 显示导入结果摘要 | 成功45条，失败5条 |
+| 13-14 | 查看错误详情 | - | `button:has-text("查看错误")` | 显示错误行列表 | 5条错误记录 |
+| 15-16 | 下载错误报告 | - | `button:has-text("下载错误报告")` | 错误Excel文件下载 | 包含错误原因 |
+| 17-18 | 点击"查看导入记录" | - | `button:has-text("导入记录")` | 显示导入历史 | 时间、操作人、结果 |
+| 19-20 | **验证导入的数据** | - | API: GET /api/customers | 客户数量增加45个 | 数据验证 |
+| **导出测试** | | | | | |
+| 21-22 | 设置筛选条件 | 等级=A | `select#tier-filter` | 筛选条件设置 | 列表过滤 |
+| 23-24 | 再次筛选行业 | 酒店 | `select#industry-filter` | 筛选条件设置 | 列表进一步过滤 |
+| 25-26 | 点击"导出"按钮 | - | `button:has-text("导出")` | 打开导出配置对话框 | 对话框显示 |
+| 27-28 | 选择导出列 | 勾选需要的字段 | `checkbox.export-column` | 列选择成功 | 复选框状态 |
+| 29-30 | 勾选"包含关联数据" | ✓ | `checkbox#include-related` | 选项选中 | 附加工作表提示 |
+| 31-32 | 确认导出 | - | `button:has-text("确认导出")` | Excel文件下载 | 文件名含时间戳 |
+
+**API响应示例**:
+
+```json
+// POST /api/customers/import (批量导入)
+{
+  "code": 200,
+  "message": "客户数据导入完成",
+  "data": {
+    "import_id": "IMP20250115150000",
+    "total_rows": 50,
+    "success_count": 45,
+    "fail_count": 5,
+    "duplicate_count": 3,
+    "processing_time": "5.2秒",
+    "imported_by": "李明",
+    "imported_at": "2025-01-15T15:00:00Z",
+    
+    "success_summary": {
+      "new_customers": 42,
+      "updated_customers": 3  // 重复数据选择更新
+    },
+    
+    "error_details": [
+      {
+        "row": 3,
+        "customer_name": "测试酒店A",
+        "error_field": "contact_phone",
+        "error_reason": "电话号码格式错误",
+        "provided_value": "1380013800"
+      },
+      {
+        "row": 7,
+        "customer_name": "丽枫酒店",
+        "error_reason": "客户名称已存在，且未选择更新模式"
+      },
+      // ... 其他错误
+    ],
+    
+    "error_report_url": "/downloads/import-errors-IMP20250115150000.xlsx"
+  }
+}
+
+// GET /api/customers/export (导出客户数据)
+{
+  "code": 200,
+  "message": "导出任务创建成功",
+  "data": {
+    "export_id": "EXP20250115160000",
+    "file_name": "客户数据导出_20250115160000.xlsx",
+    "filter_conditions": {
+      "tier": "A",
+      "industry": "酒店"
+    },
+    "total_records": 15,
+    "estimated_file_size": "2.5MB",
+    "status": "processing",  // processing | completed | failed
+    "download_url": "/downloads/EXP20250115160000.xlsx",  // 完成后可用
+    "expires_at": "2025-01-16T16:00:00Z"  // 下载链接24小时有效
+  }
+}
+```
+
+**业务规则**:
+1. 导入文件必须为Excel格式（.xlsx或.xls）
+2. 必填字段：客户名称、所属行业、客户类型、联系人姓名、联系人电话
+3. 客户名称重复时，可选择跳过或更新
+4. 电话号码格式：11位手机号或座机号（含区号）
+5. 邮箱格式验证：符合标准邮箱格式
+6. 单次导入最多1000条数据
+7. 导出文件保留24小时后自动删除
+8. 包含关联数据时，生成多个工作表（客户信息、合同列表、跟进记录）
+
+**截图**: `customer-import-dialog.png`, `customer-import-result.png`, `customer-export-config.png`, `customer-exported-excel.png`
+
+---
+
+✅ **客户管理3个核心场景全部完成！**
+
+
+---
+
+# 模块4: 报价单管理 (4个场景 - P1)
+
+## 场景QUO-002: 报价单模板管理
+
+**需求编号**: QUO-002
+**场景名称**: 报价单模板的创建、编辑与使用
+
+**测试数据**:
+```javascript
+const quotationTemplates = [
+  {
+    templateId: 1,
+    templateName: '标准酒店智能门锁方案',
+    templateCategory: '酒店方案',
+    description: '适用于连锁酒店的标准智能门锁解决方案',
+    defaultProducts: [
+      {productId: 1, productCode: 'LOCK-001', quantity: 100, unitPrice: 450, discount: 0.95},
+      {productId: 3, productCode: 'LOCK-003', quantity: 20, unitPrice: 380, discount: 0.95}
+    ],
+    defaultTerms: {
+      paymentTerms: '30%预付，60%发货前，10%验收后',
+      deliveryPeriod: '签约后15个工作日',
+      warranty: '主机2年，配件1年',
+      validityDays: 30
+    },
+    usageCount: 15,
+    createdBy: '销售-李明',
+    createdAt: '2024-12-01',
+    isActive: true
+  },
+  {
+    templateId: 2,
+    templateName: '公寓智能化改造方案',
+    templateCategory: '公寓方案',
+    defaultProducts: [
+      {productId: 1, quantity: 50, unitPrice: 450},
+      {productId: 4, quantity: 50, unitPrice: 120}  // 智能窗帘
+    ],
+    usageCount: 8
+  }
+];
+
+// 从模板创建报价单
+const quotationFromTemplate = {
+  templateId: 1,
+  customerId: 1,
+  quotationDate: '2025-01-20',
+  validUntil: '2025-02-19',  // 自动计算：quotationDate + 30天
+  // 产品清单从模板自动填充
+  items: [
+    {productId: 1, quantity: 100, unitPrice: 450, discount: 0.95, totalPrice: 42750},
+    {productId: 3, quantity: 20, unitPrice: 380, discount: 0.95, totalPrice: 7220}
+  ],
+  totalAmount: 49970,
+  // 条款从模板自动填充
+  paymentTerms: '30%预付，60%发货前，10%验收后',
+  deliveryPeriod: '签约后15个工作日'
+};
+```
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **模板创建** | | | | | |
+| 1-2 | 进入报价单模板管理页 | - | `a[href="/quotation-templates"]` | 模板列表加载 | 页面显示 |
+| 3-4 | 点击"新建模板"按钮 | - | `button:has-text("新建模板")` | 打开模板创建表单 | 表单显示 |
+| 5-6 | 输入模板名称 | 标准酒店智能门锁方案 | `input#template-name` | 名称输入成功 | 输入框值 |
+| 7-8 | 选择模板类别 | 酒店方案 | `select#template-category` | 类别选择成功 | 下拉选项 |
+| 9-10 | 添加默认产品1 | LOCK-001, qty=100 | 产品选择器 | 产品添加成功 | 产品列表 |
+| 11-12 | 设置产品折扣 | 0.95 | `input#discount` | 折扣设置成功 | 95折显示 |
+| 13-14 | 添加默认产品2 | LOCK-003, qty=20 | 产品选择器 | 第二个产品添加 | 产品列表2条 |
+| 15-16 | 填写默认付款条款 | 30%-60%-10% | `textarea#payment-terms` | 条款输入成功 | 文本框值 |
+| 17-18 | 填写默认交货期 | 15个工作日 | `input#delivery-period` | 交货期输入成功 | 输入框值 |
+| 19-20 | 设置报价有效期 | 30天 | `input#validity-days` | 有效期设置成功 | 数字验证 |
+| 21-22 | 保存模板 | - | `button:has-text("保存")` | 模板创建成功 | 成功提示 |
+| **从模板创建报价单** | | | | | |
+| 23-24 | 进入报价单列表 | - | `a[href="/quotations"]` | 报价单列表加载 | 页面显示 |
+| 25-26 | 点击"从模板创建" | - | `button:has-text("从模板创建")` | 显示模板选择对话框 | 模板列表显示 |
+
+**API响应示例**:
+
+```json
+// POST /api/quotation-templates
+{
+  "code": 201,
+  "message": "报价单模板创建成功",
+  "data": {
+    "template_id": 1,
+    "template_name": "标准酒店智能门锁方案",
+    "template_category": "酒店方案",
+    "default_products": [
+      {
+        "product_id": 1,
+        "product_code": "LOCK-001",
+        "product_name": "智能门锁Pro",
+        "quantity": 100,
+        "unit_price": 450.00,
+        "discount": 0.95,
+        "discounted_price": 427.50
+      }
+    ],
+    "default_terms": {
+      "payment_terms": "30%预付，60%发货前，10%验收后",
+      "delivery_period": "签约后15个工作日",
+      "warranty": "主机2年，配件1年",
+      "validity_days": 30
+    },
+    "created_by": "李明",
+    "created_at": "2025-01-20T10:00:00Z"
+  }
+}
+
+// POST /api/quotations/create-from-template
+{
+  "code": 201,
+  "message": "从模板创建报价单成功",
+  "data": {
+    "quotation_id": 10,
+    "quotation_no": "QUO202501200001",
+    "template_used": "标准酒店智能门锁方案",
+    "customer_id": 1,
+    "quotation_date": "2025-01-20",
+    "valid_until": "2025-02-19",
+    "items": [/* 从模板复制的产品清单 */],
+    "total_amount": 49970.00,
+    "status": "draft"
+  }
+}
+```
+
+**业务规则**:
+1. 模板名称不能重复
+2. 模板至少包含1个产品
+3. 从模板创建的报价单可以修改产品和价格
+4. 模板使用次数自动统计
+5. 停用的模板不能用于创建报价单
+
+**截图**: `quotation-template-create.png`, `quotation-from-template.png`
+
+---
+
+## 场景QUO-003: 报价单版本管理
+
+**需求编号**: QUO-003
+**场景名称**: 报价单修改后的版本控制与历史追溯
+
+**测试数据**:
+```javascript
+const quotationVersions = [
+  {
+    versionId: 1,
+    quotationId: 1,
+    quotationNo: 'QUO202501150001',
+    version: 'v1.0',
+    totalAmount: 50000,
+    items: [
+      {productId: 1, quantity: 100, unitPrice: 450, totalPrice: 45000},
+      {productId: 2, quantity: 20, unitPrice: 250, totalPrice: 5000}
+    ],
+    createdBy: '李明',
+    createdAt: '2025-01-15 10:00:00',
+    changeReason: '初始版本',
+    isCurrent: false
+  },
+  {
+    versionId: 2,
+    quotationId: 1,
+    version: 'v1.1',
+    totalAmount: 48000,
+    items: [
+      {productId: 1, quantity: 100, unitPrice: 450, totalPrice: 45000},
+      {productId: 2, quantity: 15, unitPrice: 200, totalPrice: 3000}  // 修改：数量和单价
+    ],
+    createdBy: '李明',
+    createdAt: '2025-01-16 14:30:00',
+    changeReason: '客户要求降低配件数量和单价',
+    changes: [
+      {field: 'items[1].quantity', oldValue: 20, newValue: 15},
+      {field: 'items[1].unitPrice', oldValue: 250, newValue: 200},
+      {field: 'totalAmount', oldValue: 50000, newValue: 48000}
+    ],
+    isCurrent: true  // 当前版本
+  }
+];
+```
+
+**测试步骤**（24步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 进入报价单详情页 | quotationId=1 | `a[href="/quotations/1"]` | 报价单详情加载 | 当前版本显示 |
+| 3-4 | 查看当前版本号 | - | `.version-badge` | 显示v1.0 | 版本标记 |
+| 5-6 | 点击"编辑"按钮 | - | `button:has-text("编辑")` | 进入编辑模式 | 表单可编辑 |
+| 7-8 | 修改产品2的数量 | 20 → 15 | `input#quantity-2` | 数量更新成功 | 输入框值 |
+| 9-10 | 修改产品2的单价 | 250 → 200 | `input#unit-price-2` | 单价更新成功 | 输入框值 |
+| 11-12 | **验证总金额自动重算** | - | `.total-amount` | 50000 → 48000 | 金额自动计算 |
+| 13-14 | 填写修改原因 | 客户要求降低配件数量和单价 | `textarea#change-reason` | 原因输入成功 | 必填验证 |
+| 15-16 | 保存修改 | - | `button:has-text("保存")` | 保存成功，版本升级 | v1.0 → v1.1 |
+| 17-18 | **验证版本号更新** | - | `.version-badge` | 显示v1.1 | 新版本标记 |
+| 19-20 | 点击"版本历史"按钮 | - | `button:has-text("版本历史")` | 显示版本列表 | 2个版本 |
+| 21-22 | 查看v1.0详情 | - | 点击v1.0行 | 显示旧版本数据 | 历史数据展示 |
+| 23-24 | 对比版本差异 | v1.0 vs v1.1 | `button:has-text("对比")` | 显示变更对比 | 高亮变更字段 |
+
+**API响应示例**:
+
+```json
+// PUT /api/quotations/1 (修改报价单，自动创建新版本)
+{
+  "code": 200,
+  "message": "报价单更新成功，已创建新版本",
+  "data": {
+    "quotation_id": 1,
+    "quotation_no": "QUO202501150001",
+    "version": "v1.1",
+    "previous_version": "v1.0",
+    "total_amount": 48000.00,
+    "previous_amount": 50000.00,
+    "change_reason": "客户要求降低配件数量和单价",
+    "changes": [
+      {
+        "field": "items[1].quantity",
+        "field_label": "产品2数量",
+        "old_value": 20,
+        "new_value": 15
+      },
+      {
+        "field": "items[1].unit_price",
+        "field_label": "产品2单价",
+        "old_value": 250.00,
+        "new_value": 200.00
+      }
+    ],
+    "updated_by": "李明",
+    "updated_at": "2025-01-16T14:30:00Z"
+  }
+}
+
+// GET /api/quotations/1/versions (获取版本历史)
+{
+  "code": 200,
+  "message": "版本历史获取成功",
+  "data": {
+    "quotation_id": 1,
+    "quotation_no": "QUO202501150001",
+    "current_version": "v1.1",
+    "total_versions": 2,
+    "versions": [
+      {
+        "version_id": 2,
+        "version": "v1.1",
+        "total_amount": 48000.00,
+        "created_at": "2025-01-16T14:30:00Z",
+        "created_by": "李明",
+        "change_reason": "客户要求降低配件数量和单价",
+        "is_current": true
+      },
+      {
+        "version_id": 1,
+        "version": "v1.0",
+        "total_amount": 50000.00,
+        "created_at": "2025-01-15T10:00:00Z",
+        "created_by": "李明",
+        "change_reason": "初始版本",
+        "is_current": false
+      }
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 每次修改报价单自动创建新版本
+2. 版本号格式：v主版本.次版本（如v1.0, v1.1, v2.0）
+3. 修改原因为必填项（除首次创建）
+4. 历史版本只读，不可编辑
+5. 可以从历史版本恢复创建新报价单
+6. 已转为合同的报价单不允许修改
+
+**截图**: `quotation-version-history.png`, `quotation-version-compare.png`
+
+---
+
+## 场景QUO-006: 报价单打印与发送
+
+**需求编号**: QUO-006
+**场景名称**: 报价单PDF生成、打印预览与邮件发送
+
+**测试数据**:
+```javascript
+const quotationPrintConfig = {
+  quotationId: 1,
+  templateStyle: 'standard',  // standard | simple | detailed
+  includeCompanyLogo: true,
+  includeProductImages: false,
+  showUnitPrice: true,
+  showDiscount: true,
+  showTax: true,
+  taxRate: 0.13,  // 13%增值税
+  
+  // 公司信息
+  companyInfo: {
+    name: '艾居来智能科技有限公司',
+    address: '深圳市南山区科技园',
+    phone: '0755-12345678',
+    email: 'sales@aijulai.com',
+    website: 'www.aijulai.com'
+  },
+  
+  // 客户信息
+  customerInfo: {
+    name: '丽枫酒店',
+    contact: '张经理',
+    phone: '13800138000',
+    address: '深圳市福田区...'
+  },
+  
+  footer: '本报价单有效期30天，逾期价格可能调整'
+};
+
+const emailConfig = {
+  recipientEmail: 'zhang@lifeng.com',
+  recipientName: '张经理',
+  ccEmails: ['sales@aijulai.com'],
+  subject: '艾居来智能科技 - 智能门锁解决方案报价单',
+  body: `
+尊敬的张经理，您好！
+
+感谢贵司对艾居来智能科技的关注。
+
+附件是我们为贵司定制的智能门锁解决方案报价单，请查收。
+
+如有任何疑问，请随时联系我们。
+
+期待与您的合作！
+
+此致
+敬礼
+
+艾居来智能科技有限公司
+销售部 李明
+电话：13900139000
+邮箱：liming@aijulai.com
+  `,
+  attachPDF: true,
+  sendCopy: true  // 发送副本给自己
+};
+```
+
+**测试步骤**（22步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **打印测试** | | | | | |
+| 1-2 | 进入报价单详情页 | quotationId=1 | `a[href="/quotations/1"]` | 报价单详情加载 | 详情显示 |
+| 3-4 | 点击"打印"按钮 | - | `button:has-text("打印")` | 打开打印配置对话框 | 配置选项显示 |
+| 5-6 | 选择打印模板 | 标准模板 | `select#print-template` | 模板选择成功 | 预览更新 |
+| 7-8 | 勾选显示单价 | ✓ | `checkbox#show-unit-price` | 选项选中 | 复选框状态 |
+| 9-10 | 勾选显示折扣 | ✓ | `checkbox#show-discount` | 选项选中 | 复选框状态 |
+| 11-12 | 点击"预览"按钮 | - | `button:has-text("预览")` | 打开PDF预览窗口 | PDF渲染 |
+| 13-14 | **验证PDF内容** | - | PDF查看器 | 包含公司Logo、产品清单、金额 | 格式正确 |
+| 15-16 | 点击"下载PDF"按钮 | - | `button:has-text("下载")` | PDF文件下载 | 文件名含报价单号 |
+| **邮件发送测试** | | | | | |
+| 17-18 | 点击"发送邮件"按钮 | - | `button:has-text("发送邮件")` | 打开邮件编辑对话框 | 邮件表单显示 |
+| 19-20 | 验证收件人自动填充 | - | `input#recipient-email` | zhang@lifeng.com | 客户邮箱 |
+| 21-22 | 验证邮件正文模板 | - | `textarea#email-body` | 包含问候语和报价单说明 | 模板内容 |
+
+**API响应示例**:
+
+```json
+// POST /api/quotations/1/generate-pdf
+{
+  "code": 200,
+  "message": "PDF生成成功",
+  "data": {
+    "quotation_id": 1,
+    "quotation_no": "QUO202501150001",
+    "pdf_url": "/downloads/quotations/QUO202501150001_v1.1.pdf",
+    "file_name": "报价单_QUO202501150001_v1.1.pdf",
+    "file_size": "256KB",
+    "generated_at": "2025-01-20T11:00:00Z",
+    "expires_at": "2025-01-21T11:00:00Z",  // 24小时有效
+    "template_used": "standard"
+  }
+}
+
+// POST /api/quotations/1/send-email
+{
+  "code": 200,
+  "message": "报价单邮件发送成功",
+  "data": {
+    "quotation_id": 1,
+    "quotation_no": "QUO202501150001",
+    "email_sent_to": "zhang@lifeng.com",
+    "cc_emails": ["sales@aijulai.com"],
+    "subject": "艾居来智能科技 - 智能门锁解决方案报价单",
+    "pdf_attached": true,
+    "sent_at": "2025-01-20T11:05:00Z",
+    "sent_by": "李明",
+    "email_id": "EMAIL20250120110500"
+  }
+}
+```
+
+**业务规则**:
+1. PDF文件名格式：报价单_{报价单号}_{版本}.pdf
+2. 客户邮箱从客户档案中自动获取
+3. 邮件正文使用预设模板，可自定义修改
+4. 发送邮件自动记录到客户跟进记录
+5. PDF下载链接24小时有效
+6. 草稿状态的报价单不能发送邮件
+
+**截图**: `quotation-print-preview.png`, `quotation-email-send.png`, `quotation-pdf-sample.png`
+
+---
+
+## 场景QUO-007: 报价单转合同
+
+**需求编号**: QUO-007
+**场景名称**: 报价单审批通过后一键转为正式合同
+
+**测试数据**:
+```javascript
+const quotationToContract = {
+  quotationId: 1,
+  quotationNo: 'QUO202501150001',
+  quotationAmount: 48000,
+  quotationStatus: 'approved',  // 已审批
+  
+  // 转换配置
+  conversionConfig: {
+    contractNo: 'CT202501200001',  // 自动生成或手动指定
+    contractDate: '2025-01-20',
+    contractType: 'sales',
+    
+    // 从报价单继承的数据
+    inheritFromQuotation: {
+      customerId: true,
+      items: true,  // 产品清单
+      totalAmount: true,
+      paymentTerms: true,
+      deliveryPeriod: true,
+      remarks: true
+    },
+    
+    // 需要补充的合同数据
+    additionalData: {
+      signedByCustomer: '张经理',
+      signedByCompany: '李总',
+      effectiveDate: '2025-01-20',
+      expiryDate: '2025-12-31',
+      
+      // 付款计划详细化
+      paymentSchedule: [
+        {stage: 1, stageName: '签约款', percentage: 30, amount: 14400, dueDate: '2025-01-25'},
+        {stage: 2, stageName: '发货款', percentage: 60, amount: 28800, dueDate: '2025-02-10'},
+        {stage: 3, stageName: '验收款', percentage: 10, amount: 4800, dueDate: '2025-03-15'}
+      ]
+    }
+  },
+  
+  // 转换后报价单状态
+  quotationAfterConversion: {
+    status: 'converted',  // 已转合同
+    linkedContractId: 10,
+    linkedContractNo: 'CT202501200001',
+    convertedAt: '2025-01-20 15:00:00',
+    convertedBy: '销售-李明'
+  }
+};
+```
+
+**测试步骤**（28步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 进入报价单详情页 | quotationId=1 | `a[href="/quotations/1"]` | 报价单详情加载 | 状态=已审批 |
+| 3-4 | **验证转合同按钮可用** | - | `button:has-text("转为合同")` | 按钮可点击 | 非禁用状态 |
+| 5-6 | 点击"转为合同"按钮 | - | `button:has-text("转为合同")` | 打开转换向导对话框 | 对话框显示 |
+| 7-8 | **验证数据预填充** | - | 表单各字段 | 客户、金额、产品自动填充 | 来自报价单 |
+| 9-10 | 确认合同编号 | CT202501200001 | `input#contract-no` | 编号自动生成 | 可修改 |
+| 11-12 | 选择合同日期 | 2025-01-20 | `input[type="date"]` | 日期选择成功 | 日期选择器 |
+| 13-14 | 填写客方签字人 | 张经理 | `input#signed-by-customer` | 输入成功 | 输入框值 |
+| 15-16 | 填写我方签字人 | 李总 | `input#signed-by-company` | 输入成功 | 输入框值 |
+| 17-18 | 设置合同有效期 | 2025-12-31 | `input#expiry-date` | 有效期设置成功 | 日期验证 |
+| 19-20 | **配置付款计划** | - | 点击"配置付款" | 打开付款计划表单 | 3阶段默认 |
+| 21-22 | 设置第1期付款 | 30%, 14400, 2025-01-25 | 付款表单 | 第1期数据设置 | 金额自动计算 |
+| 23-24 | 设置第2期付款 | 60%, 28800, 2025-02-10 | 付款表单 | 第2期数据设置 | 百分比验证 |
+| 25-26 | 确认转换 | - | `button:has-text("确认转换")` | 合同创建成功 | 成功提示 |
+| 27-28 | **验证报价单状态更新** | - | 刷新报价单详情 | status=converted, 显示关联合同编号 | 状态变更 |
+
+**API响应示例**:
+
+```json
+// POST /api/quotations/1/convert-to-contract
+{
+  "code": 201,
+  "message": "报价单已成功转为合同",
+  "data": {
+    "quotation_id": 1,
+    "quotation_no": "QUO202501150001",
+    "quotation_status": "converted",
+    
+    "contract_created": {
+      "contract_id": 10,
+      "contract_no": "CT202501200001",
+      "customer_id": 1,
+      "customer_name": "丽枫酒店",
+      "contract_amount": 48000.00,
+      "contract_date": "2025-01-20",
+      "effective_date": "2025-01-20",
+      "expiry_date": "2025-12-31",
+      "status": "pending",  // 待生效
+      
+      "items_count": 2,
+      "payment_schedule_count": 3,
+      
+      "created_from_quotation": true,
+      "source_quotation_id": 1,
+      "source_quotation_no": "QUO202501150001"
+    },
+    
+    "converted_at": "2025-01-20T15:00:00Z",
+    "converted_by": "李明"
+  }
+}
+
+// GET /api/quotations/1 (转换后查询报价单)
+{
+  "code": 200,
+  "data": {
+    "quotation_id": 1,
+    "quotation_no": "QUO202501150001",
+    "status": "converted",
+    "status_label": "已转合同",
+    
+    "linked_contract": {
+      "contract_id": 10,
+      "contract_no": "CT202501200001",
+      "contract_date": "2025-01-20",
+      "contract_amount": 48000.00,
+      "contract_status": "pending"
+    },
+    
+    "converted_at": "2025-01-20T15:00:00Z",
+    "converted_by": "李明"
+  }
+}
+```
+
+**业务规则**:
+1. 只有"已审批"状态的报价单才能转合同
+2. 报价单转合同后，状态变为"已转合同"，不可再编辑
+3. 合同编号自动生成，格式：CT+年月日+流水号
+4. 产品清单、金额、条款从报价单继承
+5. 付款计划需要明确各期金额和到期日期
+6. 转换后自动关联报价单和合同
+7. 一个报价单只能转换一次合同
+
+**截图**: `quotation-convert-dialog.png`, `quotation-converted-status.png`, `contract-from-quotation.png`
+
+---
+
+✅ **报价单管理4个场景全部完成！**
+
+
+---
+
+# 模块7: 发货管理 (5个场景 - P1)
+
+## 场景SHIP-002: 发货单打印与物流单号管理
+
+**需求编号**: SHIP-002
+**场景名称**: 发货单打印、物流单号录入与物流追踪
+
+**测试数据**:
+```javascript
+const shipmentPrintData = {
+  shipmentId: 1,
+  shipmentNo: 'SHIP202501200001',
+  contractId: 1,
+  contractNo: 'CT202501200001',
+  customerId: 1,
+  customerName: '丽枫酒店',
+  
+  // 收货信息
+  recipient: {
+    name: '张经理',
+    phone: '13800138000',
+    address: '深圳市福田区某某路123号',
+    zipCode: '518000'
+  },
+  
+  // 发货清单
+  items: [
+    {productCode: 'LOCK-001', productName: '智能门锁Pro', quantity: 100, unit: '台'},
+    {productCode: 'LOCK-003', productName: '智能门锁Mini', quantity: 20, unit: '台'}
+  ],
+  
+  totalQuantity: 120,
+  totalPackages: 5,  // 5个包裹
+  totalWeight: 150,  // 总重量150kg
+  
+  // 物流信息
+  logistics: {
+    logisticsCompany: '顺丰速运',
+    trackingNo: 'SF1234567890',
+    estimatedDeliveryDate: '2025-01-25',
+    shippedDate: '2025-01-20',
+    shippedBy: '仓管-王五'
+  }
+};
+
+// 物流追踪信息
+const trackingInfo = {
+  trackingNo: 'SF1234567890',
+  logisticsCompany: '顺丰速运',
+  currentStatus: 'in_transit',  // pending | picked_up | in_transit | delivered | exception
+  traces: [
+    {time: '2025-01-20 14:00:00', location: '深圳仓库', status: '已揽收'},
+    {time: '2025-01-20 18:00:00', location: '深圳转运中心', status: '已发出'},
+    {time: '2025-01-21 08:00:00', location: '深圳转运中心', status: '运输中'},
+    {time: '2025-01-22 10:00:00', location: '福田区派送点', status: '派送中'},
+    {time: '2025-01-22 14:30:00', location: '福田区某某路', status: '已签收，签收人：张经理'}
+  ]
+};
+```
+
+**测试步骤**（30步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **发货单打印** | | | | | |
+| 1-2 | 进入发货单详情页 | shipmentId=1 | `a[href="/shipments/1"]` | 发货单详情加载 | 详情显示 |
+| 3-4 | 点击"打印发货单"按钮 | - | `button:has-text("打印发货单")` | 打开打印预览窗口 | 预览窗口显示 |
+| 5-6 | **验证打印内容** | - | 预览窗口 | 包含发货单号、客户、产品清单 | 内容完整 |
+| 7-8 | 验证收货人信息 | - | 预览窗口 | 姓名、电话、地址显示 | 收货信息 |
+| 9-10 | 点击"下载PDF"按钮 | - | `button:has-text("下载")` | PDF文件下载 | 文件名含发货单号 |
+| **物流信息录入** | | | | | |
+| 11-12 | 返回发货单详情 | - | 关闭预览窗口 | 返回详情页 | 页面显示 |
+| 13-14 | 点击"录入物流信息"按钮 | - | `button:has-text("录入物流")` | 打开物流信息表单 | 表单显示 |
+| 15-16 | 选择物流公司 | 顺丰速运 | `select#logistics-company` | 物流公司选择 | 下拉选项 |
+| 17-18 | 输入物流单号 | SF1234567890 | `input#tracking-no` | 单号输入成功 | 输入框值 |
+| 19-20 | 选择发货日期 | 2025-01-20 | `input[type="date"]` | 日期选择成功 | 日期选择器 |
+| 21-22 | 输入预计到货日期 | 2025-01-25 | `input#estimated-delivery` | 预计日期设置 | 日期验证 |
+| 23-24 | 保存物流信息 | - | `button:has-text("保存")` | 物流信息保存成功 | 成功提示 |
+| 25-26 | **验证发货单状态更新** | - | 刷新页面 | status=shipped, 显示物流单号 | 状态变更 |
+| **物流追踪** | | | | | |
+| 27-28 | 点击"物流追踪"按钮 | - | `button:has-text("物流追踪")` | 显示物流轨迹 | 时间线显示 |
+| 29-30 | **验证物流轨迹信息** | - | `.tracking-timeline` | 显示5条物流记录 | 时间倒序排列 |
+
+**API响应示例**:
+
+```json
+// POST /api/shipments/1/logistics
+{
+  "code": 200,
+  "message": "物流信息录入成功",
+  "data": {
+    "shipment_id": 1,
+    "shipment_no": "SHIP202501200001",
+    "logistics_company": "顺丰速运",
+    "tracking_no": "SF1234567890",
+    "shipped_date": "2025-01-20",
+    "estimated_delivery_date": "2025-01-25",
+    "status": "shipped",
+    "shipped_by": "王五",
+    "shipped_at": "2025-01-20T14:00:00Z"
+  }
+}
+
+// GET /api/shipments/1/tracking
+{
+  "code": 200,
+  "message": "物流追踪信息获取成功",
+  "data": {
+    "shipment_id": 1,
+    "tracking_no": "SF1234567890",
+    "logistics_company": "顺丰速运",
+    "current_status": "delivered",
+    "current_location": "福田区某某路",
+    "delivered_at": "2025-01-22T14:30:00Z",
+    "signed_by": "张经理",
+    
+    "tracking_traces": [
+      {
+        "trace_time": "2025-01-22T14:30:00Z",
+        "location": "福田区某某路",
+        "status": "已签收",
+        "description": "您的快件已签收，签收人：张经理"
+      },
+      {
+        "trace_time": "2025-01-22T10:00:00Z",
+        "location": "福田区派送点",
+        "status": "派送中",
+        "description": "快件正在派送中，派送员：李师傅"
+      },
+      // ... 其他轨迹
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 物流单号不能重复
+2. 发货日期不能晚于当前日期
+3. 预计到货日期不能早于发货日期
+4. 录入物流信息后，发货单状态自动变为"已发货"
+5. 物流追踪信息每4小时自动更新一次
+6. 签收后自动通知销售人员和客户
+
+**截图**: `shipment-print-preview.png`, `shipment-logistics-form.png`, `shipment-tracking-timeline.png`
+
+---
+
+## 场景SHIP-003: 分批发货管理
+
+**需求编号**: SHIP-003
+**场景名称**: 大订单分批发货与发货进度追踪
+
+**测试数据**:
+```javascript
+const contractWithBatches = {
+  contractId: 1,
+  contractNo: 'CT202501200001',
+  totalItems: [
+    {productId: 1, productCode: 'LOCK-001', quantity: 500, unit: '台'},  // 大批量
+    {productId: 2, productCode: 'LOCK-002', quantity: 200, unit: '台'}
+  ],
+  totalQuantity: 700,
+  
+  // 发货批次计划
+  shipmentBatches: [
+    {
+      batchNo: 1,
+      shipmentNo: 'SHIP202501200001',
+      plannedDate: '2025-01-25',
+      items: [
+        {productId: 1, quantity: 200},  // 第1批：200台LOCK-001
+        {productId: 2, quantity: 100}   // 第1批：100台LOCK-002
+      ],
+      totalQuantity: 300,
+      status: 'shipped',  // 已发货
+      actualShippedDate: '2025-01-25'
+    },
+    {
+      batchNo: 2,
+      shipmentNo: 'SHIP202501280001',
+      plannedDate: '2025-02-05',
+      items: [
+        {productId: 1, quantity: 200},  // 第2批：200台LOCK-001
+        {productId: 2, quantity: 100}   // 第2批：100台LOCK-002
+      ],
+      totalQuantity: 300,
+      status: 'pending',  // 待发货
+      actualShippedDate: null
+    },
+    {
+      batchNo: 3,
+      shipmentNo: 'SHIP202502100001',
+      plannedDate: '2025-02-15',
+      items: [
+        {productId: 1, quantity: 100}   // 第3批：剩余100台LOCK-001
+      ],
+      totalQuantity: 100,
+      status: 'pending'
+    }
+  ],
+  
+  // 发货进度统计
+  shipmentProgress: {
+    totalQuantity: 700,
+    shippedQuantity: 300,
+    pendingQuantity: 400,
+    completionRate: 0.4286,  // 42.86%
+    totalBatches: 3,
+    shippedBatches: 1,
+    pendingBatches: 2
+  }
+};
+```
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 进入合同详情页 | contractId=1 | `a[href="/contracts/1"]` | 合同详情加载 | 合同信息显示 |
+| 3-4 | 点击"发货管理"标签页 | - | `tab:has-text("发货管理")` | 显示发货批次列表 | 3个批次 |
+| 5-6 | **查看发货进度** | - | `.shipment-progress` | 显示进度条：42.86% | 已发300/700 |
+| 7-8 | 点击第1批次详情 | batchNo=1 | 点击批次1行 | 显示第1批发货单详情 | 已发货状态 |
+| 9-10 | 验证第1批产品清单 | - | 产品列表 | LOCK-001: 200台, LOCK-002: 100台 | 数量正确 |
+| 11-12 | 返回批次列表 | - | 返回按钮 | 返回批次列表页 | 列表显示 |
+| 13-14 | 点击第2批次 | batchNo=2 | 点击批次2行 | 显示第2批发货单 | 待发货状态 |
+| 15-16 | 点击"开始发货"按钮 | - | `button:has-text("开始发货")` | 打开发货确认对话框 | 对话框显示 |
+| 17-18 | 验证发货清单 | - | `.shipment-items` | LOCK-001: 200, LOCK-002: 100 | 产品数量 |
+| 19-20 | 选择实际发货日期 | 2025-02-05 | `input#shipped-date` | 日期选择成功 | 日期选择器 |
+| 21-22 | 确认发货 | - | `button:has-text("确认")` | 发货成功，状态变为已发货 | 状态更新 |
+| 23-24 | **验证发货进度更新** | - | 返回批次列表 | 进度条更新：85.71% (600/700) | 进度自动计算 |
+| 25-26 | **验证剩余批次** | - | 批次列表 | 第3批状态仍为待发货 | 剩余1批 |
+
+**API响应示例**:
+
+```json
+// GET /api/contracts/1/shipment-batches
+{
+  "code": 200,
+  "message": "发货批次获取成功",
+  "data": {
+    "contract_id": 1,
+    "contract_no": "CT202501200001",
+    
+    "shipment_progress": {
+      "total_quantity": 700,
+      "shipped_quantity": 300,
+      "pending_quantity": 400,
+      "completion_rate": 42.86,
+      "total_batches": 3,
+      "shipped_batches": 1,
+      "pending_batches": 2
+    },
+    
+    "batches": [
+      {
+        "batch_no": 1,
+        "shipment_id": 1,
+        "shipment_no": "SHIP202501200001",
+        "planned_date": "2025-01-25",
+        "actual_shipped_date": "2025-01-25",
+        "total_quantity": 300,
+        "status": "shipped",
+        "tracking_no": "SF1234567890"
+      },
+      {
+        "batch_no": 2,
+        "shipment_id": 2,
+        "shipment_no": "SHIP202501280001",
+        "planned_date": "2025-02-05",
+        "actual_shipped_date": null,
+        "total_quantity": 300,
+        "status": "pending"
+      },
+      {
+        "batch_no": 3,
+        "shipment_id": 3,
+        "shipment_no": "SHIP202502100001",
+        "planned_date": "2025-02-15",
+        "actual_shipped_date": null,
+        "total_quantity": 100,
+        "status": "pending"
+      }
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 大批量订单（>200件）建议分批发货
+2. 每批发货数量不超过合同剩余数量
+3. 所有批次发货完成后，合同发货状态自动变为"已完成"
+4. 分批发货进度自动计算并更新
+5. 可以调整批次计划，但已发货批次不可修改
+
+**截图**: `shipment-batches-list.png`, `shipment-progress-tracker.png`
+
+---
+
+## 场景SHIP-005: 发货异常处理
+
+**需求编号**: SHIP-005
+**场景名称**: 发货异常记录与退货处理流程
+
+**测试数据**:
+```javascript
+const shipmentException = {
+  shipmentId: 1,
+  shipmentNo: 'SHIP202501200001',
+  exceptionType: 'damaged',  // damaged | lost | wrong_item | quantity_mismatch
+  
+  // 异常详情
+  exceptionDetail: {
+    reportedDate: '2025-01-23',
+    reportedBy: '客户-张经理',
+    reportedPhone: '13800138000',
+    
+    damagedItems: [
+      {
+        productId: 1,
+        productCode: 'LOCK-001',
+        productName: '智能门锁Pro',
+        damagedQuantity: 5,
+        damageDescription: '包装破损，设备外壳有明显划痕',
+        damagePhotos: ['/uploads/damage-photo1.jpg', '/uploads/damage-photo2.jpg']
+      }
+    ],
+    
+    customerRequest: 'replacement',  // replacement | refund | repair
+    urgency: 'high'  // low | medium | high
+  },
+  
+  // 处理方案
+  resolution: {
+    resolutionType: 'replacement',  // 换货
+    processingPerson: '客服-李娜',
+    processingDate: '2025-01-23',
+    
+    replacementShipment: {
+      shipmentNo: 'SHIP202501230001',
+      items: [{productId: 1, quantity: 5}],
+      shippedDate: '2025-01-24',
+      trackingNo: 'SF9876543210',
+      estimatedDeliveryDate: '2025-01-26'
+    },
+    
+    returnShipment: {
+      returnNo: 'RET202501230001',
+      items: [{productId: 1, quantity: 5, condition: 'damaged'}],
+      returnTrackingNo: 'SF1111111111',
+      returnedDate: '2025-01-25'
+    },
+    
+    compensationAmount: 0,  // 无需赔偿，直接换货
+    processingNotes: '已安排快速换货，预计1月26日送达',
+    status: 'resolved'  // pending | processing | resolved | closed
+  }
+};
+```
+
+**测试步骤**（28步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **异常登记** | | | | | |
+| 1-2 | 进入发货单详情页 | shipmentId=1 | `a[href="/shipments/1"]` | 发货单详情加载 | 详情显示 |
+| 3-4 | 点击"登记异常"按钮 | - | `button:has-text("登记异常")` | 打开异常登记表单 | 表单显示 |
+| 5-6 | 选择异常类型 | 货损 | `select#exception-type` | 类型选择成功 | 下拉选项 |
+| 7-8 | 填写报告人信息 | 张经理, 13800138000 | 报告人表单 | 信息输入成功 | 输入框值 |
+| 9-10 | 选择受损产品 | LOCK-001 | 产品选择器 | 产品选择成功 | 产品显示 |
+| 11-12 | 输入受损数量 | 5 | `input#damaged-quantity` | 数量输入成功 | 数字验证 |
+| 13-14 | 填写损坏描述 | 详细描述 | `textarea#damage-desc` | 描述输入成功 | 文本框值 |
+| 15-16 | 上传损坏照片 | 2张照片 | `input[type="file"]` | 照片上传成功 | 图片预览 |
+| 17-18 | 选择客户诉求 | 换货 | `select#customer-request` | 诉求选择成功 | 下拉选项 |
+| 19-20 | 提交异常记录 | - | `button:has-text("提交")` | 异常登记成功 | 成功提示 |
+| **异常处理** | | | | | |
+| 21-22 | 点击"处理异常"按钮 | - | `button:has-text("处理异常")` | 打开处理方案表单 | 表单显示 |
+| 23-24 | 选择处理方案 | 换货 | `select#resolution-type` | 方案选择成功 | 换货选项 |
+| 25-26 | 填写处理说明 | 已安排快速换货 | `textarea#processing-notes` | 说明输入成功 | 文本框值 |
+| 27-28 | 提交处理方案 | - | `button:has-text("提交")` | 处理方案保存成功 | 状态变为处理中 |
+
+**API响应示例**:
+
+```json
+// POST /api/shipments/1/exceptions
+{
+  "code": 201,
+  "message": "发货异常登记成功",
+  "data": {
+    "exception_id": 1,
+    "shipment_id": 1,
+    "shipment_no": "SHIP202501200001",
+    "exception_type": "damaged",
+    "exception_type_label": "货损",
+    
+    "reported_date": "2025-01-23",
+    "reported_by": "张经理",
+    "reported_phone": "13800138000",
+    
+    "damaged_items": [
+      {
+        "product_id": 1,
+        "product_code": "LOCK-001",
+        "damaged_quantity": 5,
+        "damage_description": "包装破损，设备外壳有明显划痕",
+        "damage_photos": [
+          "/uploads/damage-photo1.jpg",
+          "/uploads/damage-photo2.jpg"
+        ]
+      }
+    ],
+    
+    "customer_request": "replacement",
+    "urgency": "high",
+    "status": "pending",
+    "created_at": "2025-01-23T10:00:00Z"
+  }
+}
+
+// POST /api/shipments/exceptions/1/resolve
+{
+  "code": 200,
+  "message": "异常处理方案提交成功",
+  "data": {
+    "exception_id": 1,
+    "resolution_type": "replacement",
+    "status": "processing",
+    
+    "replacement_shipment": {
+      "shipment_id": 10,
+      "shipment_no": "SHIP202501230001",
+      "items": [{"product_id": 1, "quantity": 5}],
+      "status": "pending"
+    },
+    
+    "return_shipment": {
+      "return_id": 1,
+      "return_no": "RET202501230001",
+      "expected_items": [{"product_id": 1, "quantity": 5}],
+      "status": "pending"
+    },
+    
+    "processing_person": "李娜",
+    "processing_date": "2025-01-23T11:00:00Z"
+  }
+}
+```
+
+**业务规则**:
+1. 异常必须在签收后7天内登记
+2. 货损必须上传照片证明
+3. 高紧急度异常24小时内处理
+4. 换货需要同时创建换货发货单和退货单
+5. 退货单号格式：RET+年月日+流水号
+6. 异常处理完成后自动通知客户和销售
+
+**截图**: `shipment-exception-form.png`, `shipment-exception-resolution.png`, `shipment-damage-photos.png`
+
+---
+
+## 场景SHIP-007: 发货提醒与催货管理
+
+**需求编号**: SHIP-007
+**场景名称**: 发货超期提醒与客户催货记录
+
+**测试数据**:
+```javascript
+const shipmentReminder = {
+  // 发货提醒规则
+  reminderRules: {
+    normalOrder: {
+      plannedDays: 7,  // 计划7个工作日内发货
+      warningDays: 5,  // 距离计划日期5天时预警
+      overdueDays: 0   // 超过计划日期即告警
+    },
+    urgentOrder: {
+      plannedDays: 3,  // 计划3个工作日内发货
+      warningDays: 2,
+      overdueDays: 0
+    }
+  },
+  
+  // 待发货订单
+  pendingShipments: [
+    {
+      shipmentId: 5,
+      shipmentNo: 'SHIP202501250001',
+      contractId: 5,
+      contractNo: 'CT202501250001',
+      customerId: 5,
+      customerName: '如家酒店',
+      plannedShipDate: '2025-01-30',  // 计划发货日期
+      currentDate: '2025-01-27',
+      daysUntilDue: 3,  // 剩余3天
+      status: 'pending',
+      priority: 'normal',
+      alertLevel: 'warning'  // warning | danger
+    },
+    {
+      shipmentId: 6,
+      shipmentNo: 'SHIP202501260001',
+      contractId: 6,
+      plannedShipDate: '2025-01-28',
+      currentDate: '2025-01-29',
+      daysOverdue: 1,  // 超期1天
+      status: 'overdue',
+      priority: 'urgent',
+      alertLevel: 'danger'
+    }
+  ],
+  
+  // 客户催货记录
+  customerUrges: [
+    {
+      urgeId: 1,
+      shipmentId: 6,
+      urgeDate: '2025-01-29 10:00:00',
+      urgedBy: '客户-李总监',
+      urgeChannel: 'phone',  // phone | email | wechat
+      urgeContent: '客户电话询问发货进度，表示急需产品',
+      handledBy: '销售-李明',
+      response: '已与仓库沟通，今日下午发货，预计明天送达',
+      resolved: false
+    }
+  ]
+};
+```
+
+**测试步骤**（24步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **发货提醒** | | | | | |
+| 1-2 | 进入待发货列表 | - | `a[href="/shipments/pending"]` | 待发货列表加载 | 列表显示 |
+| 3-4 | **查看预警订单** | - | `.warning-row` | 显示黄色预警标记 | 剩余3天 |
+| 5-6 | **查看超期订单** | - | `.danger-row` | 显示红色超期标记 | 超期1天 |
+| 7-8 | 点击超期订单 | shipmentId=6 | 点击超期行 | 进入发货单详情 | 超期提示 |
+| 9-10 | 查看超期天数 | - | `.overdue-badge` | 显示"超期1天" | 红色徽章 |
+| 11-12 | 点击"发货"按钮 | - | `button:has-text("发货")` | 打开发货确认表单 | 表单显示 |
+| **催货记录** | | | | | |
+| 13-14 | 点击"催货记录"标签 | - | `tab:has-text("催货记录")` | 显示催货记录列表 | 1条记录 |
+| 15-16 | 点击"新增催货"按钮 | - | `button:has-text("新增催货")` | 打开催货记录表单 | 表单显示 |
+| 17-18 | 填写催货人 | 客户-李总监 | `input#urged-by` | 催货人输入成功 | 输入框值 |
+| 19-20 | 选择催货方式 | 电话 | `select#urge-channel` | 方式选择成功 | 下拉选项 |
+| 21-22 | 填写催货内容 | 客户电话询问... | `textarea#urge-content` | 内容输入成功 | 文本框值 |
+| 23-24 | 填写回复说明 | 已与仓库沟通... | `textarea#response` | 回复输入成功 | 文本框值 |
+
+**API响应示例**:
+
+```json
+// GET /api/shipments/pending-alerts
+{
+  "code": 200,
+  "message": "待发货提醒获取成功",
+  "data": {
+    "total_pending": 10,
+    "warning_count": 3,  // 接近超期
+    "overdue_count": 2,  // 已超期
+    
+    "overdue_shipments": [
+      {
+        "shipment_id": 6,
+        "shipment_no": "SHIP202501260001",
+        "contract_no": "CT202501260001",
+        "customer_name": "如家酒店",
+        "planned_ship_date": "2025-01-28",
+        "days_overdue": 1,
+        "alert_level": "danger",
+        "has_customer_urge": true,
+        "urge_count": 1
+      }
+    ],
+    
+    "warning_shipments": [
+      {
+        "shipment_id": 5,
+        "shipment_no": "SHIP202501250001",
+        "customer_name": "如家酒店",
+        "planned_ship_date": "2025-01-30",
+        "days_until_due": 3,
+        "alert_level": "warning"
+      }
+    ]
+  }
+}
+
+// POST /api/shipments/6/customer-urges
+{
+  "code": 201,
+  "message": "催货记录创建成功",
+  "data": {
+    "urge_id": 1,
+    "shipment_id": 6,
+    "urge_date": "2025-01-29T10:00:00Z",
+    "urged_by": "客户-李总监",
+    "urge_channel": "phone",
+    "urge_content": "客户电话询问发货进度，表示急需产品",
+    "handled_by": "李明",
+    "response": "已与仓库沟通，今日下午发货，预计明天送达",
+    "resolved": false,
+    "created_at": "2025-01-29T10:05:00Z"
+  }
+}
+```
+
+**业务规则**:
+1. 距离计划发货日期5天时发送预警通知
+2. 超过计划发货日期时发送超期告警
+3. 超期订单每天自动提醒仓管和销售
+4. 客户催货记录需及时回复
+5. 催货记录自动关联到客户跟进记录
+6. 超期3天以上自动上报主管
+
+**截图**: `shipment-overdue-alerts.png`, `shipment-customer-urges.png`
+
+---
+
+## 场景SHIP-008: 发货统计与报表
+
+**需求编号**: SHIP-008
+**场景名称**: 发货数据统计分析与导出
+
+**测试数据**:
+```javascript
+const shipmentStatistics = {
+  dateRange: {
+    start: '2025-01-01',
+    end: '2025-01-31'
+  },
+  
+  // 总体统计
+  overallStats: {
+    totalShipments: 50,
+    totalQuantity: 5000,
+    totalAmount: 2500000,
+    
+    statusBreakdown: {
+      pending: 10,  // 待发货
+      shipped: 35,  // 已发货
+      delivered: 45,  // 已签收
+      exception: 3   // 异常
+    },
+    
+    onTimeRate: 0.86,  // 准时发货率86%
+    exceptionRate: 0.06  // 异常率6%
+  },
+  
+  // 按产品统计
+  productStats: [
+    {productCode: 'LOCK-001', productName: '智能门锁Pro', shipmentCount: 30, quantity: 3000, amount: 1350000},
+    {productCode: 'LOCK-002', productName: '智能门锁Mini', shipmentCount: 25, quantity: 1500, amount: 450000},
+    {productCode: 'LOCK-003', productName: '智能门锁Lite', shipmentCount: 20, quantity: 500, amount: 190000}
+  ],
+  
+  // 按客户统计
+  customerStats: [
+    {customerId: 1, customerName: '丽枫酒店', shipmentCount: 5, totalQuantity: 600, totalAmount: 300000},
+    {customerId: 2, customerName: '如家酒店', shipmentCount: 4, totalQuantity: 500, totalAmount: 250000},
+    {customerId: 3, customerName: '汉庭酒店', shipmentCount: 3, totalQuantity: 400, totalAmount: 200000}
+  ],
+  
+  // 按物流公司统计
+  logisticsStats: [
+    {company: '顺丰速运', shipmentCount: 30, averageDeliveryDays: 2.5, onTimeRate: 0.95},
+    {company: '德邦物流', shipmentCount: 15, averageDeliveryDays: 3.2, onTimeRate: 0.87},
+    {company: '京东物流', shipmentCount: 5, averageDeliveryDays: 2.1, onTimeRate: 0.98}
+  ]
+};
+```
+
+**测试步骤**（20步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 进入发货统计页 | - | `a[href="/shipments/statistics"]` | 统计页面加载 | 页面显示 |
+| 3-4 | 选择统计日期范围 | 2025-01-01 to 01-31 | 日期选择器 | 日期范围选择成功 | 日期显示 |
+| 5-6 | **查看总体统计** | - | `.overall-stats` | 显示总发货50单，5000件 | 统计卡片 |
+| 7-8 | **查看状态分布** | - | `.status-chart` | 饼图显示状态分布 | 图表渲染 |
+| 9-10 | **查看准时率** | - | `.on-time-rate` | 显示86% | 百分比显示 |
+| 11-12 | 切换到产品维度 | - | `tab:has-text("按产品")` | 显示产品统计表 | 表格显示 |
+| 13-14 | **验证产品排序** | - | 产品统计表 | 按发货数量倒序 | LOCK-001排第一 |
+| 15-16 | 切换到客户维度 | - | `tab:has-text("按客户")` | 显示客户统计表 | 表格显示 |
+| 17-18 | 切换到物流维度 | - | `tab:has-text("按物流")` | 显示物流统计表 | 表格显示 |
+| 19-20 | 点击"导出报表"按钮 | - | `button:has-text("导出")` | Excel文件下载 | 文件名含日期范围 |
+
+**API响应示例**:
+
+```json
+// GET /api/shipments/statistics
+{
+  "code": 200,
+  "message": "发货统计获取成功",
+  "data": {
+    "date_range": {
+      "start": "2025-01-01",
+      "end": "2025-01-31"
+    },
+    
+    "overall_stats": {
+      "total_shipments": 50,
+      "total_quantity": 5000,
+      "total_amount": 2500000.00,
+      "on_time_shipments": 43,
+      "on_time_rate": 86.00,
+      "exception_count": 3,
+      "exception_rate": 6.00
+    },
+    
+    "status_breakdown": {
+      "pending": {"count": 10, "percentage": 20.00},
+      "shipped": {"count": 35, "percentage": 70.00},
+      "delivered": {"count": 45, "percentage": 90.00},
+      "exception": {"count": 3, "percentage": 6.00}
+    },
+    
+    "product_stats": [/* 产品统计数据 */],
+    "customer_stats": [/* 客户统计数据 */],
+    "logistics_stats": [/* 物流统计数据 */]
+  }
+}
+```
+
+**业务规则**:
+1. 统计数据每日凌晨自动更新
+2. 准时发货率 = 实际发货日期 <= 计划发货日期的比例
+3. 异常率 = 发生异常的发货单数 / 总发货单数
+4. 导出报表包含所有维度的统计数据
+5. 报表保留90天后自动删除
+
+**截图**: `shipment-statistics-dashboard.png`, `shipment-stats-by-product.png`, `shipment-stats-export.png`
+
+---
+
+✅ **发货管理5个场景全部完成！**
+
+
+---
+
+# 模块9: 任务管理 (6个场景 - P1)
+
+## 场景TASK-002: 任务分配与协作
+
+**需求编号**: TASK-002
+**场景名称**: 团队任务分配、转派与协作流程
+
+**测试数据**:
+```javascript
+const taskAssignment = {
+  taskId: 1,
+  taskTitle: '完成丽枫酒店合同条款审核',
+  taskType: 'contract_review',
+  relatedObject: {
+    objectType: 'contract',
+    objectId: 1,
+    objectNo: 'CT202501200001'
+  },
+  
+  // 任务分配
+  assignment: {
+    createdBy: '销售经理-张总',
+    assignedTo: '法务-赵律师',
+    assignedDate: '2025-01-20 10:00:00',
+    dueDate: '2025-01-22 18:00:00',
+    priority: 'high',  // low | medium | high | urgent
+    
+    assignmentNote: '请重点审核付款条款和违约责任条款',
+    
+    // 协作人员
+    collaborators: [
+      {userId: 5, name: '销售-李明', role: '提供方'},
+      {userId: 8, name: '财务-王会计', role: '协助方'}
+    ]
+  },
+  
+  // 任务转派
+  reassignment: {
+    originalAssignee: '法务-赵律师',
+    newAssignee: '法务-钱律师',
+    reassignDate: '2025-01-21 09:00:00',
+    reassignBy: '法务-赵律师',
+    reassignReason: '本人临时出差，转派给钱律师处理',
+    notifyOriginal: true  // 通知原指派人
+  },
+  
+  // 任务协作记录
+  collaborationLogs: [
+    {
+      logId: 1,
+      time: '2025-01-21 10:30:00',
+      user: '销售-李明',
+      action: 'comment',
+      content: '已上传合同原件扫描件，请查收'
+    },
+    {
+      logId: 2,
+      time: '2025-01-21 14:00:00',
+      user: '法务-钱律师',
+      action: 'update',
+      content: '发现付款比例问题，已标注修改建议'
+    },
+    {
+      logId: 3,
+      time: '2025-01-21 15:30:00',
+      user: '财务-王会计',
+      action: 'comment',
+      content: '付款比例调整为30%-60%-10%更合理'
+    }
+  ]
+};
+```
+
+**测试步骤**（28步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **创建并分配任务** | | | | | |
+| 1-2 | 进入任务管理页 | - | `a[href="/tasks"]` | 任务列表加载 | 页面显示 |
+| 3-4 | 点击"新建任务"按钮 | - | `button:has-text("新建任务")` | 打开任务创建表单 | 表单显示 |
+| 5-6 | 输入任务标题 | 完成丽枫酒店合同条款审核 | `input#task-title` | 标题输入成功 | 输入框值 |
+| 7-8 | 选择任务类型 | 合同审核 | `select#task-type` | 类型选择成功 | 下拉选项 |
+| 9-10 | 关联合同对象 | CT202501200001 | 关联对象选择器 | 合同关联成功 | 关联显示 |
+| 11-12 | 选择指派人 | 法务-赵律师 | `select#assigned-to` | 指派人选择成功 | 用户下拉 |
+| 13-14 | 设置截止日期 | 2025-01-22 18:00 | `input[type="datetime"]` | 日期时间设置成功 | 日期选择器 |
+| 15-16 | 设置优先级 | 高 | `select#priority` | 优先级高 | 红色标记 |
+| 17-18 | 添加协作人 | 李明, 王会计 | 协作人选择器 | 2个协作人添加 | 协作人列表 |
+| 19-20 | 填写任务说明 | 请重点审核... | `textarea#task-note` | 说明输入成功 | 文本框值 |
+| 21-22 | 提交创建任务 | - | `button:has-text("提交")` | 任务创建成功 | 成功提示 |
+| **任务转派** | | | | | |
+| 23-24 | 切换到赵律师账号 | - | 登录操作 | 登录成功 | 用户界面 |
+| 25-26 | 点击"转派"按钮 | - | `button:has-text("转派")` | 打开转派对话框 | 对话框显示 |
+| 27-28 | 选择新指派人并确认 | 钱律师 | `select#new-assignee` | 转派成功 | 通知发送 |
+
+**API响应示例**:
+
+```json
+// POST /api/tasks (创建任务)
+{
+  "code": 201,
+  "message": "任务创建成功",
+  "data": {
+    "task_id": 1,
+    "task_no": "TASK202501200001",
+    "task_title": "完成丽枫酒店合同条款审核",
+    "task_type": "contract_review",
+    "related_object": {
+      "object_type": "contract",
+      "object_id": 1,
+      "object_no": "CT202501200001"
+    },
+    "created_by": "张总",
+    "assigned_to": "赵律师",
+    "assigned_date": "2025-01-20T10:00:00Z",
+    "due_date": "2025-01-22T18:00:00Z",
+    "priority": "high",
+    "status": "assigned",
+    "collaborators": [
+      {"user_id": 5, "name": "李明", "role": "提供方"},
+      {"user_id": 8, "name": "王会计", "role": "协助方"}
+    ]
+  }
+}
+
+// POST /api/tasks/1/reassign (转派任务)
+{
+  "code": 200,
+  "message": "任务转派成功",
+  "data": {
+    "task_id": 1,
+    "original_assignee": "赵律师",
+    "new_assignee": "钱律师",
+    "reassigned_at": "2025-01-21T09:00:00Z",
+    "reassign_reason": "本人临时出差，转派给钱律师处理",
+    "notifications_sent": [
+      {"recipient": "张总", "type": "reassignment_notify"},
+      {"recipient": "钱律师", "type": "task_assigned"}
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 任务必须指派给具体人员，不能未分配
+2. 截止日期不能早于当前日期
+3. 高优先级任务自动发送即时通知
+4. 转派任务需要填写转派原因
+5. 转派后原指派人自动变为协作人
+6. 所有协作人可见任务详情和更新
+
+**截图**: `task-create-and-assign.png`, `task-reassignment.png`, `task-collaboration.png`
+
+---
+
+## 场景TASK-003: 任务进度跟踪
+
+**需求编号**: TASK-003
+**场景名称**: 任务进度更新、里程碑记录与完成度追踪
+
+**测试数据**:
+```javascript
+const taskProgress = {
+  taskId: 1,
+  taskTitle: '完成丽枫酒店合同条款审核',
+  
+  // 任务进度阶段
+  milestones: [
+    {
+      milestoneId: 1,
+      milestoneName: '合同初审',
+      plannedDate: '2025-01-21 12:00:00',
+      actualDate: '2025-01-21 11:30:00',
+      status: 'completed',
+      completedBy: '钱律师',
+      notes: '初审完成，发现3处需修改的条款'
+    },
+    {
+      milestoneId: 2,
+      milestoneName: '修改建议提交',
+      plannedDate: '2025-01-21 18:00:00',
+      actualDate: '2025-01-21 16:00:00',
+      status: 'completed',
+      completedBy: '钱律师',
+      notes: '已提交详细修改建议给销售部门'
+    },
+    {
+      milestoneId: 3,
+      milestoneName: '修改后复审',
+      plannedDate: '2025-01-22 12:00:00',
+      actualDate: null,
+      status: 'pending',
+      notes: '等待合同修改完成'
+    },
+    {
+      milestoneId: 4,
+      milestoneName: '最终审核通过',
+      plannedDate: '2025-01-22 18:00:00',
+      actualDate: null,
+      status: 'pending'
+    }
+  ],
+  
+  // 任务完成度
+  completionTracking: {
+    totalMilestones: 4,
+    completedMilestones: 2,
+    completionRate: 0.50,  // 50%
+    
+    timeTracking: {
+      estimatedHours: 8,
+      actualHours: 4.5,
+      remainingHours: 3.5
+    },
+    
+    progressUpdates: [
+      {
+        updateId: 1,
+        updateTime: '2025-01-21 11:30:00',
+        updateBy: '钱律师',
+        progressBefore: 0,
+        progressAfter: 25,
+        updateNote: '完成初审，进度25%'
+      },
+      {
+        updateId: 2,
+        updateTime: '2025-01-21 16:00:00',
+        updateBy: '钱律师',
+        progressBefore: 25,
+        progressAfter: 50,
+        updateNote: '已提交修改建议，进度50%'
+      }
+    ]
+  }
+};
+```
+
+**测试步骤**（24步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 进入任务详情页 | taskId=1 | `a[href="/tasks/1"]` | 任务详情加载 | 详情显示 |
+| 3-4 | 点击"进度跟踪"标签 | - | `tab:has-text("进度跟踪")` | 显示进度跟踪界面 | 进度条、里程碑 |
+| 5-6 | **查看整体进度** | - | `.progress-bar` | 进度条显示50% | 2/4里程碑完成 |
+| 7-8 | 查看里程碑列表 | - | `.milestone-list` | 显示4个里程碑 | 2个已完成 |
+| 9-10 | 点击第3个里程碑 | 修改后复审 | 里程碑3行 | 显示里程碑详情 | 待完成状态 |
+| 11-12 | 点击"完成里程碑"按钮 | - | `button:has-text("完成")` | 打开完成确认表单 | 表单显示 |
+| 13-14 | 填写完成说明 | 复审通过，无需修改 | `textarea#completion-note` | 说明输入成功 | 文本框值 |
+| 15-16 | 确认完成里程碑 | - | `button:has-text("确认")` | 里程碑标记为完成 | 状态更新 |
+| 17-18 | **验证进度自动更新** | - | `.progress-bar` | 进度条更新为75% | 3/4完成 |
+| 19-20 | 点击"更新整体进度"按钮 | - | `button:has-text("更新进度")` | 打开进度更新表单 | 表单显示 |
+| 21-22 | 拖动进度滑块 | 75% | `input[type="range"]` | 进度值设置成功 | 滑块位置 |
+| 23-24 | 提交进度更新 | - | `button:has-text("提交")` | 进度更新成功 | 更新记录添加 |
+
+**API响应示例**:
+
+```json
+// GET /api/tasks/1/progress
+{
+  "code": 200,
+  "message": "任务进度获取成功",
+  "data": {
+    "task_id": 1,
+    "task_title": "完成丽枫酒店合同条款审核",
+    "overall_progress": 50,  // 整体进度50%
+    
+    "milestones": [
+      {
+        "milestone_id": 1,
+        "milestone_name": "合同初审",
+        "planned_date": "2025-01-21T12:00:00Z",
+        "actual_date": "2025-01-21T11:30:00Z",
+        "status": "completed",
+        "completed_by": "钱律师",
+        "ahead_of_schedule": true,  // 提前完成
+        "time_saved_minutes": 30
+      },
+      // ... 其他里程碑
+    ],
+    
+    "completion_tracking": {
+      "total_milestones": 4,
+      "completed_milestones": 2,
+      "completion_rate": 50.00,
+      "estimated_completion_date": "2025-01-22T15:00:00Z"  // 基于当前进度预估
+    },
+    
+    "progress_history": [/* 进度更新历史 */]
+  }
+}
+
+// POST /api/tasks/1/milestones/3/complete
+{
+  "code": 200,
+  "message": "里程碑完成成功",
+  "data": {
+    "milestone_id": 3,
+    "milestone_name": "修改后复审",
+    "status": "completed",
+    "completed_at": "2025-01-22T10:00:00Z",
+    "completed_by": "钱律师",
+    "completion_note": "复审通过，无需修改",
+    
+    "task_progress_updated": {
+      "previous_progress": 50,
+      "current_progress": 75,
+      "remaining_milestones": 1
+    }
+  }
+}
+```
+
+**业务规则**:
+1. 里程碑按顺序完成，不能跳跃
+2. 完成里程碑需要填写完成说明
+3. 任务进度 = 已完成里程碑数 / 总里程碑数
+4. 进度更新自动记录时间和操作人
+5. 提前完成里程碑自动标记
+6. 所有里程碑完成后，任务自动标记为待验收
+
+**截图**: `task-progress-tracking.png`, `task-milestones.png`, `task-completion-timeline.png`
+
+---
+
+## 场景TASK-005: 任务提醒与超期告警
+
+**需求编号**: TASK-005
+**场景名称**: 任务到期提醒、超期告警与升级机制
+
+**测试数据**:
+```javascript
+const taskReminders = {
+  // 提醒规则
+  reminderRules: {
+    urgent: {
+      beforeDueHours: [24, 4, 1],  // 到期前24小时、4小时、1小时提醒
+      channels: ['system', 'email', 'sms']
+    },
+    high: {
+      beforeDueHours: [24, 4],
+      channels: ['system', 'email']
+    },
+    medium: {
+      beforeDueHours: [24],
+      channels: ['system']
+    },
+    low: {
+      beforeDueHours: [24],
+      channels: ['system']
+    }
+  },
+  
+  // 超期告警规则
+  overdueAlerts: {
+    level1: {  // 第1级告警
+      afterDueHours: 0,  // 超期立即
+      recipients: ['assignee', 'creator'],
+      action: 'notify'
+    },
+    level2: {  // 第2级告警
+      afterDueHours: 24,  // 超期24小时
+      recipients: ['assignee', 'creator', 'manager'],
+      action: 'escalate'
+    },
+    level3: {  // 第3级告警
+      afterDueHours: 48,  // 超期48小时
+      recipients: ['assignee', 'creator', 'manager', 'director'],
+      action: 'critical_escalate'
+    }
+  },
+  
+  // 测试任务
+  testTasks: [
+    {
+      taskId: 5,
+      taskTitle: '准备酒店产品演示材料',
+      assignedTo: '销售-李明',
+      dueDate: '2025-01-25 18:00:00',
+      currentTime: '2025-01-24 18:00:00',  // 距离到期24小时
+      priority: 'high',
+      status: 'in_progress',
+      alertLevel: 'warning'
+    },
+    {
+      taskId: 6,
+      taskTitle: '完成合同修改',
+      assignedTo: '法务-钱律师',
+      dueDate: '2025-01-23 18:00:00',
+      currentTime: '2025-01-25 18:00:00',  // 超期48小时
+      priority: 'urgent',
+      status: 'overdue',
+      alertLevel: 'critical'
+    }
+  ]
+};
+```
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 输入数据/模拟时间 | 选择器 | 预期结果 | 验证点 |
+|------|------|------------------|--------|---------|--------|
+| **到期提醒** | | | | | |
+| 1-2 | 进入我的任务列表 | - | `a[href="/my-tasks"]` | 任务列表加载 | 页面显示 |
+| 3-4 | **查看即将到期任务** | - | `.due-soon-task` | 显示黄色提醒标记 | 剩余24小时 |
+| 5-6 | 点击任务查看详情 | taskId=5 | 点击任务行 | 任务详情显示 | 倒计时显示 |
+| 7-8 | **验证提醒通知** | - | 通知中心 | 显示到期提醒通知 | 距离到期24小时 |
+| 9-10 | 模拟时间推进20小时 | currentTime+20h | 系统定时任务 | 触发4小时提醒 | 第2次提醒 |
+| 11-12 | **验证邮件提醒** | - | 邮箱检查 | 收到提醒邮件 | 高优先级任务 |
+| **超期告警** | | | | | |
+| 13-14 | 查看超期任务列表 | - | `.overdue-tasks` | 显示超期任务 | 红色告警标记 |
+| 15-16 | 点击超期任务 | taskId=6 | 点击任务行 | 任务详情显示 | 超期48小时 |
+| 17-18 | **验证告警级别** | - | `.alert-badge` | 显示"严重超期" | 红色关键告警 |
+| 19-20 | 查看告警历史 | - | `tab:has-text("告警历史")` | 显示3条告警记录 | 逐级升级 |
+| 21-22 | **验证升级通知** | - | 通知列表 | 显示已通知主管和总监 | 第3级告警 |
+| 23-24 | 点击"申请延期"按钮 | - | `button:has-text("申请延期")` | 打开延期申请表单 | 表单显示 |
+| 25-26 | 填写延期原因并提交 | 合同修改涉及复杂条款 | 延期表单 | 延期申请提交成功 | 待审批状态 |
+
+**API响应示例**:
+
+```json
+// GET /api/tasks/alerts
+{
+  "code": 200,
+  "message": "任务提醒告警获取成功",
+  "data": {
+    "due_soon_tasks": [
+      {
+        "task_id": 5,
+        "task_title": "准备酒店产品演示材料",
+        "assigned_to": "李明",
+        "due_date": "2025-01-25T18:00:00Z",
+        "hours_until_due": 24,
+        "alert_level": "warning",
+        "reminders_sent": [
+          {"sent_at": "2025-01-24T18:00:00Z", "channel": "system"},
+          {"sent_at": "2025-01-24T18:00:00Z", "channel": "email"}
+        ]
+      }
+    ],
+    
+    "overdue_tasks": [
+      {
+        "task_id": 6,
+        "task_title": "完成合同修改",
+        "assigned_to": "钱律师",
+        "due_date": "2025-01-23T18:00:00Z",
+        "hours_overdue": 48,
+        "alert_level": "critical",
+        "escalation_level": 3,
+        "escalated_to": ["manager", "director"],
+        "alerts_sent": [
+          {"sent_at": "2025-01-23T18:00:00Z", "level": 1, "recipients": ["钱律师", "张总"]},
+          {"sent_at": "2025-01-24T18:00:00Z", "level": 2, "recipients": ["钱律师", "张总", "主管"]},
+          {"sent_at": "2025-01-25T18:00:00Z", "level": 3, "recipients": ["钱律师", "张总", "主管", "总监"]}
+        ]
+      }
+    ]
+  }
+}
+
+// POST /api/tasks/6/request-extension
+{
+  "code": 201,
+  "message": "延期申请提交成功",
+  "data": {
+    "task_id": 6,
+    "extension_request_id": 1,
+    "current_due_date": "2025-01-23T18:00:00Z",
+    "requested_new_date": "2025-01-28T18:00:00Z",
+    "extension_days": 5,
+    "reason": "合同修改涉及复杂条款，需要更多时间",
+    "status": "pending_approval",
+    "submitted_by": "钱律师",
+    "submitted_at": "2025-01-25T18:30:00Z",
+    "approver": "张总"
+  }
+}
+```
+
+**业务规则**:
+1. 紧急任务在到期前24、4、1小时三次提醒
+2. 超期立即发送第1级告警
+3. 超期24小时升级到主管
+4. 超期48小时升级到总监
+5. 延期申请需要主管审批
+6. 审批通过后告警自动解除
+
+**截图**: `task-due-soon-reminder.png`, `task-overdue-alerts.png`, `task-escalation-levels.png`
+
+---
+
+## 场景TASK-006: 任务评论与附件管理
+
+**需求编号**: TASK-006
+**场景名称**: 任务讨论评论、文件附件上传与版本管理
+
+**测试数据**:
+```javascript
+const taskCollaboration = {
+  taskId: 1,
+  taskTitle: '完成丽枫酒店合同条款审核',
+  
+  // 任务评论
+  comments: [
+    {
+      commentId: 1,
+      userId: 5,
+      userName: '销售-李明',
+      commentTime: '2025-01-21 10:30:00',
+      commentType: 'text',
+      content: '合同原件已上传附件，请审核',
+      mentions: ['@钱律师'],
+      attachments: []
+    },
+    {
+      commentId: 2,
+      userId: 10,
+      userName: '法务-钱律师',
+      commentTime: '2025-01-21 14:00:00',
+      commentType: 'text_with_attachment',
+      content: '初审完成，发现3处需修改的条款，详见附件修改建议',
+      mentions: ['@李明', '@张总'],
+      attachments: [
+        {attachmentId: 3, fileName: '合同修改建议v1.docx'}
+      ],
+      reactions: [
+        {userId: 5, userName: '李明', emoji: '👍'},
+        {userId: 1, userName: '张总', emoji: '✅'}
+      ]
+    },
+    {
+      commentId: 3,
+      userId: 8,
+      userName: '财务-王会计',
+      commentTime: '2025-01-21 15:30:00',
+      commentType: 'text',
+      content: '@钱律师 付款比例调整为30%-60%-10%更合理',
+      mentions: ['@钱律师'],
+      parentCommentId: 2  // 回复评论2
+    }
+  ],
+  
+  // 任务附件
+  attachments: [
+    {
+      attachmentId: 1,
+      fileName: '丽枫酒店合同原件.pdf',
+      fileSize: 2048000,  // 2MB
+      uploadedBy: '李明',
+      uploadedAt: '2025-01-21 10:30:00',
+      version: 1,
+      isCurrent: false
+    },
+    {
+      attachmentId: 2,
+      fileName: '丽枫酒店合同原件.pdf',
+      fileSize: 2100000,
+      uploadedBy: '李明',
+      uploadedAt: '2025-01-21 16:00:00',
+      version: 2,
+      isCurrent: true,  // 当前版本
+      changeNote: '根据法务建议修改付款条款'
+    },
+    {
+      attachmentId: 3,
+      fileName: '合同修改建议v1.docx',
+      fileSize: 512000,
+      uploadedBy: '钱律师',
+      uploadedAt: '2025-01-21 14:00:00',
+      version: 1,
+      isCurrent: true
+    }
+  ]
+};
+```
+
+**测试步骤**（30步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **评论功能** | | | | | |
+| 1-2 | 进入任务详情页 | taskId=1 | `a[href="/tasks/1"]` | 任务详情加载 | 详情显示 |
+| 3-4 | 点击"评论"标签页 | - | `tab:has-text("评论")` | 显示评论列表 | 3条评论 |
+| 5-6 | 点击"添加评论"输入框 | - | `textarea#comment-input` | 输入框激活 | 光标聚焦 |
+| 7-8 | 输入@符号 | @ | 输入框 | 显示成员选择列表 | @提及功能 |
+| 9-10 | 选择@钱律师 | - | 点击成员 | @钱律师插入 | 蓝色高亮 |
+| 11-12 | 输入评论内容 | 请尽快完成审核 | 输入框 | 文本输入成功 | 输入框值 |
+| 13-14 | 提交评论 | - | `button:has-text("发表")` | 评论发表成功 | 评论列表更新 |
+| 15-16 | **验证@提及通知** | - | 切换到钱律师账号 | 收到提及通知 | 通知中心 |
+| 17-18 | 回复评论 | - | 点击"回复"按钮 | 打开回复输入框 | 输入框显示 |
+| 19-20 | 输入回复内容 | 收到，今天完成 | 回复输入框 | 回复输入成功 | 输入框值 |
+| 21-22 | 提交回复 | - | `button:has-text("回复")` | 回复发表成功 | 嵌套显示 |
+| **附件功能** | | | | | |
+| 23-24 | 点击"附件"标签页 | - | `tab:has-text("附件")` | 显示附件列表 | 3个附件 |
+| 25-26 | 点击"上传附件"按钮 | - | `button:has-text("上传附件")` | 打开文件选择对话框 | 文件选择器 |
+| 27-28 | 选择文件上传 | 合同修改稿.pdf | `input[type="file"]` | 文件上传中 | 进度条显示 |
+| 29-30 | **验证上传成功** | - | 附件列表 | 新附件添加到列表 | 附件显示 |
+
+**API响应示例**:
+
+```json
+// POST /api/tasks/1/comments
+{
+  "code": 201,
+  "message": "评论发表成功",
+  "data": {
+    "comment_id": 4,
+    "task_id": 1,
+    "user_id": 1,
+    "user_name": "张总",
+    "comment_time": "2025-01-21T16:30:00Z",
+    "content": "@钱律师 请尽快完成审核",
+    "mentions": [
+      {"user_id": 10, "user_name": "钱律师"}
+    ],
+    "notifications_sent": [
+      {"recipient_id": 10, "recipient_name": "钱律师", "type": "mention"}
+    ]
+  }
+}
+
+// POST /api/tasks/1/attachments
+{
+  "code": 201,
+  "message": "附件上传成功",
+  "data": {
+    "attachment_id": 4,
+    "task_id": 1,
+    "file_name": "合同修改稿.pdf",
+    "file_size": 2150000,
+    "file_type": "application/pdf",
+    "file_url": "/uploads/tasks/1/合同修改稿.pdf",
+    "uploaded_by": "李明",
+    "uploaded_at": "2025-01-21T16:35:00Z",
+    "version": 3,
+    "is_current": true,
+    "change_note": ""
+  }
+}
+
+// GET /api/tasks/1/attachments/1/versions
+{
+  "code": 200,
+  "message": "附件版本历史获取成功",
+  "data": {
+    "file_name": "丽枫酒店合同原件.pdf",
+    "total_versions": 2,
+    "current_version": 2,
+    "versions": [
+      {
+        "version": 2,
+        "attachment_id": 2,
+        "file_size": 2100000,
+        "uploaded_at": "2025-01-21T16:00:00Z",
+        "uploaded_by": "李明",
+        "change_note": "根据法务建议修改付款条款",
+        "is_current": true
+      },
+      {
+        "version": 1,
+        "attachment_id": 1,
+        "file_size": 2048000,
+        "uploaded_at": "2025-01-21T10:30:00Z",
+        "uploaded_by": "李明",
+        "change_note": "初始版本",
+        "is_current": false
+      }
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 评论支持@提及功能，被提及人收到通知
+2. 可以回复具体评论，形成讨论线程
+3. 支持表情回应功能（点赞、确认等）
+4. 附件单个大小不超过50MB
+5. 同名文件上传自动版本化
+6. 附件版本历史保留，可下载旧版本
+7. 删除附件需要权限验证
+
+**截图**: `task-comments-thread.png`, `task-mention-notification.png`, `task-attachments-versions.png`
+
+---
+
+## 场景TASK-008: 任务统计与报表
+
+**需求编号**: TASK-008
+**场景名称**: 个人/团队任务统计分析与效率报表
+
+**测试数据**:
+```javascript
+const taskStatistics = {
+  dateRange: {
+    start: '2025-01-01',
+    end: '2025-01-31'
+  },
+  
+  // 个人任务统计
+  personalStats: {
+    userId: 5,
+    userName: '销售-李明',
+    
+    taskCounts: {
+      total: 50,
+      completed: 42,
+      in_progress: 5,
+      overdue: 3,
+      completion_rate: 0.84  // 84%完成率
+    },
+    
+    priorityBreakdown: {
+      urgent: {total: 5, completed: 4, overdue: 1},
+      high: {total: 15, completed: 13, overdue: 2},
+      medium: {total: 20, completed: 18, overdue: 0},
+      low: {total: 10, completed: 7, overdue: 0}
+    },
+    
+    typeBreakdown: {
+      customer_follow_up: {count: 20, avg_completion_days: 2.5},
+      quotation: {count: 15, avg_completion_days: 1.8},
+      contract_review: {count: 10, avg_completion_days: 3.2},
+      meeting: {count: 5, avg_completion_days: 0.5}
+    },
+    
+    timeStats: {
+      average_completion_days: 2.3,
+      fastest_completion_hours: 2,
+      slowest_completion_days: 7,
+      on_time_rate: 0.86  // 86%准时完成
+    }
+  },
+  
+  // 团队任务统计
+  teamStats: {
+    teamName: '销售部',
+    memberCount: 5,
+    
+    totalTasks: 200,
+    completedTasks: 165,
+    pendingTasks: 25,
+    overdueTasks: 10,
+    
+    memberPerformance: [
+      {userId: 5, userName: '李明', completed: 42, onTimeRate: 0.86, avgDays: 2.3},
+      {userId: 6, userName: '王芳', completed: 38, onTimeRate: 0.92, avgDays: 2.0},
+      {userId: 7, userName: '赵刚', completed: 35, onTimeRate: 0.80, avgDays: 2.8},
+      {userId: 8, userName: '刘洋', completed: 30, onTimeRate: 0.85, avgDays: 2.5},
+      {userId: 9, userName: '陈静', completed: 20, onTimeRate: 0.78, avgDays: 3.2}
+    ],
+    
+    efficiency_trends: [
+      {week: '第1周', completed: 35, average_days: 2.5},
+      {week: '第2周', completed: 40, average_days: 2.2},
+      {week: '第3周', completed: 45, average_days: 2.0},
+      {week: '第4周', completed: 45, average_days: 2.1}
+    ]
+  }
+};
+```
+
+**测试步骤**（22步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **个人统计** | | | | | |
+| 1-2 | 进入个人任务统计页 | - | `a[href="/tasks/my-statistics"]` | 个人统计页加载 | 页面显示 |
+| 3-4 | 选择统计日期范围 | 2025-01-01 to 01-31 | 日期选择器 | 日期范围选择成功 | 日期显示 |
+| 5-6 | **查看任务完成率** | - | `.completion-rate` | 显示84% | 42/50完成 |
+| 7-8 | **查看准时完成率** | - | `.on-time-rate` | 显示86% | 准时率显示 |
+| 9-10 | 查看优先级分布图 | - | `.priority-chart` | 饼图显示优先级分布 | 图表渲染 |
+| 11-12 | 查看任务类型统计 | - | `.type-stats-table` | 表格显示4种任务类型 | 表格显示 |
+| **团队统计** | | | | | |
+| 13-14 | 进入团队任务统计页 | - | `a[href="/tasks/team-statistics"]` | 团队统计页加载 | 页面显示 |
+| 15-16 | **查看团队完成情况** | - | `.team-overview` | 显示团队完成165/200 | 统计卡片 |
+| 17-18 | 查看成员绩效排行 | - | `.member-performance` | 表格显示5个成员 | 按完成数排序 |
+| 19-20 | **查看效率趋势图** | - | `.efficiency-trend-chart` | 折线图显示4周趋势 | 图表渲染 |
+| 21-22 | 点击"导出报表"按钮 | - | `button:has-text("导出")` | Excel文件下载 | 文件名含日期 |
+
+**API响应示例**:
+
+```json
+// GET /api/tasks/statistics/personal
+{
+  "code": 200,
+  "message": "个人任务统计获取成功",
+  "data": {
+    "user_id": 5,
+    "user_name": "李明",
+    "date_range": {
+      "start": "2025-01-01",
+      "end": "2025-01-31"
+    },
+    
+    "task_counts": {
+      "total": 50,
+      "completed": 42,
+      "in_progress": 5,
+      "overdue": 3,
+      "completion_rate": 84.00
+    },
+    
+    "priority_breakdown": {
+      "urgent": {"total": 5, "completed": 4, "completion_rate": 80.00},
+      "high": {"total": 15, "completed": 13, "completion_rate": 86.67},
+      "medium": {"total": 20, "completed": 18, "completion_rate": 90.00},
+      "low": {"total": 10, "completed": 7, "completion_rate": 70.00}
+    },
+    
+    "time_stats": {
+      "average_completion_days": 2.3,
+      "on_time_rate": 86.00,
+      "early_completion_count": 15,
+      "late_completion_count": 6
+    }
+  }
+}
+
+// GET /api/tasks/statistics/team
+{
+  "code": 200,
+  "message": "团队任务统计获取成功",
+  "data": {
+    "team_name": "销售部",
+    "member_count": 5,
+    "total_tasks": 200,
+    "completed_tasks": 165,
+    "team_completion_rate": 82.50,
+    "team_on_time_rate": 84.24,
+    
+    "member_performance": [
+      {
+        "user_id": 5,
+        "user_name": "李明",
+        "completed_tasks": 42,
+        "on_time_rate": 86.00,
+        "avg_completion_days": 2.3,
+        "rank": 1
+      },
+      // ... 其他成员
+    ],
+    
+    "efficiency_trends": [/* 效率趋势数据 */]
+  }
+}
+```
+
+**业务规则**:
+1. 统计数据每日凌晨自动更新
+2. 完成率 = 已完成任务数 / 总任务数
+3. 准时率 = 准时完成任务数 / 已完成任务数
+4. 平均完成天数 = 总完成天数 / 已完成任务数
+5. 团队排名按完成任务数排序
+6. 导出报表包含个人和团队所有维度数据
+
+**截图**: `task-personal-statistics.png`, `task-team-performance.png`, `task-efficiency-trends.png`
+
+---
+
+## 场景TASK-009: 任务模板管理
+
+**需求编号**: TASK-009
+**场景名称**: 常用任务模板创建与快速应用
+
+**测试数据**:
+```javascript
+const taskTemplates = [
+  {
+    templateId: 1,
+    templateName: '新客户跟进标准流程',
+    templateCategory: '销售任务',
+    description: '适用于新客户的首次跟进任务',
+    
+    // 模板任务列表
+    taskItems: [
+      {
+        itemNo: 1,
+        taskTitle: '发送公司介绍资料',
+        taskType: 'customer_follow_up',
+        priority: 'high',
+        estimatedDays: 1,
+        description: '向客户发送公司简介、产品册、案例集'
+      },
+      {
+        itemNo: 2,
+        taskTitle: '安排产品演示',
+        taskType: 'meeting',
+        priority: 'high',
+        estimatedDays: 3,
+        description: '联系客户安排产品现场演示时间'
+      },
+      {
+        itemNo: 3,
+        taskTitle: '提交报价方案',
+        taskType: 'quotation',
+        priority: 'medium',
+        estimatedDays: 5,
+        description: '根据客户需求制作报价单'
+      },
+      {
+        itemNo: 4,
+        taskTitle: '跟进报价反馈',
+        taskType: 'customer_follow_up',
+        priority: 'medium',
+        estimatedDays: 7,
+        description: '电话/邮件跟进客户对报价的反馈'
+      }
+    ],
+    
+    usageCount: 25,
+    createdBy: '销售经理-张总',
+    createdAt: '2024-12-01',
+    isActive: true
+  },
+  {
+    templateId: 2,
+    templateName: '合同签订前审核检查清单',
+    templateCategory: '合同管理',
+    taskItems: [
+      {itemNo: 1, taskTitle: '法务合同审核', priority: 'urgent', estimatedDays: 1},
+      {itemNo: 2, taskTitle: '财务条款审核', priority: 'high', estimatedDays: 1},
+      {itemNo: 3, taskTitle: '主管签字审批', priority: 'high', estimatedDays: 1}
+    ],
+    usageCount: 18
+  }
+];
+
+// 从模板创建任务
+const taskFromTemplate = {
+  templateId: 1,
+  customerId: 10,  // 新客户：希尔顿酒店
+  customerName: '希尔顿酒店',
+  assignedTo: '销售-李明',
+  startDate: '2025-01-22',
+  
+  // 根据模板生成的任务
+  generatedTasks: [
+    {
+      taskNo: 'TASK202501220001',
+      taskTitle: '[希尔顿酒店] 发送公司介绍资料',
+      priority: 'high',
+      dueDate: '2025-01-23',  // startDate + 1天
+      relatedCustomer: {customerId: 10, customerName: '希尔顿酒店'}
+    },
+    {
+      taskNo: 'TASK202501220002',
+      taskTitle: '[希尔顿酒店] 安排产品演示',
+      priority: 'high',
+      dueDate: '2025-01-25'  // startDate + 3天
+    },
+    // ... 其他任务
+  ]
+};
+```
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **创建模板** | | | | | |
+| 1-2 | 进入任务模板管理页 | - | `a[href="/task-templates"]` | 模板列表加载 | 页面显示 |
+| 3-4 | 点击"新建模板"按钮 | - | `button:has-text("新建模板")` | 打开模板创建表单 | 表单显示 |
+| 5-6 | 输入模板名称 | 新客户跟进标准流程 | `input#template-name` | 名称输入成功 | 输入框值 |
+| 7-8 | 选择模板类别 | 销售任务 | `select#template-category` | 类别选择成功 | 下拉选项 |
+| 9-10 | 点击"添加任务项"按钮 | - | `button:has-text("添加任务项")` | 添加任务项表单行 | 表单行显示 |
+| 11-12 | 填写第1个任务项 | 发送公司介绍资料 | 任务项表单 | 任务项填写成功 | 表单字段 |
+| 13-14 | 设置预计天数 | 1 | `input#estimated-days` | 天数设置成功 | 数字输入 |
+| 15-16 | 继续添加其他任务项 | 3个任务项 | 重复添加 | 总共4个任务项 | 任务项列表 |
+| 17-18 | 保存模板 | - | `button:has-text("保存")` | 模板创建成功 | 成功提示 |
+| **使用模板** | | | | | |
+| 19-20 | 进入任务列表页 | - | `a[href="/tasks"]` | 任务列表加载 | 页面显示 |
+| 21-22 | 点击"从模板创建"按钮 | - | `button:has-text("从模板创建")` | 显示模板选择对话框 | 模板列表 |
+| 23-24 | 选择模板并填写参数 | 模板1, customerId=10 | 模板配置表单 | 参数填写成功 | 表单字段 |
+| 25-26 | 确认创建任务 | - | `button:has-text("确认")` | 批量创建4个任务 | 任务列表更新 |
+
+**API响应示例**:
+
+```json
+// POST /api/task-templates
+{
+  "code": 201,
+  "message": "任务模板创建成功",
+  "data": {
+    "template_id": 1,
+    "template_name": "新客户跟进标准流程",
+    "template_category": "销售任务",
+    "task_items": [
+      {
+        "item_no": 1,
+        "task_title": "发送公司介绍资料",
+        "priority": "high",
+        "estimated_days": 1
+      },
+      // ... 其他任务项
+    ],
+    "total_items": 4,
+    "created_by": "张总",
+    "created_at": "2025-01-22T10:00:00Z"
+  }
+}
+
+// POST /api/tasks/create-from-template
+{
+  "code": 201,
+  "message": "从模板创建任务成功",
+  "data": {
+    "template_id": 1,
+    "template_name": "新客户跟进标准流程",
+    "customer_id": 10,
+    "customer_name": "希尔顿酒店",
+    "assigned_to": "李明",
+    "start_date": "2025-01-22",
+    
+    "tasks_created": [
+      {
+        "task_id": 20,
+        "task_no": "TASK202501220001",
+        "task_title": "[希尔顿酒店] 发送公司介绍资料",
+        "due_date": "2025-01-23",
+        "status": "assigned"
+      },
+      {
+        "task_id": 21,
+        "task_no": "TASK202501220002",
+        "task_title": "[希尔顿酒店] 安排产品演示",
+        "due_date": "2025-01-25",
+        "status": "assigned"
+      },
+      // ... 其他任务
+    ],
+    "total_tasks_created": 4
+  }
+}
+```
+
+**业务规则**:
+1. 模板至少包含1个任务项
+2. 从模板创建时，任务标题自动添加客户名称前缀
+3. 截止日期根据开始日期和预计天数自动计算
+4. 模板使用次数自动统计
+5. 可以编辑模板，但不影响已创建的任务
+6. 停用的模板不能用于创建任务
+
+**截图**: `task-template-create.png`, `task-template-list.png`, `task-from-template.png`
+
+---
+
+✅ **任务管理6个场景全部完成！**
+
+
+---
+
+# 模块2: 产品管理 (4个场景 - P2)
+
+## 场景PRD-003: 产品库存预警
+
+**需求编号**: PRD-003
+**场景名称**: 产品库存不足自动预警与补货提醒
+
+**测试数据**:
+```javascript
+const productInventory = {
+  productId: 1,
+  productCode: 'LOCK-001',
+  productName: '智能门锁Pro',
+  
+  // 库存信息
+  inventory: {
+    currentStock: 50,  // 当前库存
+    safetyStock: 100,  // 安全库存
+    reorderPoint: 80,  // 补货点
+    maxStock: 500,  // 最大库存
+    
+    lockedStock: 30,  // 已锁定库存（待发货订单占用）
+    availableStock: 20,  // 可用库存 = current - locked
+    
+    averageMonthlyConsumption: 120,  // 月均消耗
+    estimatedStockoutDays: 15  // 预计15天后缺货
+  },
+  
+  // 预警规则
+  alertRules: {
+    level1: {
+      condition: 'currentStock < safetyStock',
+      alertLevel: 'warning',
+      message: '库存低于安全库存，建议补货',
+      recipients: ['采购员', '仓管']
+    },
+    level2: {
+      condition: 'currentStock < reorderPoint',
+      alertLevel: 'danger',
+      message: '库存已到补货点，请尽快补货',
+      recipients: ['采购员', '仓管', '采购主管']
+    },
+    level3: {
+      condition: 'currentStock <= 10',
+      alertLevel: 'critical',
+      message: '库存严重不足，紧急补货！',
+      recipients: ['采购员', '仓管', '采购主管', '总经理']
+    }
+  },
+  
+  // 补货记录
+  replenishmentRecord: {
+    replenishmentId: 1,
+    triggeredDate: '2025-01-20 10:00:00',
+    alertLevel: 'warning',
+    currentStock: 50,
+    suggestedQuantity: 200,  // 建议补货至250
+    status: 'pending',  // pending | processing | completed
+    purchaseOrderNo: null
+  }
+};
+```
+
+**测试步骤**（22步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| 1-2 | 进入产品列表页 | - | `a[href="/products"]` | 产品列表加载 | 页面显示 |
+| 3-4 | **查看库存预警标记** | - | `.low-stock-badge` | LOCK-001显示黄色预警 | 库存50<安全库存100 |
+| 5-6 | 点击产品进入详情 | productId=1 | 点击产品行 | 产品详情加载 | 详情显示 |
+| 7-8 | 点击"库存信息"标签 | - | `tab:has-text("库存信息")` | 显示库存详情 | 库存数据 |
+| 9-10 | **查看库存状态** | - | `.stock-status` | 当前50，安全100，预警显示 | 库存低于安全值 |
+| 11-12 | **查看可用库存** | - | `.available-stock` | 显示可用20（已锁定30） | 锁定库存提示 |
+| 13-14 | **查看预计缺货日期** | - | `.stockout-estimate` | 显示"15天后可能缺货" | 基于消耗预估 |
+| 15-16 | 点击"补货提醒"按钮 | - | `button:has-text("补货提醒")` | 显示补货建议对话框 | 对话框显示 |
+| 17-18 | **查看建议补货量** | - | `.suggested-quantity` | 建议补货200件 | 补至最大库存 |
+| 19-20 | 点击"创建采购单"按钮 | - | `button:has-text("创建采购单")` | 跳转到采购单创建页 | 产品自动填充 |
+| 21-22 | **验证预警通知** | - | 通知中心 | 显示库存预警通知 | 黄色预警通知 |
+
+**API响应示例**:
+
+```json
+// GET /api/products/1/inventory
+{
+  "code": 200,
+  "message": "库存信息获取成功",
+  "data": {
+    "product_id": 1,
+    "product_code": "LOCK-001",
+    "product_name": "智能门锁Pro",
+    
+    "inventory": {
+      "current_stock": 50,
+      "safety_stock": 100,
+      "reorder_point": 80,
+      "max_stock": 500,
+      "locked_stock": 30,
+      "available_stock": 20,
+      "stock_status": "low_stock",  // normal | low_stock | critical | out_of_stock
+      "alert_level": "warning"
+    },
+    
+    "consumption_stats": {
+      "daily_average": 4,
+      "weekly_average": 28,
+      "monthly_average": 120,
+      "estimated_stockout_days": 15
+    },
+    
+    "replenishment_suggestion": {
+      "should_replenish": true,
+      "suggested_quantity": 200,
+      "target_stock": 250,
+      "reason": "库存低于安全库存，建议补货至安全水平"
+    }
+  }
+}
+
+// GET /api/inventory/alerts
+{
+  "code": 200,
+  "message": "库存预警获取成功",
+  "data": {
+    "total_alerts": 5,
+    "critical_count": 1,
+    "danger_count": 2,
+    "warning_count": 2,
+    
+    "alerts": [
+      {
+        "product_id": 1,
+        "product_code": "LOCK-001",
+        "product_name": "智能门锁Pro",
+        "current_stock": 50,
+        "safety_stock": 100,
+        "alert_level": "warning",
+        "alert_message": "库存低于安全库存，建议补货",
+        "created_at": "2025-01-20T10:00:00Z"
+      },
+      // ... 其他预警
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 库存低于安全库存时发出黄色预警
+2. 库存低于补货点时发出橙色告警
+3. 库存≤10时发出红色紧急告警
+4. 预警通知每日早上8点发送一次
+5. 可用库存 = 当前库存 - 已锁定库存
+6. 建议补货量 = 最大库存 - 当前库存
+
+**截图**: `product-inventory-alert.png`, `product-stock-status.png`, `inventory-replenishment-suggestion.png`
+
+---
+
+## 场景PRD-004: 产品价格历史追踪
+
+**需求编号**: PRD-004
+**场景名称**: 产品价格变更记录与历史价格查询
+
+**测试数据**:
+```javascript
+const productPriceHistory = {
+  productId: 1,
+  productCode: 'LOCK-001',
+  productName: '智能门锁Pro',
+  currentPrice: 450,
+  
+  // 价格历史记录
+  priceHistory: [
+    {
+      priceId: 1,
+      effectiveDate: '2024-01-01',
+      endDate: '2024-06-30',
+      price: 500,
+      costPrice: 300,
+      profitMargin: 0.40,  // 40%利润率
+      priceType: 'standard',
+      changedBy: '产品经理-刘洋',
+      changeReason: '初始定价'
+    },
+    {
+      priceId: 2,
+      effectiveDate: '2024-07-01',
+      endDate: '2024-12-31',
+      price: 480,
+      costPrice: 290,
+      profitMargin: 0.396,  // 39.6%利润率
+      priceType: 'promotion',  // 促销价
+      changedBy: '产品经理-刘洋',
+      changeReason: '夏季促销活动'
+    },
+    {
+      priceId: 3,
+      effectiveDate: '2025-01-01',
+      endDate: null,  // 当前有效
+      price: 450,
+      costPrice: 280,
+      profitMargin: 0.378,  // 37.8%利润率
+      priceType: 'standard',
+      changedBy: '产品经理-刘洋',
+      changeReason: '成本下降，调整市场价格'
+    }
+  ],
+  
+  // 价格变更申请
+  priceChangeRequest: {
+    requestId: 1,
+    currentPrice: 450,
+    newPrice: 420,
+    effectiveDate: '2025-02-01',
+    changeReason: '春节促销，临时降价',
+    priceType: 'promotion',
+    requestedBy: '销售经理-张总',
+    requestedDate: '2025-01-20',
+    status: 'pending_approval',  // pending_approval | approved | rejected
+    approver: '总经理'
+  }
+};
+```
+
+**测试步骤**（24步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **查看价格历史** | | | | | |
+| 1-2 | 进入产品详情页 | productId=1 | `a[href="/products/1"]` | 产品详情加载 | 详情显示 |
+| 3-4 | 点击"价格历史"标签 | - | `tab:has-text("价格历史")` | 显示价格历史列表 | 3条记录 |
+| 5-6 | **查看当前价格** | - | `.current-price` | 显示¥450（标准价） | 高亮显示 |
+| 7-8 | **查看历史价格** | - | `.price-history-table` | 显示3条价格记录 | 按时间倒序 |
+| 9-10 | 点击查看价格趋势图 | - | `button:has-text("趋势图")` | 显示价格折线图 | 图表渲染 |
+| 11-12 | **验证价格下降趋势** | - | 折线图 | 500→480→450 | 下降趋势 |
+| **申请价格变更** | | | | | |
+| 13-14 | 点击"申请调价"按钮 | - | `button:has-text("申请调价")` | 打开调价申请表单 | 表单显示 |
+| 15-16 | 输入新价格 | 420 | `input#new-price` | 新价格输入成功 | 输入框值 |
+| 17-18 | **查看降价幅度** | - | `.price-change-rate` | 显示"降价6.67%" | 自动计算 |
+| 19-20 | 选择生效日期 | 2025-02-01 | `input[type="date"]` | 日期选择成功 | 日期选择器 |
+| 21-22 | 填写变更原因 | 春节促销，临时降价 | `textarea#change-reason` | 原因输入成功 | 文本框值 |
+| 23-24 | 提交调价申请 | - | `button:has-text("提交")` | 申请提交成功 | 待审批状态 |
+
+**API响应示例**:
+
+```json
+// GET /api/products/1/price-history
+{
+  "code": 200,
+  "message": "价格历史获取成功",
+  "data": {
+    "product_id": 1,
+    "product_code": "LOCK-001",
+    "current_price": 450.00,
+    "current_cost_price": 280.00,
+    "current_profit_margin": 37.78,
+    
+    "price_history": [
+      {
+        "price_id": 3,
+        "effective_date": "2025-01-01",
+        "end_date": null,
+        "price": 450.00,
+        "cost_price": 280.00,
+        "profit_margin": 37.78,
+        "price_type": "standard",
+        "changed_by": "刘洋",
+        "change_reason": "成本下降，调整市场价格",
+        "is_current": true
+      },
+      {
+        "price_id": 2,
+        "effective_date": "2024-07-01",
+        "end_date": "2024-12-31",
+        "price": 480.00,
+        "price_type": "promotion",
+        "is_current": false
+      },
+      // ... 其他历史记录
+    ],
+    
+    "price_trend": {
+      "trend": "decreasing",  // increasing | decreasing | stable
+      "total_changes": 2,
+      "max_price": 500.00,
+      "min_price": 450.00,
+      "average_price": 476.67
+    }
+  }
+}
+
+// POST /api/products/1/price-change-requests
+{
+  "code": 201,
+  "message": "调价申请提交成功",
+  "data": {
+    "request_id": 1,
+    "product_id": 1,
+    "current_price": 450.00,
+    "new_price": 420.00,
+    "price_change": -30.00,
+    "price_change_rate": -6.67,
+    "effective_date": "2025-02-01",
+    "price_type": "promotion",
+    "change_reason": "春节促销，临时降价",
+    "requested_by": "张总",
+    "requested_at": "2025-01-20T10:00:00Z",
+    "status": "pending_approval",
+    "approver": "总经理"
+  }
+}
+```
+
+**业务规则**:
+1. 价格变更需要主管审批
+2. 降价超过10%需要总经理审批
+3. 价格生效日期不能早于当前日期
+4. 价格变更必须填写变更原因
+5. 促销价格有效期不超过3个月
+6. 历史价格只读，不可修改或删除
+
+**截图**: `product-price-history.png`, `product-price-trend.png`, `product-price-change-request.png`
+
+---
+
+## 场景PRD-005: 产品图片与文档管理
+
+**需求编号**: PRD-005
+**场景名称**: 产品图片上传、文档附件管理与展示
+
+**测试数据**:
+```javascript
+const productAssets = {
+  productId: 1,
+  productCode: 'LOCK-001',
+  productName: '智能门锁Pro',
+  
+  // 产品图片
+  images: [
+    {
+      imageId: 1,
+      imageType: 'main',  // main | detail | usage
+      imageUrl: '/uploads/products/lock-001-main.jpg',
+      imageTitle: '产品主图',
+      displayOrder: 1,
+      uploadedBy: '产品经理-刘洋',
+      uploadedAt: '2024-12-01 10:00:00',
+      isDefault: true
+    },
+    {
+      imageId: 2,
+      imageType: 'detail',
+      imageUrl: '/uploads/products/lock-001-detail-1.jpg',
+      imageTitle: '细节图-正面',
+      displayOrder: 2,
+      uploadedBy: '产品经理-刘洋',
+      uploadedAt: '2024-12-01 10:05:00'
+    },
+    {
+      imageId: 3,
+      imageType: 'detail',
+      imageUrl: '/uploads/products/lock-001-detail-2.jpg',
+      imageTitle: '细节图-背面',
+      displayOrder: 3
+    },
+    {
+      imageId: 4,
+      imageType: 'usage',
+      imageUrl: '/uploads/products/lock-001-usage.jpg',
+      imageTitle: '使用场景图',
+      displayOrder: 4
+    }
+  ],
+  
+  // 产品文档
+  documents: [
+    {
+      documentId: 1,
+      documentType: 'manual',  // manual | spec | certificate | brochure
+      documentName: '智能门锁Pro_用户手册.pdf',
+      documentUrl: '/uploads/products/lock-001-manual.pdf',
+      fileSize: 5120000,  // 5MB
+      version: 'v2.0',
+      uploadedBy: '产品经理-刘洋',
+      uploadedAt: '2025-01-15 14:00:00'
+    },
+    {
+      documentId: 2,
+      documentType: 'spec',
+      documentName: '智能门锁Pro_技术规格书.pdf',
+      documentUrl: '/uploads/products/lock-001-spec.pdf',
+      fileSize: 2048000,
+      version: 'v1.0'
+    },
+    {
+      documentId: 3,
+      documentType: 'certificate',
+      documentName: '3C认证证书.pdf',
+      documentUrl: '/uploads/products/lock-001-3c-cert.pdf',
+      fileSize: 1024000
+    },
+    {
+      documentId: 4,
+      documentType: 'brochure',
+      documentName: '产品宣传册.pdf',
+      documentUrl: '/uploads/products/lock-001-brochure.pdf',
+      fileSize: 10240000  // 10MB
+    }
+  ]
+};
+```
+
+**测试步骤**（28步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **图片管理** | | | | | |
+| 1-2 | 进入产品详情页 | productId=1 | `a[href="/products/1"]` | 产品详情加载 | 详情显示 |
+| 3-4 | 点击"图片管理"标签 | - | `tab:has-text("图片管理")` | 显示图片列表 | 4张图片 |
+| 5-6 | **查看主图** | - | `.main-image` | 显示产品主图 | 大图显示 |
+| 7-8 | 点击"上传图片"按钮 | - | `button:has-text("上传图片")` | 打开图片上传对话框 | 对话框显示 |
+| 9-10 | 选择图片类型 | 细节图 | `select#image-type` | 类型选择成功 | 下拉选项 |
+| 11-12 | 选择图片文件 | lock-001-detail-3.jpg | `input[type="file"]` | 文件选择成功 | 图片预览 |
+| 13-14 | 填写图片标题 | 细节图-侧面 | `input#image-title` | 标题输入成功 | 输入框值 |
+| 15-16 | 上传图片 | - | `button:has-text("上传")` | 图片上传成功 | 图片列表更新 |
+| 17-18 | **调整图片顺序** | - | 拖拽图片 | 图片顺序调整成功 | 显示顺序变更 |
+| 19-20 | 设置为主图 | - | `button:has-text("设为主图")` | 主图更新成功 | 主图标记 |
+| **文档管理** | | | | | |
+| 21-22 | 点击"文档管理"标签 | - | `tab:has-text("文档管理")` | 显示文档列表 | 4个文档 |
+| 23-24 | 点击"上传文档"按钮 | - | `button:has-text("上传文档")` | 打开文档上传对话框 | 对话框显示 |
+| 25-26 | 选择文档类型并上传 | 用户手册, PDF文件 | 文档上传表单 | 文档上传中 | 进度条显示 |
+| 27-28 | **验证上传成功** | - | 文档列表 | 文档添加到列表 | 文档显示 |
+
+**API响应示例**:
+
+```json
+// POST /api/products/1/images
+{
+  "code": 201,
+  "message": "产品图片上传成功",
+  "data": {
+    "image_id": 5,
+    "product_id": 1,
+    "image_type": "detail",
+    "image_url": "/uploads/products/lock-001-detail-3.jpg",
+    "image_title": "细节图-侧面",
+    "display_order": 5,
+    "uploaded_by": "刘洋",
+    "uploaded_at": "2025-01-20T11:00:00Z",
+    "file_size": 512000,
+    "is_default": false
+  }
+}
+
+// POST /api/products/1/documents
+{
+  "code": 201,
+  "message": "产品文档上传成功",
+  "data": {
+    "document_id": 5,
+    "product_id": 1,
+    "document_type": "manual",
+    "document_name": "智能门锁Pro_用户手册.pdf",
+    "document_url": "/uploads/products/lock-001-manual-v2.pdf",
+    "file_size": 5120000,
+    "version": "v2.0",
+    "uploaded_by": "刘洋",
+    "uploaded_at": "2025-01-20T11:05:00Z"
+  }
+}
+
+// PUT /api/products/1/images/5/set-main
+{
+  "code": 200,
+  "message": "主图设置成功",
+  "data": {
+    "product_id": 1,
+    "previous_main_image_id": 1,
+    "new_main_image_id": 5,
+    "updated_at": "2025-01-20T11:10:00Z"
+  }
+}
+```
+
+**业务规则**:
+1. 产品至少上传1张主图
+2. 图片格式：JPG、PNG，单张不超过5MB
+3. 文档格式：PDF、DOC、DOCX，单个不超过20MB
+4. 图片可以拖拽调整显示顺序
+5. 设置新主图时，旧主图自动变为详情图
+6. 删除图片/文档需要确认操作
+7. 文档支持版本管理，同名文档自动版本化
+
+**截图**: `product-images-gallery.png`, `product-image-upload.png`, `product-documents-list.png`
+
+---
+
+## 场景PRD-007: 产品停用与归档
+
+**需求编号**: PRD-007
+**场景名称**: 产品停产/停售管理与历史产品归档
+
+**测试数据**:
+```javascript
+const productLifecycle = {
+  productId: 5,
+  productCode: 'LOCK-005',
+  productName: '智能门锁Basic（老款）',
+  currentStatus: 'active',  // active | inactive | archived
+  
+  // 停用操作
+  deactivation: {
+    reason: 'product_upgrade',  // product_upgrade | discontinued | replaced
+    reasonText: '产品已升级换代，新款为LOCK-001 Pro',
+    replacementProductId: 1,
+    replacementProductCode: 'LOCK-001',
+    deactivatedBy: '产品经理-刘洋',
+    deactivatedDate: '2025-01-20',
+    
+    // 停用前检查
+    preCheckResults: {
+      hasActiveContracts: false,  // 是否有进行中的合同
+      hasPendingShipments: false,  // 是否有待发货订单
+      hasInventory: true,  // 是否有库存
+      currentStock: 30,
+      
+      canDeactivate: true,  // 是否可以停用
+      warnings: [
+        '当前库存30件，停用后将无法继续销售',
+        '建议将库存清理完毕后再停用'
+      ]
+    }
+  },
+  
+  // 归档操作
+  archival: {
+    archiveDate: '2025-02-01',
+    archivedBy: '产品经理-刘洋',
+    archiveReason: '库存已清零，产品彻底停售',
+    
+    // 归档前检查
+    archivePreCheck: {
+      hasInventory: false,  // 库存必须为0
+      hasActiveOrders: false,  // 无活跃订单
+      canArchive: true
+    },
+    
+    // 归档后数据处理
+    archivalActions: {
+      moveToArchive: true,  // 移至归档库
+      keepDataReadOnly: true,  // 保留只读数据
+      removeFromActiveList: true,  // 从活跃产品列表移除
+      keepHistory: true  // 保留历史交易记录
+    }
+  }
+};
+```
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **产品停用** | | | | | |
+| 1-2 | 进入产品列表页 | - | `a[href="/products"]` | 产品列表加载 | 页面显示 |
+| 3-4 | 找到老款产品 | LOCK-005 | 搜索框 | 显示LOCK-005 | 产品显示 |
+| 5-6 | 点击"停用"按钮 | - | `button:has-text("停用")` | 打开停用确认对话框 | 对话框显示 |
+| 7-8 | **查看停用前检查** | - | `.pre-check-results` | 显示检查结果 | 警告：有库存30件 |
+| 9-10 | 选择停用原因 | 产品升级换代 | `select#deactivate-reason` | 原因选择成功 | 下拉选项 |
+| 11-12 | 选择替代产品 | LOCK-001 Pro | 产品选择器 | 替代产品选择成功 | 产品显示 |
+| 13-14 | 填写停用说明 | 产品已升级换代... | `textarea#reason-text` | 说明输入成功 | 文本框值 |
+| 15-16 | 确认停用 | - | `button:has-text("确认停用")` | 产品停用成功 | 状态变为停用 |
+| 17-18 | **验证产品状态** | - | 产品详情页 | 显示"已停用"标记 | 灰色状态 |
+| 19-20 | **验证替代提示** | - | 产品详情页 | 显示"请使用LOCK-001 Pro替代" | 替代产品链接 |
+| **产品归档** | | | | | |
+| 21-22 | 清空库存 | 库存调整为0 | 库存管理 | 库存归零 | 库存=0 |
+| 23-24 | 点击"归档"按钮 | - | `button:has-text("归档")` | 打开归档确认对话框 | 对话框显示 |
+| 25-26 | 确认归档 | - | `button:has-text("确认归档")` | 产品归档成功 | 移至归档列表 |
+
+**API响应示例**:
+
+```json
+// POST /api/products/5/deactivate
+{
+  "code": 200,
+  "message": "产品停用成功",
+  "data": {
+    "product_id": 5,
+    "product_code": "LOCK-005",
+    "product_name": "智能门锁Basic（老款）",
+    "status": "inactive",
+    "previous_status": "active",
+    
+    "deactivation": {
+      "reason": "product_upgrade",
+      "reason_text": "产品已升级换代，新款为LOCK-001 Pro",
+      "replacement_product": {
+        "product_id": 1,
+        "product_code": "LOCK-001",
+        "product_name": "智能门锁Pro"
+      },
+      "deactivated_by": "刘洋",
+      "deactivated_at": "2025-01-20T10:00:00Z"
+    },
+    
+    "remaining_stock": 30,
+    "warning": "产品已停用，但仍有库存30件"
+  }
+}
+
+// POST /api/products/5/archive
+{
+  "code": 200,
+  "message": "产品归档成功",
+  "data": {
+    "product_id": 5,
+    "product_code": "LOCK-005",
+    "status": "archived",
+    "previous_status": "inactive",
+    "archived_by": "刘洋",
+    "archived_at": "2025-02-01T10:00:00Z",
+    
+    "archive_actions": {
+      "moved_to_archive": true,
+      "removed_from_active_list": true,
+      "data_kept_readonly": true,
+      "history_preserved": true
+    }
+  }
+}
+```
+
+**业务规则**:
+1. 只有停用状态的产品才能归档
+2. 归档前必须清空库存
+3. 归档后产品不可恢复为活跃状态
+4. 归档产品保留只读数据，可查询历史
+5. 停用产品可以设置替代产品
+6. 有活跃合同/订单的产品不能停用
+7. 归档产品从活跃列表移除，移至"归档产品"专区
+
+**截图**: `product-deactivate-confirm.png`, `product-inactive-status.png`, `product-archive-list.png`
+
+---
+
+✅ **产品管理4个场景全部完成！**
+
+
+---
+
+# 模块1: 线索管理 (3个场景 - P2)
+
+## 场景LEAD-003: 线索评分与优先级排序
+
+**需求编号**: LEAD-003
+**场景名称**: 线索自动评分机制与优先级智能排序
+
+**测试数据**:
+```javascript
+const leadScoring = {
+  leadId: 1,
+  leadNo: 'LEAD202501200001',
+  companyName: '希尔顿酒店集团',
+  contactPerson: '王总监',
+  
+  // 评分规则
+  scoringRules: {
+    companyScale: {
+      large: 30,  // 大型企业30分
+      medium: 20,  // 中型企业20分
+      small: 10   // 小型企业10分
+    },
+    industry: {
+      hotel: 25,  // 酒店行业25分（目标行业）
+      apartment: 20,
+      office: 15,
+      other: 5
+    },
+    budget: {
+      above_500k: 25,  // 预算50万以上25分
+      _200k_500k: 20,  // 20-50万20分
+      _50k_200k: 15,   // 5-20万15分
+      below_50k: 5     // 5万以下5分
+    },
+    urgency: {
+      urgent: 15,  // 紧急需求15分
+      within_month: 10,
+      within_quarter: 5,
+      no_urgency: 0
+    },
+    source: {
+      referral: 5,  // 客户推荐5分
+      exhibition: 4,
+      web: 3,
+      cold_call: 1
+    }
+  },
+  
+  // 线索评分
+  leadScore: {
+    companyScale: 30,  // 大型企业
+    industry: 25,  // 酒店行业
+    budget: 25,  // 预算60万
+    urgency: 15,  // 紧急需求
+    source: 5,  // 客户推荐
+    
+    totalScore: 100,  // 总分
+    scoreLevel: 'S',  // S(90-100) | A(80-89) | B(70-79) | C(60-69) | D(<60)
+    priority: 'very_high',  // very_high | high | medium | low
+    
+    scoredBy: 'system',
+    scoredAt: '2025-01-20 10:00:00',
+    
+    autoAssign: {
+      enabled: true,
+      assignTo: '销售总监',  // S级线索自动分配给销售总监
+      reason: 'S级线索，自动分配给高级销售'
+    }
+  },
+  
+  // 线索排序
+  priorityRanking: {
+    rank: 1,  // 当前排名第1
+    totalLeads: 50,
+    
+    sortCriteria: [
+      {field: 'score', weight: 0.6, value: 100},
+      {field: 'created_date', weight: 0.2, value: '2025-01-20'},
+      {field: 'last_follow_up', weight: 0.2, value: '2025-01-20'}
+    ]
+  }
+};
+
+const leadList = [
+  {leadId: 1, companyName: '希尔顿酒店', score: 100, level: 'S', priority: 'very_high', rank: 1},
+  {leadId: 2, companyName: '如家酒店', score: 85, level: 'A', priority: 'high', rank: 2},
+  {leadId: 3, companyName: '某科技公司', score: 75, level: 'B', priority: 'medium', rank: 3},
+  {leadId: 4, companyName: '小型酒店', score: 55, level: 'D', priority: 'low', rank: 4}
+];
+```
+
+**测试步骤**（24步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **评分规则查看** | | | | | |
+| 1-2 | 进入线索管理设置 | - | `a[href="/settings/leads"]` | 设置页面加载 | 页面显示 |
+| 3-4 | 点击"评分规则"标签 | - | `tab:has-text("评分规则")` | 显示评分规则配置 | 规则列表 |
+| 5-6 | **查看评分维度** | - | `.scoring-rules` | 显示5个评分维度 | 公司规模、行业... |
+| 7-8 | **查看各维度分值** | - | 评分规则表 | 大型企业30分，酒店25分... | 分值配置 |
+| **线索评分** | | | | | |
+| 9-10 | 进入线索列表页 | - | `a[href="/leads"]` | 线索列表加载 | 页面显示 |
+| 11-12 | **查看线索评分** | - | `.lead-score` | 显示各线索评分 | 分数显示 |
+| 13-14 | **查看S级线索** | - | `.score-level-S` | 希尔顿酒店标记为S级 | 红色高亮 |
+| 15-16 | 点击进入S级线索 | leadId=1 | 点击线索行 | 线索详情加载 | 详情显示 |
+| 17-18 | 点击"评分详情"按钮 | - | `button:has-text("评分详情")` | 显示评分明细对话框 | 对话框显示 |
+| 19-20 | **查看评分构成** | - | `.score-breakdown` | 显示5个维度得分 | 各30、25、25、15、5分 |
+| 21-22 | **验证自动分配** | - | `.assignee` | 显示"已分配给销售总监" | 自动分配 |
+| **优先级排序** | | | | | |
+| 23-24 | 返回线索列表 | - | 返回按钮 | 列表按评分倒序排列 | S级在最上面 |
+
+**API响应示例**:
+
+```json
+// POST /api/leads/1/calculate-score
+{
+  "code": 200,
+  "message": "线索评分计算成功",
+  "data": {
+    "lead_id": 1,
+    "lead_no": "LEAD202501200001",
+    "company_name": "希尔顿酒店集团",
+    
+    "score_breakdown": {
+      "company_scale": {"value": "large", "score": 30},
+      "industry": {"value": "hotel", "score": 25},
+      "budget": {"value": 600000, "score": 25},
+      "urgency": {"value": "urgent", "score": 15},
+      "source": {"value": "referral", "score": 5}
+    },
+    
+    "total_score": 100,
+    "score_level": "S",
+    "priority": "very_high",
+    "rank": 1,
+    
+    "auto_assignment": {
+      "enabled": true,
+      "assigned_to": "销售总监",
+      "assign_reason": "S级线索，自动分配给高级销售"
+    },
+    
+    "scored_at": "2025-01-20T10:00:00Z"
+  }
+}
+
+// GET /api/leads?sort_by=score&order=desc
+{
+  "code": 200,
+  "message": "线索列表获取成功",
+  "data": {
+    "total": 50,
+    "leads": [
+      {
+        "lead_id": 1,
+        "company_name": "希尔顿酒店集团",
+        "score": 100,
+        "score_level": "S",
+        "priority": "very_high",
+        "rank": 1,
+        "assigned_to": "销售总监"
+      },
+      {
+        "lead_id": 2,
+        "company_name": "如家酒店",
+        "score": 85,
+        "score_level": "A",
+        "priority": "high",
+        "rank": 2
+      },
+      // ... 其他线索
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 线索创建时自动计算评分
+2. 总分100分，S级≥90，A级80-89，B级70-79，C级60-69，D级<60
+3. S级和A级线索自动分配给高级销售
+4. 评分规则可在设置中调整
+5. 线索信息变更时重新计算评分
+6. 默认按评分倒序 + 创建时间排序
+
+**截图**: `lead-scoring-rules.png`, `lead-score-breakdown.png`, `lead-priority-ranking.png`
+
+---
+
+## 场景LEAD-004: 线索公海池管理
+
+**需求编号**: LEAD-004
+**场景名称**: 线索公海池规则、自动回收与领取机制
+
+**测试数据**:
+```javascript
+const leadPool = {
+  poolName: '线索公海池',
+  totalLeads: 100,
+  
+  // 回收规则
+  recycleRules: {
+    rule1: {
+      name: '长期未跟进回收',
+      condition: '最后跟进日期 > 7天',
+      action: '自动回收到公海',
+      enabled: true
+    },
+    rule2: {
+      name: '无效线索回收',
+      condition: '线索状态 = 无效',
+      action: '立即回收',
+      enabled: true
+    },
+    rule3: {
+      name: '销售离职回收',
+      condition: '负责人离职',
+      action: '立即回收',
+      enabled: true
+    }
+  },
+  
+  // 领取规则
+  claimRules: {
+    maxClaimPerPerson: 10,  // 每人最多领取10个
+    maxHoldDays: 30,  // 最多持有30天
+    priorityUsers: ['销售总监', '高级销售'],  // 优先领取权
+    
+    claimLimit: {
+      daily: 5,  // 每天最多领取5个
+      weekly: 20  // 每周最多领取20个
+    }
+  },
+  
+  // 公海池线索
+  poolLeads: [
+    {
+      leadId: 10,
+      companyName: '某连锁酒店',
+      score: 75,
+      source: '网络推广',
+      createdDate: '2025-01-10',
+      recycledDate: '2025-01-18',
+      recycleReason: '7天未跟进，自动回收',
+      previousOwner: '销售-李明',
+      daysInPool: 2
+    },
+    {
+      leadId: 11,
+      companyName: '某科技公司',
+      score: 60,
+      recycledDate: '2025-01-15',
+      recycleReason: '销售人员离职',
+      previousOwner: '销售-张三（已离职）',
+      daysInPool: 5
+    }
+  ],
+  
+  // 领取记录
+  claimRecord: {
+    claimId: 1,
+    leadId: 10,
+    claimedBy: '销售-王芳',
+    claimedDate: '2025-01-20 10:00:00',
+    claimReason: '该客户为本人之前跟进的酒店集团关联公司',
+    status: 'active'
+  }
+};
+```
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **公海池查看** | | | | | |
+| 1-2 | 进入线索公海池 | - | `a[href="/leads/pool"]` | 公海池页面加载 | 页面显示 |
+| 3-4 | **查看公海线索总数** | - | `.pool-total` | 显示100个线索 | 数量显示 |
+| 5-6 | **查看回收规则** | - | `.recycle-rules` | 显示3条回收规则 | 规则列表 |
+| 7-8 | 查看线索列表 | - | `.pool-leads-list` | 显示公海线索 | 按回收时间排序 |
+| 9-10 | **查看线索回收原因** | - | `.recycle-reason` | "7天未跟进，自动回收" | 原因显示 |
+| **领取线索** | | | | | |
+| 11-12 | 点击"领取线索"按钮 | leadId=10 | `button:has-text("领取")` | 打开领取确认对话框 | 对话框显示 |
+| 13-14 | **查看领取限制提示** | - | `.claim-limit` | 显示"今日还可领取5个" | 限制提示 |
+| 15-16 | 填写领取原因 | 该客户为关联公司 | `textarea#claim-reason` | 原因输入成功 | 文本框值 |
+| 17-18 | 确认领取 | - | `button:has-text("确认领取")` | 领取成功 | 线索分配给我 |
+| 19-20 | **验证线索转移** | - | 我的线索列表 | 线索出现在我的列表 | 线索显示 |
+| 21-22 | **验证公海池减少** | - | 返回公海池 | 线索从公海移除 | 总数99 |
+| **线索回收** | | | | | |
+| 23-24 | 模拟7天未跟进 | - | 系统定时任务 | 触发自动回收规则 | 回收触发 |
+| 25-26 | **验证线索回收** | - | 公海池列表 | 线索重新回到公海 | 回收原因显示 |
+
+**API响应示例**:
+
+```json
+// GET /api/leads/pool
+{
+  "code": 200,
+  "message": "公海池线索获取成功",
+  "data": {
+    "pool_name": "线索公海池",
+    "total_leads": 100,
+    
+    "recycle_rules": [
+      {
+        "rule_id": 1,
+        "rule_name": "长期未跟进回收",
+        "condition": "last_follow_up > 7 days",
+        "action": "recycle_to_pool",
+        "enabled": true
+      },
+      // ... 其他规则
+    ],
+    
+    "leads": [
+      {
+        "lead_id": 10,
+        "company_name": "某连锁酒店",
+        "score": 75,
+        "recycled_date": "2025-01-18T10:00:00Z",
+        "recycle_reason": "7天未跟进，自动回收",
+        "previous_owner": "李明",
+        "days_in_pool": 2,
+        "can_claim": true
+      },
+      // ... 其他线索
+    ]
+  }
+}
+
+// POST /api/leads/10/claim
+{
+  "code": 200,
+  "message": "线索领取成功",
+  "data": {
+    "lead_id": 10,
+    "lead_no": "LEAD202501100001",
+    "company_name": "某连锁酒店",
+    
+    "claimed_by": "王芳",
+    "claimed_at": "2025-01-20T10:00:00Z",
+    "claim_reason": "该客户为本人之前跟进的酒店集团关联公司",
+    
+    "claim_statistics": {
+      "today_claimed": 1,
+      "today_remaining": 4,
+      "total_holding": 8,
+      "max_holding": 10
+    },
+    
+    "auto_create_task": {
+      "task_id": 15,
+      "task_title": "跟进公海领取线索-某连锁酒店",
+      "due_date": "2025-01-22"  // 2天内必须跟进
+    }
+  }
+}
+
+// POST /api/leads/10/recycle
+{
+  "code": 200,
+  "message": "线索回收成功",
+  "data": {
+    "lead_id": 10,
+    "recycled_from": "王芳",
+    "recycled_at": "2025-01-27T10:00:00Z",
+    "recycle_reason": "7天未跟进，自动回收",
+    "recycle_rule": "rule1"
+  }
+}
+```
+
+**业务规则**:
+1. 7天未跟进的线索自动回收到公海
+2. 每人每天最多领取5个线索
+3. 每人最多持有10个线索
+4. 领取线索后2天内必须跟进
+5. 销售总监/高级销售有优先领取权
+6. 线索回收时自动创建跟进任务给新负责人
+
+**截图**: `lead-pool-list.png`, `lead-claim-dialog.png`, `lead-recycle-rules.png`
+
+---
+
+## 场景LEAD-006: 线索批量导入与去重
+
+**需求编号**: LEAD-006
+**场景名称**: 批量导入线索数据及智能去重机制
+
+**测试数据**:
+```javascript
+const leadImport = {
+  fileName: '线索数据导入_20250120.xlsx',
+  totalRows: 100,
+  
+  // 导入数据
+  importData: [
+    {
+      row: 1,
+      companyName: '希尔顿酒店集团',
+      contactPerson: '王总监',
+      contactPhone: '13800138000',
+      contactEmail: 'wang@hilton.com',
+      industry: '酒店',
+      source: '展会',
+      budget: 600000,
+      remarks: '重点客户'
+    },
+    {
+      row: 2,
+      companyName: '如家酒店',
+      contactPerson: '李经理',
+      contactPhone: '13900139000',
+      contactEmail: 'li@homeinn.com',
+      industry: '酒店',
+      source: '网络推广'
+    },
+    // ... 其他数据
+  ],
+  
+  // 去重规则
+  deduplicationRules: {
+    method: 'multi_field',  // single_field | multi_field
+    fields: ['company_name', 'contact_phone'],  // 去重字段
+    action: 'skip',  // skip | update | merge
+    
+    duplicateHandling: {
+      skip: '跳过重复数据',
+      update: '更新已有线索信息',
+      merge: '合并为一条线索'
+    }
+  },
+  
+  // 导入结果
+  importResult: {
+    totalRows: 100,
+    successCount: 85,
+    duplicateCount: 10,  // 去重10条
+    errorCount: 5,  // 错误5条
+    
+    duplicateDetails: [
+      {
+        row: 15,
+        companyName: '希尔顿酒店集团',
+        phone: '13800138000',
+        reason: '公司名称和电话号码与已有线索重复',
+        existingLeadId: 1,
+        action: 'skipped'
+      },
+      // ... 其他重复记录
+    ],
+    
+    errorDetails: [
+      {row: 20, reason: '电话号码格式错误'},
+      {row: 35, reason: '公司名称为空'},
+      {row: 50, reason: '联系人姓名为空'},
+      {row: 67, reason: '行业类别不在允许范围'},
+      {row: 88, reason: '预算金额格式错误'}
+    ]
+  }
+};
+```
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **配置去重规则** | | | | | |
+| 1-2 | 进入线索导入页 | - | `a[href="/leads/import"]` | 导入页面加载 | 页面显示 |
+| 3-4 | 点击"去重设置"按钮 | - | `button:has-text("去重设置")` | 打开去重配置对话框 | 对话框显示 |
+| 5-6 | 选择去重字段 | 公司名称+电话 | 去重字段选择器 | 字段选择成功 | 复选框选中 |
+| 7-8 | 选择重复处理方式 | 跳过 | `select#duplicate-action` | 处理方式选择成功 | 下拉选项 |
+| 9-10 | 保存去重配置 | - | `button:has-text("保存")` | 配置保存成功 | 成功提示 |
+| **批量导入** | | | | | |
+| 11-12 | 点击"下载模板"链接 | - | `a:has-text("下载模板")` | 模板文件下载 | Excel文件 |
+| 13-14 | 选择准备好的Excel | 100条数据 | `input[type="file"]` | 文件选择成功 | 文件名显示 |
+| 15-16 | 点击"开始导入"按钮 | - | `button:has-text("开始导入")` | 显示导入进度 | 进度条动画 |
+| 17-18 | **等待导入完成** | - | 进度100% | 显示导入结果摘要 | 成功85，重复10，错误5 |
+| 19-20 | **查看重复数据** | - | `button:has-text("查看重复")` | 显示10条重复记录 | 重复详情列表 |
+| 21-22 | **查看错误数据** | - | `button:has-text("查看错误")` | 显示5条错误记录 | 错误原因说明 |
+| 23-24 | 下载错误报告 | - | `button:has-text("下载错误报告")` | 错误Excel下载 | 包含错误原因 |
+| 25-26 | **验证导入数据** | - | 线索列表 | 新增85条线索 | 数量增加 |
+
+**API响应示例**:
+
+```json
+// POST /api/leads/import
+{
+  "code": 200,
+  "message": "线索导入完成",
+  "data": {
+    "import_id": "IMP20250120100000",
+    "file_name": "线索数据导入_20250120.xlsx",
+    "total_rows": 100,
+    
+    "import_summary": {
+      "success_count": 85,
+      "duplicate_count": 10,
+      "error_count": 5,
+      "processing_time": "8.5秒"
+    },
+    
+    "deduplication": {
+      "method": "multi_field",
+      "fields": ["company_name", "contact_phone"],
+      "action": "skip",
+      "duplicates_found": 10,
+      "duplicates": [
+        {
+          "row": 15,
+          "company_name": "希尔顿酒店集团",
+          "contact_phone": "13800138000",
+          "duplicate_with": {
+            "lead_id": 1,
+            "lead_no": "LEAD202501200001",
+            "created_at": "2025-01-20T09:00:00Z"
+          },
+          "action_taken": "skipped"
+        },
+        // ... 其他重复
+      ]
+    },
+    
+    "errors": [
+      {
+        "row": 20,
+        "field": "contact_phone",
+        "value": "1380013800",  // 11位缺1位
+        "error": "电话号码格式错误"
+      },
+      // ... 其他错误
+    ],
+    
+    "error_report_url": "/downloads/import-errors-IMP20250120100000.xlsx",
+    "imported_by": "销售经理-张总",
+    "imported_at": "2025-01-20T10:00:00Z"
+  }
+}
+
+// GET /api/leads/import/IMP20250120100000/duplicates
+{
+  "code": 200,
+  "message": "重复数据获取成功",
+  "data": {
+    "import_id": "IMP20250120100000",
+    "total_duplicates": 10,
+    "deduplication_fields": ["company_name", "contact_phone"],
+    
+    "duplicates": [
+      {
+        "row": 15,
+        "import_data": {
+          "company_name": "希尔顿酒店集团",
+          "contact_phone": "13800138000",
+          "contact_person": "王总监"
+        },
+        "existing_lead": {
+          "lead_id": 1,
+          "lead_no": "LEAD202501200001",
+          "company_name": "希尔顿酒店集团",
+          "contact_phone": "13800138000",
+          "created_at": "2025-01-20T09:00:00Z",
+          "created_by": "李明"
+        },
+        "match_fields": ["company_name", "contact_phone"]
+      },
+      // ... 其他重复
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 去重字段：公司名称、联系电话、联系邮箱（可多选）
+2. 重复数据默认跳过，可选择更新或合并
+3. 必填字段：公司名称、联系人、联系电话
+4. 电话号码格式：11位手机号或座机号
+5. 单次导入最多1000条
+6. 导入后自动计算线索评分
+7. 错误报告保留7天后自动删除
+
+**截图**: `lead-import-page.png`, `lead-deduplication-settings.png`, `lead-import-result.png`, `lead-duplicate-report.png`
+
+---
+
+✅ **线索管理3个场景全部完成！**
+
+
+---
+
+# 模块3: 客户管理 (2个辅助场景 - P2)
+
+## 场景CUS-006: 客户生命周期管理
+
+**需求编号**: CUS-006
+**场景名称**: 客户生命周期阶段追踪与转化漏斗分析
+
+**测试数据**:
+```javascript
+const customerLifecycle = {
+  customerId: 1,
+  customerName: '丽枫酒店',
+  
+  // 生命周期阶段
+  lifecycleStages: [
+    {
+      stage: 'lead',
+      stageName: '线索阶段',
+      startDate: '2024-10-01',
+      endDate: '2024-10-15',
+      duration: 14,  // 天数
+      status: 'completed',
+      keyActions: ['线索创建', '初次沟通', '需求确认']
+    },
+    {
+      stage: 'opportunity',
+      stageName: '商机阶段',
+      startDate: '2024-10-15',
+      endDate: '2024-11-10',
+      duration: 26,
+      status: 'completed',
+      keyActions: ['产品演示', '方案提交', '报价']
+    },
+    {
+      stage: 'customer',
+      stageName: '成交客户',
+      startDate: '2024-11-10',
+      endDate: null,  // 当前阶段
+      duration: 78,  // 至今78天
+      status: 'current',
+      keyActions: ['合同签订', '首次发货', '首次收款']
+    }
+  ],
+  
+  // 当前生命周期状态
+  currentStage: {
+    stage: 'customer',
+    stageName: '成交客户',
+    subStage: 'active',  // active | dormant | churned
+    daysInStage: 78,
+    
+    healthScore: 85,  // 客户健康度85分
+    riskLevel: 'low',  // low | medium | high
+    
+    nextMilestone: {
+      milestone: 'repeat_purchase',
+      milestoneName: '复购',
+      estimatedDate: '2025-03-01',
+      daysUntil: 40
+    }
+  },
+  
+  // 生命周期价值（LTV）
+  lifetimeValue: {
+    totalRevenue: 650000,  // 历史总营收
+    totalOrders: 3,  // 总订单数
+    averageOrderValue: 216667,  // 平均订单价值
+    
+    predictedLTV: 1200000,  // 预测生命周期价值
+    predictionBasis: '基于3次交易历史和行业平均复购率',
+    
+    customerAcquisitionCost: 15000,  // 获客成本
+    ltv_cac_ratio: 80  // LTV/CAC比率 = 1200000/15000
+  }
+};
+
+// 生命周期转化漏斗
+const conversionFunnel = {
+  totalLeads: 100,
+  
+  stages: [
+    {stage: 'lead', count: 100, percentage: 100, dropOff: 0},
+    {stage: 'qualified_lead', count: 60, percentage: 60, dropOff: 40},
+    {stage: 'opportunity', count: 40, percentage: 40, dropOff: 20},
+    {stage: 'quotation', count: 30, percentage: 30, dropOff: 10},
+    {stage: 'negotiation', count: 20, percentage: 20, dropOff: 10},
+    {stage: 'customer', count: 12, percentage: 12, dropOff: 8}
+  ],
+  
+  overallConversionRate: 0.12,  // 12%整体转化率
+  averageConversionTime: 45  // 平均45天完成转化
+};
+```
+
+**测试步骤**（22步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **生命周期查看** | | | | | |
+| 1-2 | 进入客户详情页 | customerId=1 | `a[href="/customers/1"]` | 客户详情加载 | 详情显示 |
+| 3-4 | 点击"生命周期"标签 | - | `tab:has-text("生命周期")` | 显示生命周期时间轴 | 时间轴显示 |
+| 5-6 | **查看当前阶段** | - | `.current-stage` | 显示"成交客户-活跃" | 高亮显示 |
+| 7-8 | **查看阶段历史** | - | `.stage-timeline` | 显示3个阶段 | 线索→商机→客户 |
+| 9-10 | **查看客户健康度** | - | `.health-score` | 显示85分，绿色 | 健康度良好 |
+| 11-12 | 点击阶段详情 | 商机阶段 | 点击阶段节点 | 显示阶段详细信息 | 持续26天，关键行动 |
+| **生命周期价值** | | | | | |
+| 13-14 | 点击"LTV分析"按钮 | - | `button:has-text("LTV分析")` | 显示LTV详情对话框 | 对话框显示 |
+| 15-16 | **查看历史价值** | - | `.total-revenue` | 显示总营收¥650,000 | 3笔订单 |
+| 17-18 | **查看预测LTV** | - | `.predicted-ltv` | 显示预测¥1,200,000 | 预测依据说明 |
+| 19-20 | **查看LTV/CAC比率** | - | `.ltv-cac-ratio` | 显示80:1 | 高价值客户 |
+| 21-22 | 查看下一里程碑 | - | `.next-milestone` | 显示"预计40天后复购" | 里程碑提示 |
+
+**API响应示例**:
+
+```json
+// GET /api/customers/1/lifecycle
+{
+  "code": 200,
+  "message": "客户生命周期获取成功",
+  "data": {
+    "customer_id": 1,
+    "customer_name": "丽枫酒店",
+    
+    "current_stage": {
+      "stage": "customer",
+      "stage_name": "成交客户",
+      "sub_stage": "active",
+      "days_in_stage": 78,
+      "health_score": 85,
+      "risk_level": "low"
+    },
+    
+    "lifecycle_history": [
+      {
+        "stage": "lead",
+        "start_date": "2024-10-01",
+        "end_date": "2024-10-15",
+        "duration_days": 14,
+        "status": "completed"
+      },
+      // ... 其他阶段
+    ],
+    
+    "lifetime_value": {
+      "historical": {
+        "total_revenue": 650000.00,
+        "total_orders": 3,
+        "average_order_value": 216667.00,
+        "customer_since": "2024-11-10",
+        "days_as_customer": 78
+      },
+      "predicted": {
+        "predicted_ltv": 1200000.00,
+        "prediction_confidence": 0.75,
+        "prediction_basis": "基于3次交易历史和行业平均复购率"
+      },
+      "metrics": {
+        "customer_acquisition_cost": 15000.00,
+        "ltv_cac_ratio": 80.00
+      }
+    },
+    
+    "next_milestone": {
+      "milestone": "repeat_purchase",
+      "estimated_date": "2025-03-01",
+      "days_until": 40
+    }
+  }
+}
+
+// GET /api/customers/conversion-funnel
+{
+  "code": 200,
+  "message": "转化漏斗数据获取成功",
+  "data": {
+    "date_range": {
+      "start": "2024-01-01",
+      "end": "2025-01-20"
+    },
+    
+    "funnel_stages": [
+      {
+        "stage": "lead",
+        "stage_name": "线索",
+        "count": 100,
+        "percentage": 100.00,
+        "drop_off": 0,
+        "conversion_to_next": 60.00
+      },
+      {
+        "stage": "qualified_lead",
+        "stage_name": "合格线索",
+        "count": 60,
+        "percentage": 60.00,
+        "drop_off": 40,
+        "conversion_to_next": 66.67
+      },
+      // ... 其他阶段
+      {
+        "stage": "customer",
+        "stage_name": "成交客户",
+        "count": 12,
+        "percentage": 12.00,
+        "drop_off": 8
+      }
+    ],
+    
+    "overall_metrics": {
+      "total_leads": 100,
+      "total_customers": 12,
+      "overall_conversion_rate": 12.00,
+      "average_conversion_time_days": 45
+    }
+  }
+}
+```
+
+**业务规则**:
+1. 客户生命周期阶段：线索→商机→客户
+2. 客户健康度基于交易频率、金额、满意度综合评分
+3. LTV预测基于历史交易和行业数据
+4. LTV/CAC比率>3为合格，>10为优质
+5. 超过90天无交易的客户标记为"休眠"
+6. 超过180天无交易的客户标记为"流失"
+
+**截图**: `customer-lifecycle-timeline.png`, `customer-ltv-analysis.png`, `customer-conversion-funnel.png`
+
+---
+
+## 场景CUS-008: 客户合同与交易总览
+
+**需求编号**: CUS-008
+**场景名称**: 客户全部合同、订单、交易记录汇总查看
+
+**测试数据**:
+```javascript
+const customerTransactionOverview = {
+  customerId: 1,
+  customerName: '丽枫酒店',
+  customerSince: '2024-11-10',
+  
+  // 交易统计
+  transactionSummary: {
+    totalContracts: 3,
+    totalAmount: 650000,
+    totalPaid: 500000,
+    totalUnpaid: 150000,
+    totalShipments: 5,
+    totalInvoices: 8,
+    totalServiceTickets: 2,
+    
+    firstOrderDate: '2024-11-15',
+    lastOrderDate: '2025-01-10',
+    averageOrderInterval: 28  // 平均28天下单一次
+  },
+  
+  // 合同列表
+  contracts: [
+    {
+      contractId: 1,
+      contractNo: 'CT202411150001',
+      contractDate: '2024-11-15',
+      contractAmount: 220000,
+      status: 'completed',
+      paymentStatus: 'fully_paid',
+      shipmentStatus: 'delivered'
+    },
+    {
+      contractId: 5,
+      contractNo: 'CT202412200001',
+      contractDate: '2024-12-20',
+      contractAmount: 180000,
+      status: 'executing',
+      paymentStatus: 'partially_paid',
+      paidAmount: 120000,
+      shipmentStatus: 'shipped'
+    },
+    {
+      contractId: 10,
+      contractNo: 'CT202501100001',
+      contractDate: '2025-01-10',
+      contractAmount: 250000,
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      shipmentStatus: 'pending'
+    }
+  ],
+  
+  // 产品购买统计
+  productPurchaseStats: [
+    {
+      productId: 1,
+      productCode: 'LOCK-001',
+      productName: '智能门锁Pro',
+      totalQuantity: 300,
+      totalAmount: 135000,
+      purchaseCount: 3,
+      lastPurchaseDate: '2025-01-10'
+    },
+    {
+      productId: 2,
+      productCode: 'LOCK-002',
+      productName: '智能门锁Mini',
+      totalQuantity: 200,
+      totalAmount: 60000,
+      purchaseCount: 2,
+      lastPurchaseDate: '2024-12-20'
+    }
+  ],
+  
+  // 收款记录
+  payments: [
+    {paymentId: 1, paymentNo: 'PAY202411200001', amount: 66000, paymentDate: '2024-11-20', contractNo: 'CT202411150001'},
+    {paymentId: 2, paymentNo: 'PAY202412050001', amount: 132000, paymentDate: '2024-12-05', contractNo: 'CT202411150001'},
+    {paymentId: 3, paymentNo: 'PAY202412100001', amount: 22000, paymentDate: '2024-12-10', contractNo: 'CT202411150001'},
+    {paymentId: 5, paymentNo: 'PAY202412250001', amount: 120000, paymentDate: '2024-12-25', contractNo: 'CT202412200001'},
+    {paymentId: 8, paymentNo: 'PAY202501150001', amount: 160000, paymentDate: '2025-01-15', contractNo: 'CT202412200001'}
+  ],
+  
+  // 发票记录
+  invoices: [
+    {invoiceId: 1, invoiceNo: 'INV202411250001', amount: 66000, invoiceDate: '2024-11-25', type: 'vat_special'},
+    {invoiceId: 2, invoiceNo: 'INV202412100001', amount: 132000, invoiceDate: '2024-12-10', type: 'vat_special'},
+    // ... 其他发票
+  ],
+  
+  // 售后服务记录
+  serviceTickets: [
+    {ticketId: 1, ticketNo: 'SVC202412150001', issueType: '安装指导', status: 'closed', createdDate: '2024-12-15'},
+    {ticketId: 3, ticketNo: 'SVC202501050001', issueType: '产品故障', status: 'resolved', createdDate: '2025-01-05'}
+  ]
+};
+```
+
+**测试步骤**（26步）:
+
+| 步骤 | 操作 | 输入数据 | 选择器 | 预期结果 | 验证点 |
+|------|------|---------|--------|---------|--------|
+| **交易总览** | | | | | |
+| 1-2 | 进入客户详情页 | customerId=1 | `a[href="/customers/1"]` | 客户详情加载 | 详情显示 |
+| 3-4 | 点击"交易总览"标签 | - | `tab:has-text("交易总览")` | 显示交易汇总面板 | 汇总数据 |
+| 5-6 | **查看交易统计** | - | `.transaction-summary` | 合同3笔，总额¥650,000 | 统计卡片 |
+| 7-8 | **查看收款状态** | - | `.payment-status` | 已收¥500,000，待收¥150,000 | 金额显示 |
+| **合同列表** | | | | | |
+| 9-10 | 点击"合同记录"子标签 | - | `subtab:has-text("合同记录")` | 显示3条合同记录 | 合同列表 |
+| 11-12 | **查看合同状态** | - | 合同列表 | 1个已完成，1个执行中，1个待执行 | 状态标签 |
+| 13-14 | 点击合同查看详情 | contractId=1 | 点击合同编号 | 跳转到合同详情页 | 合同详情 |
+| **产品统计** | | | | | |
+| 15-16 | 点击"产品统计"子标签 | - | `subtab:has-text("产品统计")` | 显示产品购买统计 | 产品列表 |
+| 17-18 | **查看TOP产品** | - | `.top-products` | LOCK-001购买最多300台 | 产品排行 |
+| 19-20 | **查看产品金额** | - | 产品统计表 | LOCK-001总额¥135,000 | 金额显示 |
+| **收款与发票** | | | | | |
+| 21-22 | 点击"收款记录"子标签 | - | `subtab:has-text("收款记录")` | 显示5条收款记录 | 收款列表 |
+| 23-24 | 点击"发票记录"子标签 | - | `subtab:has-text("发票记录")` | 显示发票列表 | 发票列表 |
+| **售后服务** | | | | | |
+| 25-26 | 点击"售后服务"子标签 | - | `subtab:has-text("售后服务")` | 显示2条服务工单 | 工单列表 |
+
+**API响应示例**:
+
+```json
+// GET /api/customers/1/transaction-overview
+{
+  "code": 200,
+  "message": "客户交易总览获取成功",
+  "data": {
+    "customer_id": 1,
+    "customer_name": "丽枫酒店",
+    "customer_since": "2024-11-10",
+    "days_as_customer": 78,
+    
+    "transaction_summary": {
+      "total_contracts": 3,
+      "total_contract_amount": 650000.00,
+      "total_paid": 500000.00,
+      "total_unpaid": 150000.00,
+      "payment_completion_rate": 76.92,
+      
+      "total_shipments": 5,
+      "total_invoices": 8,
+      "total_service_tickets": 2,
+      
+      "first_order_date": "2024-11-15",
+      "last_order_date": "2025-01-10",
+      "average_order_interval_days": 28
+    },
+    
+    "contracts": [
+      {
+        "contract_id": 1,
+        "contract_no": "CT202411150001",
+        "contract_date": "2024-11-15",
+        "contract_amount": 220000.00,
+        "status": "completed",
+        "payment_status": "fully_paid",
+        "shipment_status": "delivered"
+      },
+      // ... 其他合同
+    ],
+    
+    "product_purchase_stats": [
+      {
+        "product_id": 1,
+        "product_code": "LOCK-001",
+        "product_name": "智能门锁Pro",
+        "total_quantity": 300,
+        "total_amount": 135000.00,
+        "purchase_count": 3,
+        "last_purchase_date": "2025-01-10"
+      },
+      // ... 其他产品
+    ],
+    
+    "payments": [/* 收款记录列表 */],
+    "invoices": [/* 发票记录列表 */],
+    "service_tickets": [/* 售后服务记录 */]
+  }
+}
+
+// GET /api/customers/1/contracts
+{
+  "code": 200,
+  "message": "客户合同列表获取成功",
+  "data": {
+    "customer_id": 1,
+    "total_contracts": 3,
+    "contracts": [
+      {
+        "contract_id": 10,
+        "contract_no": "CT202501100001",
+        "contract_date": "2025-01-10",
+        "contract_amount": 250000.00,
+        "status": "pending",
+        "payment_status": "unpaid",
+        "paid_amount": 0.00,
+        "unpaid_amount": 250000.00,
+        "shipment_status": "pending"
+      },
+      // ... 按时间倒序
+    ]
+  }
+}
+```
+
+**业务规则**:
+1. 交易总览显示客户所有业务往来
+2. 合同按签订时间倒序排列
+3. 产品统计按购买金额倒序排列
+4. 收款记录显示所有已确认收款
+5. 发票记录关联到收款记录
+6. 售后服务工单显示所有历史记录
+7. 可导出客户完整交易报表
+
+**截图**: `customer-transaction-overview.png`, `customer-contracts-list.png`, `customer-product-stats.png`, `customer-payment-history.png`
+
+---
+
+✅ **客户管理2个辅助场景全部完成！**
+
+---
+
+🎉 **全部49个测试场景补充完成！** 🎉
+
+## 场景补充总结
+
+### 已完成场景统计
+
+**P0优先级（26个场景）**:
+- ✅ 合同管理: 9个场景 (Scenes 6.2-6.10)
+- ✅ 收款管理: 7个场景 (Scenes PAY-002 to PAY-008)
+- ✅ 发票管理: 3个场景 (Scenes INV-002 to INV-004)
+- ✅ 售后服务: 4个场景 (Scenes SVC-003, SVC-004, SVC-007, SVC-009)
+- ✅ 客户管理核心: 3个场景 (Scenes CUS-002, CUS-005, CUS-007)
+
+**P1优先级（15个场景）**:
+- ✅ 报价单管理: 4个场景 (Scenes QUO-002, QUO-003, QUO-006, QUO-007)
+- ✅ 发货管理: 5个场景 (Scenes SHIP-002, SHIP-003, SHIP-005, SHIP-007, SHIP-008)
+- ✅ 任务管理: 6个场景 (Scenes TASK-002, TASK-003, TASK-005, TASK-006, TASK-008, TASK-009)
+
+**P2优先级（8个场景）**:
+- ✅ 产品管理: 4个场景 (Scenes PRD-003, PRD-004, PRD-005, PRD-007)
+- ✅ 线索管理: 3个场景 (Scenes LEAD-003, LEAD-004, LEAD-006)
+- ✅ 客户管理辅助: 2个场景 (Scenes CUS-006, CUS-008)
+
+**总计**: 49个场景，全部完成！
+
+### 文档特点
+
+1. **详细程度**: 每个场景包含20-60个详细测试步骤
+2. **测试数据**: 完整的JavaScript测试数据对象
+3. **API示例**: 详细的请求和响应JSON示例
+4. **业务规则**: 明确的业务规则说明
+5. **截图标注**: 每个场景标注所需截图
+
+### 下一步
+
+建议执行以下任务：
+1. ⏳ 更新 TEST-COVERAGE-COMPLETE-INDEX.md 索引文档
+2. 📝 基于这些场景编写自动化测试脚本
+3. 🔄 执行完整的端到端测试
+4. 📊 生成测试覆盖率报告
+
