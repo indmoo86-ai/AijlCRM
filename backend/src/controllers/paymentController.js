@@ -158,7 +158,7 @@ exports.confirmPayment = async (req, res) => {
     // 更新合同的received_amount
     const contract = await Contract.findByPk(payment.contract_id);
     if (contract) {
-      const newReceivedAmount = parseFloat(contract.received_amount || 0) + parseFloat(payment.paid_amount || 0);
+      const newReceivedAmount = parseFloat(contract.received_amount || 0) + parseFloat(payment.payment_amount || 0);
       await contract.update({
         received_amount: newReceivedAmount,
         updated_by: req.user.id
@@ -206,7 +206,7 @@ exports.voidPayment = async (req, res) => {
     if (wasConfirmed) {
       const contract = await Contract.findByPk(payment.contract_id);
       if (contract) {
-        const newReceivedAmount = parseFloat(contract.received_amount || 0) - parseFloat(payment.paid_amount || 0);
+        const newReceivedAmount = parseFloat(contract.received_amount || 0) - parseFloat(payment.payment_amount || 0);
         await contract.update({
           received_amount: Math.max(0, newReceivedAmount), // 确保不会小于0
           updated_by: req.user.id
