@@ -2,7 +2,7 @@
  * 待办任务管理 Controller
  */
 const Task = require('../models/Task');
-const { successResponse, errorResponse } = require('../utils/response');
+const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
 /**
@@ -28,7 +28,7 @@ exports.getTaskList = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    return successResponse(res, {
+    return success(res, {
       list: rows,
       pagination: {
         page: parseInt(page),
@@ -37,9 +37,9 @@ exports.getTaskList = async (req, res) => {
         totalPages: Math.ceil(count / pageSize)
       }
     }, '查询成功');
-  } catch (error) {
-    console.error('查询任务列表失败:', error);
-    return errorResponse(res, '查询任务列表失败', 500);
+  } catch (err) {
+    console.error('查询任务列表失败:', err);
+    return error(res, '查询任务列表失败', 500);
   }
 };
 
@@ -53,13 +53,13 @@ exports.getTaskDetail = async (req, res) => {
     const task = await Task.findByPk(id);
 
     if (!task) {
-      return errorResponse(res, '任务不存在', 404);
+      return error(res, '任务不存在', 404);
     }
 
-    return successResponse(res, task, '查询成功');
-  } catch (error) {
-    console.error('查询任务详情失败:', error);
-    return errorResponse(res, '查询任务详情失败', 500);
+    return success(res, task, '查询成功');
+  } catch (err) {
+    console.error('查询任务详情失败:', err);
+    return error(res, '查询任务详情失败', 500);
   }
 };
 
@@ -74,25 +74,25 @@ exports.assignTask = async (req, res) => {
 
     const task = await Task.findByPk(id);
     if (!task) {
-      return errorResponse(res, '任务不存在', 404);
+      return error(res, '任务不存在', 404);
     }
 
     if (task.status === 'completed' || task.status === 'cancelled') {
-      return errorResponse(res, '已完成或已取消的任务不能重新分配', 400);
+      return error(res, '已完成或已取消的任务不能重新分配', 400);
     }
 
     await task.update({
       assignee_id: assigneeId,
-      assigner_id: req.user.user_id,
+      assigner_id: req.user.id,
       assigned_at: new Date(),
-      updated_by: req.user.user_id,
+      updated_by: req.user.id,
       result_note: assignReason ? `重新分配原因：${assignReason}` : task.result_note
     });
 
-    return successResponse(res, task, '任务分配成功');
-  } catch (error) {
-    console.error('分配任务失败:', error);
-    return errorResponse(res, '分配任务失败', 500);
+    return success(res, task, '任务分配成功');
+  } catch (err) {
+    console.error('分配任务失败:', err);
+    return error(res, '分配任务失败', 500);
   }
 };
 
@@ -107,32 +107,32 @@ exports.completeTask = async (req, res) => {
 
     const task = await Task.findByPk(id);
     if (!task) {
-      return errorResponse(res, '任务不存在', 404);
+      return error(res, '任务不存在', 404);
     }
 
     if (task.status === 'completed') {
-      return errorResponse(res, '任务已完成', 400);
+      return error(res, '任务已完成', 400);
     }
 
     if (task.status === 'cancelled') {
-      return errorResponse(res, '已取消的任务不能完成', 400);
+      return error(res, '已取消的任务不能完成', 400);
     }
 
     await task.update({
       status: 'completed',
       completed_at: new Date(),
       result_note: resultNote,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       taskId: task.task_id,
       status: task.status,
       completedAt: task.completed_at
     }, '任务完成成功');
-  } catch (error) {
-    console.error('完成任务失败:', error);
-    return errorResponse(res, '完成任务失败', 500);
+  } catch (err) {
+    console.error('完成任务失败:', err);
+    return error(res, '完成任务失败', 500);
   }
 };
 
@@ -147,24 +147,24 @@ exports.deferTask = async (req, res) => {
 
     const task = await Task.findByPk(id);
     if (!task) {
-      return errorResponse(res, '任务不存在', 404);
+      return error(res, '任务不存在', 404);
     }
 
     if (task.status === 'completed' || task.status === 'cancelled') {
-      return errorResponse(res, '已完成或已取消的任务不能延期', 400);
+      return error(res, '已完成或已取消的任务不能延期', 400);
     }
 
     await task.update({
       due_date: newDueDate,
       status: 'pending', // 延期后恢复为待处理状态
       result_note: deferReason ? `延期原因：${deferReason}\n${task.result_note || ''}` : task.result_note,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
-    return successResponse(res, task, '任务延期成功');
-  } catch (error) {
-    console.error('延期任务失败:', error);
-    return errorResponse(res, '延期任务失败', 500);
+    return success(res, task, '任务延期成功');
+  } catch (err) {
+    console.error('延期任务失败:', err);
+    return error(res, '延期任务失败', 500);
   }
 };
 
@@ -193,10 +193,10 @@ exports.getOverdueTasks = async (req, res) => {
       order: [['due_date', 'ASC']]
     });
 
-    return successResponse(res, tasks, '查询成功');
-  } catch (error) {
-    console.error('查询逾期任务失败:', error);
-    return errorResponse(res, '查询逾期任务失败', 500);
+    return success(res, tasks, '查询成功');
+  } catch (err) {
+    console.error('查询逾期任务失败:', err);
+    return error(res, '查询逾期任务失败', 500);
   }
 };
 
@@ -268,7 +268,7 @@ exports.getTaskStatistics = async (req, res) => {
       byType[item.task_type] = parseInt(item.count);
     });
 
-    return successResponse(res, {
+    return success(res, {
       totalTasks,
       pendingTasks,
       completedTasks,
@@ -278,8 +278,8 @@ exports.getTaskStatistics = async (req, res) => {
       avgResponseTime: 0, // TODO: 实现平均响应时间计算
       byType
     }, '查询成功');
-  } catch (error) {
-    console.error('任务统计分析失败:', error);
-    return errorResponse(res, '任务统计分析失败', 500);
+  } catch (err) {
+    console.error('任务统计分析失败:', err);
+    return error(res, '任务统计分析失败', 500);
   }
 };

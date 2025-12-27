@@ -7,7 +7,7 @@ const moment = require('moment');
  */
 exports.getDashboardStats = async (req, res) => {
   try {
-    const userId = req.user.user_id;
+    const userId = req.user.id;
     const now = moment();
     const monthStart = now.clone().startOf('month').toDate();
     const monthEnd = now.clone().endOf('month').toDate();
@@ -109,7 +109,7 @@ exports.getDashboardStats = async (req, res) => {
  */
 exports.getSalesFunnel = async (req, res) => {
   try {
-    const userId = req.user.user_id;
+    const userId = req.user.id;
 
     const leadsCount = await Lead.count({ where: { owner_id: userId } });
     const customersCount = await Customer.count({ where: { owner_id: userId } });
@@ -144,7 +144,7 @@ exports.getSalesFunnel = async (req, res) => {
  */
 exports.getPerformanceTrend = async (req, res) => {
   try {
-    const userId = req.user.user_id;
+    const userId = req.user.id;
     const { period = 'month' } = req.query; // week, month, quarter
 
     let startDate, dateFormat, groupBy;
@@ -202,7 +202,7 @@ exports.getPerformanceTrend = async (req, res) => {
  */
 exports.getRecentActivities = async (req, res) => {
   try {
-    const userId = req.user.user_id;
+    const userId = req.user.id;
     const { limit = 10 } = req.query;
 
     // 这里简化处理，实际应该查询审计日志表

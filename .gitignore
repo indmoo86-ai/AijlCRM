@@ -1,0 +1,9 @@
+
+# SQLite database
+backend/database.sqlite
+backend/*.sqlite
+
+# Test results
+tests/e2e/test-results/
+tests/e2e/.playwright/
+

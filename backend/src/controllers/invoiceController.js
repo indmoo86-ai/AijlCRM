@@ -3,7 +3,7 @@
  */
 const Invoice = require('../models/Invoice');
 const Contract = require('../models/Contract');
-const { successResponse, errorResponse } = require('../utils/response');
+const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
 /**
@@ -33,7 +33,7 @@ exports.getInvoiceList = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    return successResponse(res, {
+    return success(res, {
       list: rows,
       pagination: {
         page: parseInt(page),
@@ -42,9 +42,9 @@ exports.getInvoiceList = async (req, res) => {
         totalPages: Math.ceil(count / pageSize)
       }
     }, '查询成功');
-  } catch (error) {
-    console.error('查询发票列表失败:', error);
-    return errorResponse(res, '查询发票列表失败', 500);
+  } catch (err) {
+    console.error('查询发票列表失败:', err);
+    return error(res, '查询发票列表失败', 500);
   }
 };
 
@@ -72,7 +72,7 @@ exports.createInvoice = async (req, res) => {
     // 获取合同信息
     const contract = await Contract.findByPk(contractId);
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
     // 发票号码在开具时填写
@@ -94,11 +94,11 @@ exports.createInvoice = async (req, res) => {
       bank_account: bankAccount,
       invoice_note: invoiceNote,
       status: 'draft',
-      owner_id: req.user.user_id,
-      created_by: req.user.user_id
+      owner_id: req.user.id,
+      created_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       invoiceId: invoice.invoice_id,
       invoiceNo: invoice.invoice_no,
       contractId: invoice.contract_id,
@@ -108,9 +108,9 @@ exports.createInvoice = async (req, res) => {
       status: invoice.status,
       createdAt: invoice.created_at
     }, '发票记录创建成功');
-  } catch (error) {
-    console.error('创建发票记录失败:', error);
-    return errorResponse(res, '创建发票记录失败', 500);
+  } catch (err) {
+    console.error('创建发票记录失败:', err);
+    return error(res, '创建发票记录失败', 500);
   }
 };
 
@@ -124,13 +124,13 @@ exports.getInvoiceDetail = async (req, res) => {
     const invoice = await Invoice.findByPk(id);
 
     if (!invoice) {
-      return errorResponse(res, '发票记录不存在', 404);
+      return error(res, '发票记录不存在', 404);
     }
 
-    return successResponse(res, invoice, '查询成功');
-  } catch (error) {
-    console.error('查询发票详情失败:', error);
-    return errorResponse(res, '查询发票详情失败', 500);
+    return success(res, invoice, '查询成功');
+  } catch (err) {
+    console.error('查询发票详情失败:', err);
+    return error(res, '查询发票详情失败', 500);
   }
 };
 
@@ -144,22 +144,22 @@ exports.updateInvoice = async (req, res) => {
     const invoice = await Invoice.findByPk(id);
 
     if (!invoice) {
-      return errorResponse(res, '发票记录不存在', 404);
+      return error(res, '发票记录不存在', 404);
     }
 
     if (invoice.status !== 'draft') {
-      return errorResponse(res, '只有草稿状态的发票才能修改', 400);
+      return error(res, '只有草稿状态的发票才能修改', 400);
     }
 
     await invoice.update({
       ...req.body,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
-    return successResponse(res, invoice, '发票信息更新成功');
-  } catch (error) {
-    console.error('更新发票信息失败:', error);
-    return errorResponse(res, '更新发票信息失败', 500);
+    return success(res, invoice, '发票信息更新成功');
+  } catch (err) {
+    console.error('更新发票信息失败:', err);
+    return error(res, '更新发票信息失败', 500);
   }
 };
 
@@ -174,11 +174,11 @@ exports.confirmInvoice = async (req, res) => {
 
     const invoice = await Invoice.findByPk(id);
     if (!invoice) {
-      return errorResponse(res, '发票记录不存在', 404);
+      return error(res, '发票记录不存在', 404);
     }
 
     if (invoice.status === 'confirmed') {
-      return errorResponse(res, '发票已开具', 400);
+      return error(res, '发票已开具', 400);
     }
 
     await invoice.update({
@@ -186,8 +186,8 @@ exports.confirmInvoice = async (req, res) => {
       invoice_date: invoiceDate,
       status: 'confirmed',
       confirm_date: new Date(),
-      confirmed_by: req.user.user_id,
-      updated_by: req.user.user_id
+      confirmed_by: req.user.id,
+      updated_by: req.user.id
     });
 
     // 更新合同的invoiced_amount
@@ -196,19 +196,19 @@ exports.confirmInvoice = async (req, res) => {
       const newInvoicedAmount = parseFloat(contract.invoiced_amount || 0) + parseFloat(invoice.invoice_amount || 0);
       await contract.update({
         invoiced_amount: newInvoicedAmount,
-        updated_by: req.user.user_id
+        updated_by: req.user.id
       });
     }
 
-    return successResponse(res, {
+    return success(res, {
       invoiceId: invoice.invoice_id,
       invoiceNo: invoice.invoice_no,
       status: invoice.status,
       confirmDate: invoice.confirm_date
     }, '发票开具成功');
-  } catch (error) {
-    console.error('确认开票失败:', error);
-    return errorResponse(res, '确认开票失败', 500);
+  } catch (err) {
+    console.error('确认开票失败:', err);
+    return error(res, '确认开票失败', 500);
   }
 };
 
@@ -223,11 +223,11 @@ exports.voidInvoice = async (req, res) => {
 
     const invoice = await Invoice.findByPk(id);
     if (!invoice) {
-      return errorResponse(res, '发票记录不存在', 404);
+      return error(res, '发票记录不存在', 404);
     }
 
     if (invoice.status === 'voided') {
-      return errorResponse(res, '发票已作废', 400);
+      return error(res, '发票已作废', 400);
     }
 
     // 记录之前的状态，用于判断是否需要回退invoiced_amount
@@ -236,7 +236,7 @@ exports.voidInvoice = async (req, res) => {
     await invoice.update({
       status: 'voided',
       void_reason: voidReason,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
     // 如果之前已开具，回退合同的invoiced_amount
@@ -246,15 +246,15 @@ exports.voidInvoice = async (req, res) => {
         const newInvoicedAmount = parseFloat(contract.invoiced_amount || 0) - parseFloat(invoice.invoice_amount || 0);
         await contract.update({
           invoiced_amount: Math.max(0, newInvoicedAmount), // 确保不会小于0
-          updated_by: req.user.user_id
+          updated_by: req.user.id
         });
       }
     }
 
-    return successResponse(res, invoice, '发票作废成功');
-  } catch (error) {
-    console.error('作废发票失败:', error);
-    return errorResponse(res, '作废发票失败', 500);
+    return success(res, invoice, '发票作废成功');
+  } catch (err) {
+    console.error('作废发票失败:', err);
+    return error(res, '作废发票失败', 500);
   }
 };
 
@@ -282,14 +282,14 @@ exports.getInvoiceStatistics = async (req, res) => {
 
     // TODO: 实现更详细的发票统计
 
-    return successResponse(res, {
+    return success(res, {
       totalInvoicedAmount,
       totalInvoiceCount: 0, // TODO: 统计发票数量
       byType: {},
       byMonth: []
     }, '查询成功');
-  } catch (error) {
-    console.error('发票统计分析失败:', error);
-    return errorResponse(res, '发票统计分析失败', 500);
+  } catch (err) {
+    console.error('发票统计分析失败:', err);
+    return error(res, '发票统计分析失败', 500);
   }
 };
