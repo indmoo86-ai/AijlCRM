@@ -57,8 +57,8 @@
 |------|--------|--------|------|------|------|
 | 用户认证 | 2 | 2 | 2 | 0 | 100% ✅ |
 | 产品管理 | 6 | 0 | 0 | 0 | 0% |
-| 客户管理 | 7 | 0 | 0 | 0 | 0% |
-| 线索管理 | 8 | 0 | 0 | 0 | 0% |
+| 客户管理 | 7 | 1 | 1 | 0 | 14% |
+| 线索管理 | 8 | 1 | 1 | 0 | 13% |
 | 报价单管理 | 7 | 0 | 0 | 0 | 0% |
 | 合同管理 | 10 | 0 | 0 | 0 | 0% |
 | 任务管理 | 8 | 0 | 0 | 0 | 0% |
@@ -66,7 +66,7 @@
 | 收款管理 | 8 | 0 | 0 | 0 | 0% |
 | 发票管理 | 8 | 0 | 0 | 0 | 0% |
 | 售后服务 | 9 | 0 | 0 | 0 | 0% |
-| **总计** | **79** | **2** | **2** | **0** | **2.5%** |
+| **总计** | **79** | **4** | **4** | **0** | **5.1%** |
 
 ---
 
@@ -211,6 +211,40 @@ await RolePermission.findOrCreate({
 **修复提交**: 1dca860
 
 **备注**: Permission模型和RolePermission模型的字段定义与seed数据脚本不匹配，已修复
+
+#### 问题 #004: Lead模型字段映射错误
+
+**状态**: ✅ 已解决
+
+**场景**: Scene 2.1 - 创建线索
+
+**预期结果**: 使用snake_case字段名创建线索
+
+**实际结果**: Lead模型使用camelCase字段名，导致validation错误
+
+**错误信息**:
+```
+ValidationError: notNull Violation: Lead.customerName cannot be null
+ValidationError: notNull Violation: Lead.channelSource cannot be null
+```
+
+**修复方案**: 使用Lead模型的camelCase字段名
+
+**修复代码**:
+```javascript
+const leadData = {
+  customerName: '北京国际大酒店',  // 不是customer_name
+  channelSource: '官网咨询',        // 不是source_id
+  salesOwnerId: 1,                 // 必需字段
+  // ...其他字段
+};
+```
+
+**测试结果**:
+- [x] 第1次测试: 2025-12-27 - ❌ 失败 (字段名错误)
+- [x] 第2次测试: 2025-12-27 - ✅ 通过
+
+**备注**: Lead模型字段使用camelCase，与其他模型的snake_case不同，需要注意
 
 ---
 
