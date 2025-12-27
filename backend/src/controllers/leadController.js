@@ -89,7 +89,13 @@ exports.createLead = async (req, res) => {
 
     const lead = await Lead.create(leadData);
 
-    return success(res, lead, '创建成功', 201);
+    // 返回标准化的响应格式，包含leadId字段
+    const responseData = {
+      leadId: lead.id,
+      ...lead.toJSON()
+    };
+
+    return success(res, responseData, '创建成功', 201);
 
   } catch (err) {
     console.error('创建线索错误:', err);
@@ -267,10 +273,15 @@ exports.convertToCustomer = async (req, res) => {
 
     // TODO: 如果需要创建商机，这里添加商机创建逻辑
 
-    return success(res, {
-      customer,
+    // 返回标准化的响应格式，包含customerId字段
+    const responseData = {
+      customerId: customer.id,
+      customerNo: customer.customerNo,
+      ...customer.toJSON(),
       message: '转化成功'
-    }, '转化成功', 201);
+    };
+
+    return success(res, responseData, '转化成功', 201);
 
   } catch (err) {
     console.error('线索转客户错误:', err);

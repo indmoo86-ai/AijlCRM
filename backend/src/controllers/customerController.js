@@ -69,22 +69,21 @@ exports.getCustomerList = async (req, res) => {
  */
 exports.createCustomer = async (req, res) => {
   try {
-    const {
-      customerName,
-      customerType,
-      customerLevel,
-      customerStage,
-      industry,
-      province,
-      city,
-      address,
-      contactPhone,
-      hotelRooms,
-      hotelStar,
-      source,
-      description,
-      ownerId
-    } = req.body;
+    // 参数命名兼容性处理（支持驼峰和下划线）
+    const customerName = req.body.customerName || req.body.customer_name;
+    const customerType = req.body.customerType || req.body.customer_type;
+    const customerLevel = req.body.customerLevel || req.body.customer_level;
+    const customerStage = req.body.customerStage || req.body.customer_stage;
+    const industry = req.body.industry;
+    const province = req.body.province;
+    const city = req.body.city;
+    const address = req.body.address;
+    const contactPhone = req.body.contactPhone || req.body.contact_phone;
+    const hotelRooms = req.body.hotelRooms || req.body.hotel_rooms;
+    const hotelStar = req.body.hotelStar || req.body.hotel_star;
+    const source = req.body.source;
+    const description = req.body.description;
+    const ownerId = req.body.ownerId || req.body.owner_id || req.user.id;
 
     // 生成客户编码
     const today = new Date();
@@ -106,20 +105,20 @@ exports.createCustomer = async (req, res) => {
       hotel_star: hotelStar,
       source,
       description,
-      owner_id: ownerId || req.user.id,
+      owner_id: ownerId,
       creator_id: req.user.id
     });
 
-    return success(res, {
+    // 响应格式标准化（包含主键ID + 完整数据）
+    const responseData = {
       customerId: customer.customer_id,
-      customerCode: customer.customer_code,
-      customerName: customer.customer_name,
-      customerStage: customer.customer_stage,
-      ownerId: customer.owner_id,
-      createdAt: customer.created_at
-    }, '客户创建成功');
+      ...customer.toJSON()
+    };
+
+    return success(res, responseData, '客户创建成功', 201);
   } catch (err) {
     console.error('创建客户失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建客户失败', 500);
   }
 };
@@ -191,7 +190,15 @@ exports.updateCustomer = async (req, res) => {
 exports.addCustomerContact = async (req, res) => {
   try {
     const { id } = req.params;
-    const { contactName, position, mobile, wechat, email, isPrimary, description } = req.body;
+
+    // 参数命名兼容性处理
+    const contactName = req.body.contactName || req.body.contact_name;
+    const position = req.body.position;
+    const mobile = req.body.mobile;
+    const wechat = req.body.wechat;
+    const email = req.body.email;
+    const isPrimary = req.body.isPrimary || req.body.is_primary;
+    const description = req.body.description;
 
     const customer = await Customer.findByPk(id);
     if (!customer) {
@@ -218,9 +225,16 @@ exports.addCustomerContact = async (req, res) => {
       creator_id: req.user.id
     });
 
-    return success(res, contact, '联系人添加成功');
+    // 响应格式标准化
+    const responseData = {
+      contactId: contact.contact_id,
+      ...contact.toJSON()
+    };
+
+    return success(res, responseData, '联系人添加成功', 201);
   } catch (err) {
     console.error('添加客户联系人失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '添加客户联系人失败', 500);
   }
 };

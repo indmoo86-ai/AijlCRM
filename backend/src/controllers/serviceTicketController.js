@@ -50,17 +50,16 @@ exports.getTicketList = async (req, res) => {
  */
 exports.createTicket = async (req, res) => {
   try {
-    const {
-      customerId,
-      customerContactId,
-      contractId,
-      productId,
-      ticketType,
-      ticketTitle,
-      priority,
-      problemDescription,
-      expectedResolveDate
-    } = req.body;
+    // 支持驼峰和下划线两种命名方式
+    const customerId = req.body.customerId || req.body.customer_id;
+    const customerContactId = req.body.customerContactId || req.body.customer_contact_id;
+    const contractId = req.body.contractId || req.body.contract_id;
+    const productId = req.body.productId || req.body.product_id;
+    const ticketType = req.body.ticketType || req.body.ticket_type;
+    const ticketTitle = req.body.ticketTitle || req.body.ticket_title;
+    const priority = req.body.priority;
+    const problemDescription = req.body.problemDescription || req.body.problem_description;
+    const expectedResolveDate = req.body.expectedResolveDate || req.body.expected_resolve_date;
 
     // 生成工单编号
     const ticket_no = 'TICKET-' + Date.now();
@@ -91,6 +90,7 @@ exports.createTicket = async (req, res) => {
     }, '工单创建成功');
   } catch (err) {
     console.error('创建工单失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建工单失败', 500);
   }
 };

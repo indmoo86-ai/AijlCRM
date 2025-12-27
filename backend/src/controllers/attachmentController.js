@@ -83,7 +83,9 @@ exports.uploadAttachment = async (req, res) => {
       });
     }
 
-    const { business_type, business_id } = req.body;
+    // 参数命名兼容性处理
+    const business_type = req.body.business_type || req.body.businessType;
+    const business_id = req.body.business_id || req.body.businessId;
 
     if (!business_type || !business_id) {
       return res.status(400).json({
@@ -127,13 +129,20 @@ exports.uploadAttachment = async (req, res) => {
       uploader_name: req.user?.username || 'admin'
     });
 
-    res.json({
+    // 响应格式标准化（包含主键ID + 完整数据）
+    const responseData = {
+      attachmentId: attachment.attachment_id,
+      ...attachment.toJSON()
+    };
+
+    res.status(201).json({
       success: true,
       message: '文件上传成功',
-      data: attachment
+      data: responseData
     });
   } catch (error) {
     console.error('上传附件失败:', error);
+    console.error('错误详情:', error.message);
     res.status(500).json({
       success: false,
       message: '上传附件失败',

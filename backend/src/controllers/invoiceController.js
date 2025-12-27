@@ -54,20 +54,19 @@ exports.getInvoiceList = async (req, res) => {
  */
 exports.createInvoice = async (req, res) => {
   try {
-    const {
-      contractId,
-      paymentId,
-      invoiceType,
-      invoiceAmount,
-      invoiceDate,
-      invoiceTitle,
-      taxNumber,
-      companyAddress,
-      companyPhone,
-      bankName,
-      bankAccount,
-      invoiceNote
-    } = req.body;
+    // 支持驼峰和下划线两种命名方式
+    const contractId = req.body.contractId || req.body.contract_id;
+    const paymentId = req.body.paymentId || req.body.payment_id;
+    const invoiceType = req.body.invoiceType || req.body.invoice_type;
+    const invoiceAmount = req.body.invoiceAmount || req.body.invoice_amount;
+    const invoiceDate = req.body.invoiceDate || req.body.invoice_date;
+    const invoiceTitle = req.body.invoiceTitle || req.body.invoice_title;
+    const taxNumber = req.body.taxNumber || req.body.tax_number;
+    const companyAddress = req.body.companyAddress || req.body.company_address;
+    const companyPhone = req.body.companyPhone || req.body.company_phone;
+    const bankName = req.body.bankName || req.body.bank_name;
+    const bankAccount = req.body.bankAccount || req.body.bank_account;
+    const invoiceNote = req.body.invoiceNote || req.body.invoice_note;
 
     // 获取合同信息
     const contract = await Contract.findByPk(contractId);
@@ -110,6 +109,7 @@ exports.createInvoice = async (req, res) => {
     }, '发票记录创建成功');
   } catch (err) {
     console.error('创建发票记录失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建发票记录失败', 500);
   }
 };

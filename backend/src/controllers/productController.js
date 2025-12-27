@@ -21,9 +21,16 @@ exports.createCategory = async (req, res) => {
       creator_id: req.user.id
     });
 
-    return success(res, category, '产品分类创建成功', 201);
+    // 返回标准化的响应格式，包含categoryId字段
+    const responseData = {
+      categoryId: category.category_id,
+      ...category.toJSON()
+    };
+
+    return success(res, responseData, '产品分类创建成功', 201);
   } catch (err) {
     console.error('创建产品分类错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建失败', 500);
   }
 };
@@ -97,9 +104,17 @@ exports.createProduct = async (req, res) => {
     };
 
     const product = await Product.create(productData);
-    return success(res, product, '产品创建成功', 201);
+
+    // 返回标准化的响应格式，包含productId字段
+    const responseData = {
+      productId: product.product_id,
+      ...product.toJSON()
+    };
+
+    return success(res, responseData, '产品创建成功', 201);
   } catch (err) {
     console.error('创建产品错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建失败', 500);
   }
 };

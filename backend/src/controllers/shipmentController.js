@@ -4,6 +4,8 @@
 const Shipment = require('../models/Shipment');
 const ShipmentItem = require('../models/ShipmentItem');
 const Contract = require('../models/Contract');
+const ContractItem = require('../models/ContractItem');
+const Product = require('../models/Product');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -13,16 +15,15 @@ const { Op } = require('sequelize');
  */
 exports.createShipment = async (req, res) => {
   try {
-    const {
-      shipmentTitle,
-      contractId,
-      shippingAddress,
-      contactPerson,
-      contactPhone,
-      plannedShipDate,
-      items,
-      notes
-    } = req.body;
+    // 支持驼峰和下划线两种命名方式
+    const shipmentTitle = req.body.shipmentTitle || req.body.shipment_title;
+    const contractId = req.body.contractId || req.body.contract_id;
+    const shippingAddress = req.body.shippingAddress || req.body.shipping_address;
+    const contactPerson = req.body.contactPerson || req.body.contact_person;
+    const contactPhone = req.body.contactPhone || req.body.contact_phone;
+    const plannedShipDate = req.body.plannedShipDate || req.body.planned_ship_date;
+    const items = req.body.items;
+    const notes = req.body.notes;
 
     // 获取合同信息
     const contract = await Contract.findByPk(contractId);
@@ -37,8 +38,8 @@ exports.createShipment = async (req, res) => {
     let shipmentAmount = 0;
     if (items && items.length > 0) {
       for (const item of items) {
-        const quantity = parseFloat(item.thisShipmentQuantity) || 0;
-        const price = parseFloat(item.unitPrice) || 0;
+        const quantity = parseFloat(item.thisShipmentQuantity || item.this_shipment_quantity) || 0;
+        const price = parseFloat(item.unitPrice || item.unit_price) || 0;
         shipmentAmount += quantity * price;
       }
     }
@@ -62,19 +63,53 @@ exports.createShipment = async (req, res) => {
     // 创建发货单明细
     if (items && items.length > 0) {
       for (const item of items) {
+        let contractItemId = item.contractItemId || item.contract_item_id;
+        const productId = item.productId || item.product_id;
+        let productCode = item.productCode || item.product_code;
+        let productName = item.productName || item.product_name;
+        let productUnit = item.productUnit || item.product_unit;
+        const contractQuantity = item.contractQuantity || item.contract_quantity;
+        const alreadyShippedQuantity = item.alreadyShippedQuantity || item.already_shipped_quantity || 0;
+        const thisShipmentQuantity = item.thisShipmentQuantity || item.this_shipment_quantity;
+        const remainingQuantity = item.remainingQuantity || item.remaining_quantity || 0;
+        const unitPrice = item.unitPrice || item.unit_price;
+
+        // 如果没有提供contract_item_id，尝试从合同明细中查找
+        if (!contractItemId && productId && contractId) {
+          const contractItem = await ContractItem.findOne({
+            where: {
+              contract_id: contractId,
+              product_id: productId
+            }
+          });
+          if (contractItem) {
+            contractItemId = contractItem.item_id;
+          }
+        }
+
+        // 如果没有提供product_code、product_name或product_unit，从数据库获取
+        if (!productCode || !productName || !productUnit) {
+          const product = await Product.findByPk(productId);
+          if (product) {
+            productCode = productCode || product.product_code;
+            productName = productName || product.product_name;
+            productUnit = productUnit || product.unit;
+          }
+        }
+
         await ShipmentItem.create({
           shipment_id: shipment.shipment_id,
-          contract_item_id: item.contractItemId,
-          product_id: item.productId,
-          product_code: item.productCode,
-          product_name: item.productName,
-          product_unit: item.productUnit,
-          contract_quantity: item.contractQuantity,
-          already_shipped_quantity: item.alreadyShippedQuantity || 0,
-          this_shipment_quantity: item.thisShipmentQuantity,
-          remaining_quantity: item.remainingQuantity || 0,
-          unit_price: item.unitPrice,
-          subtotal: item.thisShipmentQuantity * item.unitPrice
+          contract_item_id: contractItemId,
+          product_id: productId,
+          product_code: productCode,
+          product_name: productName,
+          product_unit: productUnit,
+          contract_quantity: contractQuantity,
+          already_shipped_quantity: alreadyShippedQuantity,
+          this_shipment_quantity: thisShipmentQuantity,
+          remaining_quantity: remainingQuantity,
+          unit_price: unitPrice,
+          subtotal: thisShipmentQuantity * unitPrice
         });
       }
     }
@@ -91,6 +126,7 @@ exports.createShipment = async (req, res) => {
     }, '发货单创建成功');
   } catch (err) {
     console.error('创建发货单失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建发货单失败', 500);
   }
 };

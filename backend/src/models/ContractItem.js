@@ -67,6 +67,18 @@ const ContractItem = sequelize.define('ContractItem', {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.00,
     comment: '已发货数量'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '更新时间'
   }
 }, {
   tableName: 'contract_item',

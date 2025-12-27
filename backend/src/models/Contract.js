@@ -171,6 +171,18 @@ const Contract = sequelize.define('Contract', {
     allowNull: true,
     comment: '签订确认人ID'
   },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '更新时间'
+  },
   deleted_at: {
     type: DataTypes.DATE,
     allowNull: true,

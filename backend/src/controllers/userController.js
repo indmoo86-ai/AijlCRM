@@ -37,7 +37,13 @@ exports.getUserList = async (req, res) => {
 // 创建用户
 exports.createUser = async (req, res) => {
   try {
-    const { user_code, real_name, mobile, email, password, role_ids } = req.body;
+    // 参数命名兼容性处理（支持驼峰和下划线）
+    const user_code = req.body.user_code || req.body.userCode;
+    const real_name = req.body.real_name || req.body.realName;
+    const mobile = req.body.mobile;
+    const email = req.body.email;
+    const password = req.body.password;
+    const role_ids = req.body.role_ids || req.body.roleIds;
 
     const user = await User.create({
       user_code,
@@ -58,9 +64,16 @@ exports.createUser = async (req, res) => {
       await UserRole.bulkCreate(userRoles);
     }
 
-    return success(res, user, '用户创建成功', 201);
+    // 响应格式标准化（包含主键ID + 完整数据）
+    const responseData = {
+      userId: user.user_id,
+      ...user.toJSON()
+    };
+
+    return success(res, responseData, '用户创建成功', 201);
   } catch (err) {
     console.error('创建用户错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建失败', 500);
   }
 };

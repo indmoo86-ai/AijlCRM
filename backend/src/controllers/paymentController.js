@@ -54,18 +54,17 @@ exports.getPaymentList = async (req, res) => {
  */
 exports.createPayment = async (req, res) => {
   try {
-    const {
-      contractId,
-      paymentStage,
-      paymentAmount,
-      paymentDate,
-      paymentMethod,
-      bankAccount,
-      transactionNo,
-      payerName,
-      expectedAmount,
-      paymentNote
-    } = req.body;
+    // 支持驼峰和下划线两种命名方式
+    const contractId = req.body.contractId || req.body.contract_id;
+    const paymentStage = req.body.paymentStage || req.body.payment_stage;
+    const paymentAmount = req.body.paymentAmount || req.body.payment_amount || req.body.paidAmount || req.body.paid_amount;
+    const paymentDate = req.body.paymentDate || req.body.payment_date;
+    const paymentMethod = req.body.paymentMethod || req.body.payment_method;
+    const bankAccount = req.body.bankAccount || req.body.bank_account;
+    const transactionNo = req.body.transactionNo || req.body.transaction_no;
+    const payerName = req.body.payerName || req.body.payer_name;
+    const expectedAmount = req.body.expectedAmount || req.body.expected_amount;
+    const paymentNote = req.body.paymentNote || req.body.payment_note;
 
     // 获取合同信息
     const contract = await Contract.findByPk(contractId);
@@ -106,6 +105,7 @@ exports.createPayment = async (req, res) => {
     }, '收款记录创建成功');
   } catch (err) {
     console.error('创建收款记录失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建收款记录失败', 500);
   }
 };

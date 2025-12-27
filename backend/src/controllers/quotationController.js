@@ -3,6 +3,7 @@
  */
 const Quotation = require('../models/Quotation');
 const QuotationItem = require('../models/QuotationItem');
+const Product = require('../models/Product');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -12,7 +13,13 @@ const { Op } = require('sequelize');
  */
 exports.createQuotation = async (req, res) => {
   try {
-    const { customer_id, quotation_date, valid_until, items, notes } = req.body;
+    // 支持驼峰和下划线两种命名方式
+    const customer_id = req.body.customer_id || req.body.customerId;
+    const quotation_date = req.body.quotation_date || req.body.quotationDate || new Date();
+    const valid_until = req.body.valid_until || req.body.validUntil || req.body.validDays
+      ? new Date(Date.now() + (req.body.validDays || 30) * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const { items, notes } = req.body;
 
     // 生成报价单编号
     const quotation_no = 'QT-' + Date.now();
@@ -31,18 +38,36 @@ exports.createQuotation = async (req, res) => {
 
     if (items && items.length > 0) {
       let totalAmount = 0;
-      
+
       for (const item of items) {
-        const subtotal = item.quantity * item.unit_price;
+        // 支持驼峰和下划线命名
+        const product_id = item.product_id || item.productId;
+        const unit_price = item.unit_price || item.unitPrice;
+        const discount_rate = item.discount_rate || item.discountRate || 1;
+        const quantity = item.quantity;
+
+        // 如果没有提供product_code和product_name，从数据库获取
+        let product_code = item.product_code || item.productCode;
+        let product_name = item.product_name || item.productName;
+
+        if (!product_code || !product_name) {
+          const product = await Product.findByPk(product_id);
+          if (product) {
+            product_code = product.product_code;
+            product_name = product.product_name;
+          }
+        }
+
+        const subtotal = quantity * unit_price * discount_rate;
         totalAmount += subtotal;
-        
+
         await QuotationItem.create({
           quotation_id: quotation.quotation_id,
-          product_id: item.product_id,
-          product_code: item.product_code,
-          product_name: item.product_name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
+          product_id: product_id,
+          product_code: product_code,
+          product_name: product_name,
+          quantity: quantity,
+          unit_price: unit_price,
           subtotal: subtotal,
           notes: item.notes
         });
@@ -51,9 +76,16 @@ exports.createQuotation = async (req, res) => {
       await quotation.update({ total_amount: totalAmount });
     }
 
-    return success(res, quotation, '报价单创建成功');
+    // 返回标准化的响应格式，包含quotationId字段
+    const responseData = {
+      quotationId: quotation.quotation_id,
+      ...quotation.toJSON()
+    };
+
+    return success(res, responseData, '报价单创建成功', 201);
   } catch (err) {
     console.error('创建报价单失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建报价单失败', 500);
   }
 };

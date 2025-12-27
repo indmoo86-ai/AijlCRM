@@ -6,6 +6,7 @@ const ContractItem = require('../models/ContractItem');
 const ContractAmendment = require('../models/ContractAmendment');
 const Shipment = require('../models/Shipment');
 const Payment = require('../models/Payment');
+const Product = require('../models/Product');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -60,11 +61,18 @@ exports.getContractList = async (req, res) => {
  */
 exports.createContract = async (req, res) => {
   try {
-    const {
-      contractTitle, customerId, customerContactId, sourceQuotationId,
-      contractAmount, signedDate, deliveryDeadline,
-      paymentTerms, deliveryTerms, warrantyTerms, items
-    } = req.body;
+    // 支持多种命名方式
+    const contractTitle = req.body.contractTitle || req.body.contract_title;
+    const customerId = req.body.customerId || req.body.customer_id;
+    const customerContactId = req.body.customerContactId || req.body.customer_contact_id;
+    const sourceQuotationId = req.body.sourceQuotationId || req.body.source_quotation_id;
+    const contractAmount = req.body.contractAmount || req.body.contract_amount || req.body.totalAmount;
+    const signedDate = req.body.signedDate || req.body.signed_date;
+    const deliveryDeadline = req.body.deliveryDeadline || req.body.delivery_deadline;
+    const paymentTerms = req.body.paymentTerms || req.body.payment_terms;
+    const deliveryTerms = req.body.deliveryTerms || req.body.delivery_terms;
+    const warrantyTerms = req.body.warrantyTerms || req.body.warranty_terms;
+    const items = req.body.items;
 
     // 生成合同编号
     const contract_no = 'CONT-' + Date.now();
@@ -89,16 +97,31 @@ exports.createContract = async (req, res) => {
     // 创建合同明细
     if (items && items.length > 0) {
       for (const item of items) {
+        const productId = item.productId || item.product_id;
+        let productCode = item.productCode || item.product_code;
+        let productName = item.productName || item.product_name;
+        let productUnit = item.productUnit || item.product_unit;
+
+        // 如果没有提供product_code、product_name或product_unit，从数据库获取
+        if (!productCode || !productName || !productUnit) {
+          const product = await Product.findByPk(productId);
+          if (product) {
+            productCode = productCode || product.product_code;
+            productName = productName || product.product_name;
+            productUnit = productUnit || product.unit;
+          }
+        }
+
         await ContractItem.create({
           contract_id: contract.contract_id,
-          product_id: item.productId,
-          product_code: item.productCode,
-          product_name: item.productName,
-          product_unit: item.productUnit,
+          product_id: productId,
+          product_code: productCode,
+          product_name: productName,
+          product_unit: productUnit,
           quantity: item.quantity,
-          unit_price: item.unitPrice,
-          subtotal: item.quantity * item.unitPrice,
-          item_note: item.itemNote
+          unit_price: item.unitPrice || item.unit_price,
+          subtotal: item.quantity * (item.unitPrice || item.unit_price),
+          item_note: item.itemNote || item.item_note
         });
       }
     }
@@ -114,6 +137,7 @@ exports.createContract = async (req, res) => {
     }, '合同创建成功');
   } catch (err) {
     console.error('创建合同失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建合同失败', 500);
   }
 };
