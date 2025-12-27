@@ -6,7 +6,7 @@ const ContractItem = require('../models/ContractItem');
 const ContractAmendment = require('../models/ContractAmendment');
 const Shipment = require('../models/Shipment');
 const Payment = require('../models/Payment');
-const { successResponse, errorResponse } = require('../utils/response');
+const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
 /**
@@ -39,7 +39,7 @@ exports.getContractList = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    return successResponse(res, {
+    return success(res, {
       list: rows,
       pagination: {
         page: parseInt(page),
@@ -48,9 +48,9 @@ exports.getContractList = async (req, res) => {
         totalPages: Math.ceil(count / pageSize)
       }
     }, '查询成功');
-  } catch (error) {
-    console.error('查询合同列表失败:', error);
-    return errorResponse(res, '查询合同列表失败', 500);
+  } catch (err) {
+    console.error('查询合同列表失败:', err);
+    return error(res, '查询合同列表失败', 500);
   }
 };
 
@@ -82,8 +82,8 @@ exports.createContract = async (req, res) => {
       delivery_terms: deliveryTerms,
       warranty_terms: warrantyTerms,
       status: 'draft',
-      owner_id: req.user.user_id,
-      created_by: req.user.user_id
+      owner_id: req.user.id,
+      created_by: req.user.id
     });
 
     // 创建合同明细
@@ -103,7 +103,7 @@ exports.createContract = async (req, res) => {
       }
     }
 
-    return successResponse(res, {
+    return success(res, {
       contractId: contract.contract_id,
       contractNo: contract.contract_no,
       contractTitle: contract.contract_title,
@@ -112,9 +112,9 @@ exports.createContract = async (req, res) => {
       status: contract.status,
       createdAt: contract.created_at
     }, '合同创建成功');
-  } catch (error) {
-    console.error('创建合同失败:', error);
-    return errorResponse(res, '创建合同失败', 500);
+  } catch (err) {
+    console.error('创建合同失败:', err);
+    return error(res, '创建合同失败', 500);
   }
 };
 
@@ -133,13 +133,13 @@ exports.getContractDetail = async (req, res) => {
     });
 
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
-    return successResponse(res, contract, '查询成功');
-  } catch (error) {
-    console.error('查询合同详情失败:', error);
-    return errorResponse(res, '查询合同详情失败', 500);
+    return success(res, contract, '查询成功');
+  } catch (err) {
+    console.error('查询合同详情失败:', err);
+    return error(res, '查询合同详情失败', 500);
   }
 };
 
@@ -153,22 +153,22 @@ exports.updateContract = async (req, res) => {
     const contract = await Contract.findByPk(id);
 
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
     if (contract.status !== 'draft') {
-      return errorResponse(res, '只有草稿状态的合同才能修改', 400);
+      return error(res, '只有草稿状态的合同才能修改', 400);
     }
 
     await contract.update({
       ...req.body,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
-    return successResponse(res, contract, '合同更新成功');
-  } catch (error) {
-    console.error('更新合同失败:', error);
-    return errorResponse(res, '更新合同失败', 500);
+    return success(res, contract, '合同更新成功');
+  } catch (err) {
+    console.error('更新合同失败:', err);
+    return error(res, '更新合同失败', 500);
   }
 };
 
@@ -183,11 +183,11 @@ exports.signContract = async (req, res) => {
 
     const contract = await Contract.findByPk(id);
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
     if (contract.status === 'signed') {
-      return errorResponse(res, '合同已签订', 400);
+      return error(res, '合同已签订', 400);
     }
 
     await contract.update({
@@ -195,19 +195,19 @@ exports.signContract = async (req, res) => {
       signed_date: signedDate,
       contract_file_url: contractFileUrl,
       contract_file_uploaded_at: new Date(),
-      signed_by: req.user.user_id,
-      updated_by: req.user.user_id
+      signed_by: req.user.id,
+      updated_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       contractId: contract.contract_id,
       status: contract.status,
       signedDate: contract.signed_date,
       signedAt: contract.updated_at
     }, '合同签订成功');
-  } catch (error) {
-    console.error('合同签订失败:', error);
-    return errorResponse(res, '合同签订失败', 500);
+  } catch (err) {
+    console.error('合同签订失败:', err);
+    return error(res, '合同签订失败', 500);
   }
 };
 
@@ -225,7 +225,7 @@ exports.createAmendment = async (req, res) => {
 
     const contract = await Contract.findByPk(id);
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
     // 生成补充协议编号
@@ -241,10 +241,10 @@ exports.createAmendment = async (req, res) => {
       new_contract_amount: newContractAmount,
       signed_date: signedDate,
       status: 'draft',
-      created_by: req.user.user_id
+      created_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       amendmentId: amendment.amendment_id,
       amendmentNo: amendment.amendment_no,
       contractId: amendment.contract_id,
@@ -254,9 +254,9 @@ exports.createAmendment = async (req, res) => {
       status: amendment.status,
       createdAt: amendment.created_at
     }, '补充协议创建成功');
-  } catch (error) {
-    console.error('创建补充协议失败:', error);
-    return errorResponse(res, '创建补充协议失败', 500);
+  } catch (err) {
+    console.error('创建补充协议失败:', err);
+    return error(res, '创建补充协议失败', 500);
   }
 };
 
@@ -273,10 +273,10 @@ exports.getAmendmentList = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
-    return successResponse(res, amendments, '查询成功');
-  } catch (error) {
-    console.error('查询补充协议列表失败:', error);
-    return errorResponse(res, '查询补充协议列表失败', 500);
+    return success(res, amendments, '查询成功');
+  } catch (err) {
+    console.error('查询补充协议列表失败:', err);
+    return error(res, '查询补充协议列表失败', 500);
   }
 };
 
@@ -290,7 +290,7 @@ exports.uploadContractFile = async (req, res) => {
     const contract = await Contract.findByPk(id);
 
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
     // TODO: 实现文件上传逻辑
@@ -301,17 +301,17 @@ exports.uploadContractFile = async (req, res) => {
       contract_file_url: fileUrl,
       contract_file_uploaded_at: new Date(),
       contract_file_version: fileVersion,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       fileUrl: fileUrl,
       fileVersion: fileVersion,
       uploadedAt: new Date()
     }, '文件上传成功');
-  } catch (error) {
-    console.error('上传合同文件失败:', error);
-    return errorResponse(res, '上传合同文件失败', 500);
+  } catch (err) {
+    console.error('上传合同文件失败:', err);
+    return error(res, '上传合同文件失败', 500);
   }
 };
 
@@ -325,7 +325,7 @@ exports.getContractFiles = async (req, res) => {
     const contract = await Contract.findByPk(id);
 
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
     // TODO: 实现文件列表查询逻辑
@@ -340,10 +340,10 @@ exports.getContractFiles = async (req, res) => {
       });
     }
 
-    return successResponse(res, files, '查询成功');
-  } catch (error) {
-    console.error('查询合同文件列表失败:', error);
-    return errorResponse(res, '查询合同文件列表失败', 500);
+    return success(res, files, '查询成功');
+  } catch (err) {
+    console.error('查询合同文件列表失败:', err);
+    return error(res, '查询合同文件列表失败', 500);
   }
 };
 
@@ -357,10 +357,10 @@ exports.deleteContractFile = async (req, res) => {
 
     // TODO: 实现文件删除逻辑
 
-    return successResponse(res, null, '文件删除成功');
-  } catch (error) {
-    console.error('删除合同文件失败:', error);
-    return errorResponse(res, '删除合同文件失败', 500);
+    return success(res, null, '文件删除成功');
+  } catch (err) {
+    console.error('删除合同文件失败:', err);
+    return error(res, '删除合同文件失败', 500);
   }
 };
 
@@ -374,7 +374,7 @@ exports.getContractProgress = async (req, res) => {
     const contract = await Contract.findByPk(id);
 
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
     const shippedProgress = contract.contract_amount > 0
@@ -403,7 +403,7 @@ exports.getContractProgress = async (req, res) => {
       order: [['payment_date', 'DESC']]
     });
 
-    return successResponse(res, {
+    return success(res, {
       contractId: contract.contract_id,
       contractAmount: contract.contract_amount,
       shippedAmount: contract.shipped_amount,
@@ -416,8 +416,8 @@ exports.getContractProgress = async (req, res) => {
       shipments: shipments.map(s => s.toJSON()),
       payments: payments.map(p => p.toJSON())
     }, '查询成功');
-  } catch (error) {
-    console.error('查询合同执行进度失败:', error);
-    return errorResponse(res, '查询合同执行进度失败', 500);
+  } catch (err) {
+    console.error('查询合同执行进度失败:', err);
+    return error(res, '查询合同执行进度失败', 500);
   }
 };

@@ -3,7 +3,7 @@
  */
 const Payment = require('../models/Payment');
 const Contract = require('../models/Contract');
-const { successResponse, errorResponse } = require('../utils/response');
+const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
 /**
@@ -33,7 +33,7 @@ exports.getPaymentList = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    return successResponse(res, {
+    return success(res, {
       list: rows,
       pagination: {
         page: parseInt(page),
@@ -42,9 +42,9 @@ exports.getPaymentList = async (req, res) => {
         totalPages: Math.ceil(count / pageSize)
       }
     }, '查询成功');
-  } catch (error) {
-    console.error('查询收款记录列表失败:', error);
-    return errorResponse(res, '查询收款记录列表失败', 500);
+  } catch (err) {
+    console.error('查询收款记录列表失败:', err);
+    return error(res, '查询收款记录列表失败', 500);
   }
 };
 
@@ -70,7 +70,7 @@ exports.createPayment = async (req, res) => {
     // 获取合同信息
     const contract = await Contract.findByPk(contractId);
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
     // 生成收款编号
@@ -90,11 +90,11 @@ exports.createPayment = async (req, res) => {
       expected_amount: expectedAmount,
       payment_note: paymentNote,
       status: 'draft',
-      owner_id: req.user.user_id,
-      created_by: req.user.user_id
+      owner_id: req.user.id,
+      created_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       paymentId: payment.payment_id,
       paymentNo: payment.payment_no,
       contractId: payment.contract_id,
@@ -104,9 +104,9 @@ exports.createPayment = async (req, res) => {
       status: payment.status,
       createdAt: payment.created_at
     }, '收款记录创建成功');
-  } catch (error) {
-    console.error('创建收款记录失败:', error);
-    return errorResponse(res, '创建收款记录失败', 500);
+  } catch (err) {
+    console.error('创建收款记录失败:', err);
+    return error(res, '创建收款记录失败', 500);
   }
 };
 
@@ -120,13 +120,13 @@ exports.getPaymentDetail = async (req, res) => {
     const payment = await Payment.findByPk(id);
 
     if (!payment) {
-      return errorResponse(res, '收款记录不存在', 404);
+      return error(res, '收款记录不存在', 404);
     }
 
-    return successResponse(res, payment, '查询成功');
-  } catch (error) {
-    console.error('查询收款详情失败:', error);
-    return errorResponse(res, '查询收款详情失败', 500);
+    return success(res, payment, '查询成功');
+  } catch (err) {
+    console.error('查询收款详情失败:', err);
+    return error(res, '查询收款详情失败', 500);
   }
 };
 
@@ -141,17 +141,17 @@ exports.confirmPayment = async (req, res) => {
 
     const payment = await Payment.findByPk(id);
     if (!payment) {
-      return errorResponse(res, '收款记录不存在', 404);
+      return error(res, '收款记录不存在', 404);
     }
 
     if (payment.status === 'confirmed') {
-      return errorResponse(res, '收款记录已确认', 400);
+      return error(res, '收款记录已确认', 400);
     }
 
     await payment.update({
       status: 'confirmed',
       confirm_date: new Date(),
-      confirmed_by: req.user.user_id,
+      confirmed_by: req.user.id,
       payment_note: confirmNote ? `${payment.payment_note || ''}\n确认备注：${confirmNote}` : payment.payment_note
     });
 
@@ -161,18 +161,18 @@ exports.confirmPayment = async (req, res) => {
       const newReceivedAmount = parseFloat(contract.received_amount || 0) + parseFloat(payment.paid_amount || 0);
       await contract.update({
         received_amount: newReceivedAmount,
-        updated_by: req.user.user_id
+        updated_by: req.user.id
       });
     }
 
-    return successResponse(res, {
+    return success(res, {
       paymentId: payment.payment_id,
       status: payment.status,
       confirmDate: payment.confirm_date
     }, '收款确认成功');
-  } catch (error) {
-    console.error('确认收款失败:', error);
-    return errorResponse(res, '确认收款失败', 500);
+  } catch (err) {
+    console.error('确认收款失败:', err);
+    return error(res, '确认收款失败', 500);
   }
 };
 
@@ -187,11 +187,11 @@ exports.voidPayment = async (req, res) => {
 
     const payment = await Payment.findByPk(id);
     if (!payment) {
-      return errorResponse(res, '收款记录不存在', 404);
+      return error(res, '收款记录不存在', 404);
     }
 
     if (payment.status === 'cancelled') {
-      return errorResponse(res, '收款记录已作废', 400);
+      return error(res, '收款记录已作废', 400);
     }
 
     // 记录之前的状态，用于判断是否需要回退received_amount
@@ -209,15 +209,15 @@ exports.voidPayment = async (req, res) => {
         const newReceivedAmount = parseFloat(contract.received_amount || 0) - parseFloat(payment.paid_amount || 0);
         await contract.update({
           received_amount: Math.max(0, newReceivedAmount), // 确保不会小于0
-          updated_by: req.user.user_id
+          updated_by: req.user.id
         });
       }
     }
 
-    return successResponse(res, payment, '收款作废成功');
-  } catch (error) {
-    console.error('作废收款失败:', error);
-    return errorResponse(res, '作废收款失败', 500);
+    return success(res, payment, '收款作废成功');
+  } catch (err) {
+    console.error('作废收款失败:', err);
+    return error(res, '作废收款失败', 500);
   }
 };
 
@@ -245,15 +245,15 @@ exports.getPaymentStatistics = async (req, res) => {
 
     // TODO: 实现更详细的应收账款统计
 
-    return successResponse(res, {
+    return success(res, {
       totalContractAmount: 0, // TODO: 从合同表统计
       totalReceivedAmount,
       totalReceivableAmount: 0, // TODO: 计算应收未收
       receivedRate: 0,
       overdueReceivableAmount: 0
     }, '查询成功');
-  } catch (error) {
-    console.error('应收账款统计失败:', error);
-    return errorResponse(res, '应收账款统计失败', 500);
+  } catch (err) {
+    console.error('应收账款统计失败:', err);
+    return error(res, '应收账款统计失败', 500);
   }
 };

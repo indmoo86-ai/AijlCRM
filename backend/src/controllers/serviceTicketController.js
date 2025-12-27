@@ -3,7 +3,7 @@
  */
 const ServiceTicket = require('../models/ServiceTicket');
 const ServiceTicketLog = require('../models/ServiceTicketLog');
-const { successResponse, errorResponse } = require('../utils/response');
+const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
 /**
@@ -29,7 +29,7 @@ exports.getTicketList = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    return successResponse(res, {
+    return success(res, {
       list: rows,
       pagination: {
         page: parseInt(page),
@@ -38,9 +38,9 @@ exports.getTicketList = async (req, res) => {
         totalPages: Math.ceil(count / pageSize)
       }
     }, '查询成功');
-  } catch (error) {
-    console.error('查询工单列表失败:', error);
-    return errorResponse(res, '查询工单列表失败', 500);
+  } catch (err) {
+    console.error('查询工单列表失败:', err);
+    return error(res, '查询工单列表失败', 500);
   }
 };
 
@@ -78,20 +78,20 @@ exports.createTicket = async (req, res) => {
       expected_resolve_date: expectedResolveDate,
       status: 'pending',
       reported_at: new Date(),
-      reported_by: req.user.user_id,
-      created_by: req.user.user_id
+      reported_by: req.user.id,
+      created_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       ticketId: ticket.ticket_id,
       ticketNo: ticket.ticket_no,
       customerId: ticket.customer_id,
       status: ticket.status,
       createdAt: ticket.created_at
     }, '工单创建成功');
-  } catch (error) {
-    console.error('创建工单失败:', error);
-    return errorResponse(res, '创建工单失败', 500);
+  } catch (err) {
+    console.error('创建工单失败:', err);
+    return error(res, '创建工单失败', 500);
   }
 };
 
@@ -109,13 +109,13 @@ exports.getTicketDetail = async (req, res) => {
     });
 
     if (!ticket) {
-      return errorResponse(res, '工单不存在', 404);
+      return error(res, '工单不存在', 404);
     }
 
-    return successResponse(res, ticket, '查询成功');
-  } catch (error) {
-    console.error('查询工单详情失败:', error);
-    return errorResponse(res, '查询工单详情失败', 500);
+    return success(res, ticket, '查询成功');
+  } catch (err) {
+    console.error('查询工单详情失败:', err);
+    return error(res, '查询工单详情失败', 500);
   }
 };
 
@@ -129,18 +129,18 @@ exports.updateTicket = async (req, res) => {
     const ticket = await ServiceTicket.findByPk(id);
 
     if (!ticket) {
-      return errorResponse(res, '工单不存在', 404);
+      return error(res, '工单不存在', 404);
     }
 
     await ticket.update({
       ...req.body,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
-    return successResponse(res, ticket, '工单更新成功');
-  } catch (error) {
-    console.error('更新工单失败:', error);
-    return errorResponse(res, '更新工单失败', 500);
+    return success(res, ticket, '工单更新成功');
+  } catch (err) {
+    console.error('更新工单失败:', err);
+    return error(res, '更新工单失败', 500);
   }
 };
 
@@ -155,7 +155,7 @@ exports.assignTicket = async (req, res) => {
 
     const ticket = await ServiceTicket.findByPk(id);
     if (!ticket) {
-      return errorResponse(res, '工单不存在', 404);
+      return error(res, '工单不存在', 404);
     }
 
     const oldAssignedTo = ticket.assigned_to;
@@ -163,7 +163,7 @@ exports.assignTicket = async (req, res) => {
     await ticket.update({
       assigned_to: assignedTo,
       status: ticket.status === 'pending' ? 'in_progress' : ticket.status,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
     // 创建操作日志
@@ -173,13 +173,13 @@ exports.assignTicket = async (req, res) => {
       old_assigned_to: oldAssignedTo,
       new_assigned_to: assignedTo,
       log_content: assignNote || '工单已分配',
-      created_by: req.user.user_id
+      created_by: req.user.id
     });
 
-    return successResponse(res, ticket, '工单分配成功');
-  } catch (error) {
-    console.error('分配工单失败:', error);
-    return errorResponse(res, '分配工单失败', 500);
+    return success(res, ticket, '工单分配成功');
+  } catch (err) {
+    console.error('分配工单失败:', err);
+    return error(res, '分配工单失败', 500);
   }
 };
 
@@ -194,7 +194,7 @@ exports.resolveTicket = async (req, res) => {
 
     const ticket = await ServiceTicket.findByPk(id);
     if (!ticket) {
-      return errorResponse(res, '工单不存在', 404);
+      return error(res, '工单不存在', 404);
     }
 
     const totalCost = (serviceFee || 0) + (partsCost || 0);
@@ -207,7 +207,7 @@ exports.resolveTicket = async (req, res) => {
       total_cost: totalCost,
       replaced_parts: replacedParts,
       resolved_at: new Date(),
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
     // 创建操作日志
@@ -217,17 +217,17 @@ exports.resolveTicket = async (req, res) => {
       old_status: 'in_progress',
       new_status: 'resolved',
       log_content: `工单已解决：${solution}`,
-      created_by: req.user.user_id
+      created_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       ticketId: ticket.ticket_id,
       status: ticket.status,
       resolvedAt: ticket.resolved_at
     }, '工单解决成功');
-  } catch (error) {
-    console.error('解决工单失败:', error);
-    return errorResponse(res, '解决工单失败', 500);
+  } catch (err) {
+    console.error('解决工单失败:', err);
+    return error(res, '解决工单失败', 500);
   }
 };
 
@@ -242,17 +242,17 @@ exports.closeTicket = async (req, res) => {
 
     const ticket = await ServiceTicket.findByPk(id);
     if (!ticket) {
-      return errorResponse(res, '工单不存在', 404);
+      return error(res, '工单不存在', 404);
     }
 
     if (ticket.status !== 'resolved') {
-      return errorResponse(res, '只有已解决的工单才能关闭', 400);
+      return error(res, '只有已解决的工单才能关闭', 400);
     }
 
     await ticket.update({
       status: 'closed',
       closed_at: new Date(),
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
     // 创建操作日志
@@ -262,17 +262,17 @@ exports.closeTicket = async (req, res) => {
       old_status: 'resolved',
       new_status: 'closed',
       log_content: closeNote || '工单已关闭',
-      created_by: req.user.user_id
+      created_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       ticketId: ticket.ticket_id,
       status: ticket.status,
       closedAt: ticket.closed_at
     }, '工单关闭成功');
-  } catch (error) {
-    console.error('关闭工单失败:', error);
-    return errorResponse(res, '关闭工单失败', 500);
+  } catch (err) {
+    console.error('关闭工单失败:', err);
+    return error(res, '关闭工单失败', 500);
   }
 };
 
@@ -287,7 +287,7 @@ exports.addTicketLog = async (req, res) => {
 
     const ticket = await ServiceTicket.findByPk(id);
     if (!ticket) {
-      return errorResponse(res, '工单不存在', 404);
+      return error(res, '工单不存在', 404);
     }
 
     const log = await ServiceTicketLog.create({
@@ -295,13 +295,13 @@ exports.addTicketLog = async (req, res) => {
       log_type: logType || 'comment',
       log_content: logContent,
       attachment_urls: attachmentUrls,
-      created_by: req.user.user_id
+      created_by: req.user.id
     });
 
-    return successResponse(res, log, '日志添加成功');
-  } catch (error) {
-    console.error('添加操作日志失败:', error);
-    return errorResponse(res, '添加操作日志失败', 500);
+    return success(res, log, '日志添加成功');
+  } catch (err) {
+    console.error('添加操作日志失败:', err);
+    return error(res, '添加操作日志失败', 500);
   }
 };
 
@@ -316,18 +316,18 @@ exports.rateTicket = async (req, res) => {
 
     const ticket = await ServiceTicket.findByPk(id);
     if (!ticket) {
-      return errorResponse(res, '工单不存在', 404);
+      return error(res, '工单不存在', 404);
     }
 
     if (ticket.status !== 'resolved' && ticket.status !== 'closed') {
-      return errorResponse(res, '只有已解决或已关闭的工单才能评价', 400);
+      return error(res, '只有已解决或已关闭的工单才能评价', 400);
     }
 
     await ticket.update({
       customer_rating: customerRating,
       customer_feedback: customerFeedback,
       rated_at: new Date(),
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
     // 创建操作日志
@@ -335,12 +335,12 @@ exports.rateTicket = async (req, res) => {
       ticket_id: id,
       log_type: 'rating',
       log_content: `客户评价：${customerRating}分 - ${customerFeedback || ''}`,
-      created_by: req.user.user_id
+      created_by: req.user.id
     });
 
-    return successResponse(res, ticket, '评价成功');
-  } catch (error) {
-    console.error('客户评价失败:', error);
-    return errorResponse(res, '客户评价失败', 500);
+    return success(res, ticket, '评价成功');
+  } catch (err) {
+    console.error('客户评价失败:', err);
+    return error(res, '客户评价失败', 500);
   }
 };

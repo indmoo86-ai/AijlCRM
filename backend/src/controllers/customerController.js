@@ -3,7 +3,7 @@
  */
 const Customer = require('../models/Customer');
 const CustomerContact = require('../models/CustomerContact');
-const { successResponse, errorResponse } = require('../utils/response');
+const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
 /**
@@ -48,7 +48,7 @@ exports.getCustomerList = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    return successResponse(res, {
+    return success(res, {
       list: rows,
       pagination: {
         page: parseInt(page),
@@ -57,9 +57,9 @@ exports.getCustomerList = async (req, res) => {
         totalPages: Math.ceil(count / pageSize)
       }
     }, '查询成功');
-  } catch (error) {
-    console.error('查询客户列表失败:', error);
-    return errorResponse(res, '查询客户列表失败', 500);
+  } catch (err) {
+    console.error('查询客户列表失败:', err);
+    return error(res, '查询客户列表失败', 500);
   }
 };
 
@@ -106,11 +106,11 @@ exports.createCustomer = async (req, res) => {
       hotel_star: hotelStar,
       source,
       description,
-      owner_id: ownerId || req.user.user_id,
-      creator_id: req.user.user_id
+      owner_id: ownerId || req.user.id,
+      creator_id: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       customerId: customer.customer_id,
       customerCode: customer.customer_code,
       customerName: customer.customer_name,
@@ -118,9 +118,9 @@ exports.createCustomer = async (req, res) => {
       ownerId: customer.owner_id,
       createdAt: customer.created_at
     }, '客户创建成功');
-  } catch (error) {
-    console.error('创建客户失败:', error);
-    return errorResponse(res, '创建客户失败', 500);
+  } catch (err) {
+    console.error('创建客户失败:', err);
+    return error(res, '创建客户失败', 500);
   }
 };
 
@@ -143,19 +143,19 @@ exports.getCustomerDetail = async (req, res) => {
     });
 
     if (!customer) {
-      return errorResponse(res, '客户不存在', 404);
+      return error(res, '客户不存在', 404);
     }
 
     // TODO: 关联查询报价单、合同、跟进记录等
-    return successResponse(res, {
+    return success(res, {
       customer,
       quotations: [],
       contracts: [],
       followUps: []
     }, '查询成功');
-  } catch (error) {
-    console.error('查询客户详情失败:', error);
-    return errorResponse(res, '查询客户详情失败', 500);
+  } catch (err) {
+    console.error('查询客户详情失败:', err);
+    return error(res, '查询客户详情失败', 500);
   }
 };
 
@@ -169,18 +169,18 @@ exports.updateCustomer = async (req, res) => {
     const customer = await Customer.findByPk(id);
 
     if (!customer) {
-      return errorResponse(res, '客户不存在', 404);
+      return error(res, '客户不存在', 404);
     }
 
     await customer.update({
       ...req.body,
-      updater_id: req.user.user_id
+      updater_id: req.user.id
     });
 
-    return successResponse(res, customer, '客户信息更新成功');
-  } catch (error) {
-    console.error('更新客户信息失败:', error);
-    return errorResponse(res, '更新客户信息失败', 500);
+    return success(res, customer, '客户信息更新成功');
+  } catch (err) {
+    console.error('更新客户信息失败:', err);
+    return error(res, '更新客户信息失败', 500);
   }
 };
 
@@ -195,7 +195,7 @@ exports.addCustomerContact = async (req, res) => {
 
     const customer = await Customer.findByPk(id);
     if (!customer) {
-      return errorResponse(res, '客户不存在', 404);
+      return error(res, '客户不存在', 404);
     }
 
     // 如果设置为主要联系人,先将其他联系人的is_primary设为0
@@ -215,13 +215,13 @@ exports.addCustomerContact = async (req, res) => {
       email,
       is_primary: isPrimary || 0,
       description,
-      creator_id: req.user.user_id
+      creator_id: req.user.id
     });
 
-    return successResponse(res, contact, '联系人添加成功');
-  } catch (error) {
-    console.error('添加客户联系人失败:', error);
-    return errorResponse(res, '添加客户联系人失败', 500);
+    return success(res, contact, '联系人添加成功');
+  } catch (err) {
+    console.error('添加客户联系人失败:', err);
+    return error(res, '添加客户联系人失败', 500);
   }
 };
 
@@ -236,7 +236,7 @@ exports.advanceCustomerStage = async (req, res) => {
 
     const customer = await Customer.findByPk(id);
     if (!customer) {
-      return errorResponse(res, '客户不存在', 404);
+      return error(res, '客户不存在', 404);
     }
 
     const stageBefore = customer.customer_stage;
@@ -244,21 +244,21 @@ exports.advanceCustomerStage = async (req, res) => {
     await customer.update({
       customer_stage: targetStage,
       stage_updated_at: new Date(),
-      updater_id: req.user.user_id
+      updater_id: req.user.id
     });
 
     // TODO: 记录阶段变更日志或创建跟进记录
 
-    return successResponse(res, {
+    return success(res, {
       customerId: customer.customer_id,
       customerStage: customer.customer_stage,
       stageBefore,
       stageAfter: targetStage,
       stageUpdatedAt: customer.stage_updated_at
     }, '客户阶段推进成功');
-  } catch (error) {
-    console.error('推进客户阶段失败:', error);
-    return errorResponse(res, '推进客户阶段失败', 500);
+  } catch (err) {
+    console.error('推进客户阶段失败:', err);
+    return error(res, '推进客户阶段失败', 500);
   }
 };
 
@@ -273,27 +273,27 @@ exports.transferCustomerOwner = async (req, res) => {
 
     const customer = await Customer.findByPk(id);
     if (!customer) {
-      return errorResponse(res, '客户不存在', 404);
+      return error(res, '客户不存在', 404);
     }
 
     const oldOwnerId = customer.owner_id;
 
     await customer.update({
       owner_id: newOwnerId,
-      updater_id: req.user.user_id
+      updater_id: req.user.id
     });
 
     // TODO: 记录负责人转移日志
 
-    return successResponse(res, {
+    return success(res, {
       customerId: customer.customer_id,
       oldOwnerId,
       newOwnerId,
       transferReason
     }, '客户负责人转移成功');
-  } catch (error) {
-    console.error('转移客户负责人失败:', error);
-    return errorResponse(res, '转移客户负责人失败', 500);
+  } catch (err) {
+    console.error('转移客户负责人失败:', err);
+    return error(res, '转移客户负责人失败', 500);
   }
 };
 
@@ -320,12 +320,12 @@ exports.exportCustomers = async (req, res) => {
     });
 
     // TODO: 实现Excel文件生成逻辑
-    return successResponse(res, {
+    return success(res, {
       total: customers.length,
       exportUrl: `/exports/customers_${Date.now()}.xlsx`
     }, '导出成功');
-  } catch (error) {
-    console.error('导出客户数据失败:', error);
-    return errorResponse(res, '导出客户数据失败', 500);
+  } catch (err) {
+    console.error('导出客户数据失败:', err);
+    return error(res, '导出客户数据失败', 500);
   }
 };

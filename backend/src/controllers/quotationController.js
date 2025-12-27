@@ -25,8 +25,8 @@ exports.createQuotation = async (req, res) => {
       total_amount: 0,
       status: 'draft',
       notes,
-      owner_id: req.user.user_id,
-      created_by: req.user.user_id
+      owner_id: req.user.id,
+      created_by: req.user.id
     });
 
     if (items && items.length > 0) {
@@ -115,7 +115,7 @@ exports.updateQuotation = async (req, res) => {
     if (!quotation) return error(res, '报价单不存在', 404);
     if (quotation.status !== 'draft') return error(res, '只有草稿状态的报价单才能修改', 400);
     
-    await quotation.update({ ...req.body, updated_by: req.user.user_id });
+    await quotation.update({ ...req.body, updated_by: req.user.id });
     return success(res, quotation, '报价单更新成功');
   } catch (err) {
     console.error('创建报价单失败:', err);
@@ -176,7 +176,7 @@ exports.extendValidity = async (req, res) => {
     const quotation = await Quotation.findByPk(id);
     if (!quotation) return error(res, '报价单不存在', 404);
 
-    await quotation.update({ valid_until, updated_by: req.user.user_id });
+    await quotation.update({ valid_until, updated_by: req.user.id });
     return success(res, quotation, '有效期延长成功');
   } catch (err) {
     console.error('创建报价单失败:', err);

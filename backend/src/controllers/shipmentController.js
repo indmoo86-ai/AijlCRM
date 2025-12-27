@@ -4,7 +4,7 @@
 const Shipment = require('../models/Shipment');
 const ShipmentItem = require('../models/ShipmentItem');
 const Contract = require('../models/Contract');
-const { successResponse, errorResponse } = require('../utils/response');
+const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
 /**
@@ -27,7 +27,7 @@ exports.createShipment = async (req, res) => {
     // 获取合同信息
     const contract = await Contract.findByPk(contractId);
     if (!contract) {
-      return errorResponse(res, '合同不存在', 404);
+      return error(res, '合同不存在', 404);
     }
 
     // 生成发货单编号
@@ -53,8 +53,8 @@ exports.createShipment = async (req, res) => {
       shipment_amount: shipmentAmount,
       status: 'draft',
       notes,
-      owner_id: req.user.user_id,
-      created_by: req.user.user_id
+      owner_id: req.user.id,
+      created_by: req.user.id
     });
 
     // 创建发货单明细
@@ -77,7 +77,7 @@ exports.createShipment = async (req, res) => {
       }
     }
 
-    return successResponse(res, {
+    return success(res, {
       shipmentId: shipment.shipment_id,
       shipmentNo: shipment.shipment_no,
       shipmentTitle: shipment.shipment_title,
@@ -87,9 +87,9 @@ exports.createShipment = async (req, res) => {
       status: shipment.status,
       createdAt: shipment.created_at
     }, '发货单创建成功');
-  } catch (error) {
-    console.error('创建发货单失败:', error);
-    return errorResponse(res, '创建发货单失败', 500);
+  } catch (err) {
+    console.error('创建发货单失败:', err);
+    return error(res, '创建发货单失败', 500);
   }
 };
 
@@ -119,7 +119,7 @@ exports.getShipmentList = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    return successResponse(res, {
+    return success(res, {
       list: rows,
       pagination: {
         page: parseInt(page),
@@ -128,9 +128,9 @@ exports.getShipmentList = async (req, res) => {
         totalPages: Math.ceil(count / pageSize)
       }
     }, '查询成功');
-  } catch (error) {
-    console.error('查询发货单列表失败:', error);
-    return errorResponse(res, '查询发货单列表失败', 500);
+  } catch (err) {
+    console.error('查询发货单列表失败:', err);
+    return error(res, '查询发货单列表失败', 500);
   }
 };
 
@@ -148,13 +148,13 @@ exports.getShipmentDetail = async (req, res) => {
     });
 
     if (!shipment) {
-      return errorResponse(res, '发货单不存在', 404);
+      return error(res, '发货单不存在', 404);
     }
 
-    return successResponse(res, shipment, '查询成功');
-  } catch (error) {
-    console.error('查询发货单详情失败:', error);
-    return errorResponse(res, '查询发货单详情失败', 500);
+    return success(res, shipment, '查询成功');
+  } catch (err) {
+    console.error('查询发货单详情失败:', err);
+    return error(res, '查询发货单详情失败', 500);
   }
 };
 
@@ -168,22 +168,22 @@ exports.updateShipment = async (req, res) => {
     const shipment = await Shipment.findByPk(id);
 
     if (!shipment) {
-      return errorResponse(res, '发货单不存在', 404);
+      return error(res, '发货单不存在', 404);
     }
 
     if (shipment.status !== 'draft') {
-      return errorResponse(res, '只有草稿状态的发货单才能修改', 400);
+      return error(res, '只有草稿状态的发货单才能修改', 400);
     }
 
     await shipment.update({
       ...req.body,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
-    return successResponse(res, shipment, '发货单更新成功');
-  } catch (error) {
-    console.error('更新发货单失败:', error);
-    return errorResponse(res, '更新发货单失败', 500);
+    return success(res, shipment, '发货单更新成功');
+  } catch (err) {
+    console.error('更新发货单失败:', err);
+    return error(res, '更新发货单失败', 500);
   }
 };
 
@@ -198,11 +198,11 @@ exports.confirmShipment = async (req, res) => {
 
     const shipment = await Shipment.findByPk(id);
     if (!shipment) {
-      return errorResponse(res, '发货单不存在', 404);
+      return error(res, '发货单不存在', 404);
     }
 
     if (shipment.status === 'shipped') {
-      return errorResponse(res, '发货单已确认发货', 400);
+      return error(res, '发货单已确认发货', 400);
     }
 
     await shipment.update({
@@ -211,9 +211,9 @@ exports.confirmShipment = async (req, res) => {
       tracking_no: trackingNo,
       actual_ship_date: actualShipDate,
       estimated_delivery_date: estimatedDeliveryDate,
-      shipped_by: req.user.user_id,
+      shipped_by: req.user.id,
       shipped_at: new Date(),
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
     // 更新合同的shipped_amount
@@ -222,19 +222,19 @@ exports.confirmShipment = async (req, res) => {
       const newShippedAmount = parseFloat(contract.shipped_amount || 0) + parseFloat(shipment.shipment_amount || 0);
       await contract.update({
         shipped_amount: newShippedAmount,
-        updated_by: req.user.user_id
+        updated_by: req.user.id
       });
     }
 
-    return successResponse(res, {
+    return success(res, {
       shipmentId: shipment.shipment_id,
       status: shipment.status,
       actualShipDate: shipment.actual_ship_date,
       shippedAt: shipment.shipped_at
     }, '发货确认成功');
-  } catch (error) {
-    console.error('确认发货失败:', error);
-    return errorResponse(res, '确认发货失败', 500);
+  } catch (err) {
+    console.error('确认发货失败:', err);
+    return error(res, '确认发货失败', 500);
   }
 };
 
@@ -249,20 +249,20 @@ exports.updateLogistics = async (req, res) => {
 
     const shipment = await Shipment.findByPk(id);
     if (!shipment) {
-      return errorResponse(res, '发货单不存在', 404);
+      return error(res, '发货单不存在', 404);
     }
 
     await shipment.update({
       logistics_company: logisticsCompany,
       tracking_no: trackingNo,
       notes: updateReason ? `${shipment.notes || ''}\n物流信息更新：${updateReason}` : shipment.notes,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
-    return successResponse(res, shipment, '物流信息更新成功');
-  } catch (error) {
-    console.error('更新物流信息失败:', error);
-    return errorResponse(res, '更新物流信息失败', 500);
+    return success(res, shipment, '物流信息更新成功');
+  } catch (err) {
+    console.error('更新物流信息失败:', err);
+    return error(res, '更新物流信息失败', 500);
   }
 };
 
@@ -277,31 +277,31 @@ exports.signShipment = async (req, res) => {
 
     const shipment = await Shipment.findByPk(id);
     if (!shipment) {
-      return errorResponse(res, '发货单不存在', 404);
+      return error(res, '发货单不存在', 404);
     }
 
     if (shipment.status === 'delivered') {
-      return errorResponse(res, '发货单已签收', 400);
+      return error(res, '发货单已签收', 400);
     }
 
     await shipment.update({
       status: 'delivered',
       actual_delivery_date: actualDeliveryDate,
       notes: signNotes ? `${shipment.notes || ''}\n签收备注：${signNotes}` : shipment.notes,
-      delivered_by: req.user.user_id,
+      delivered_by: req.user.id,
       delivered_at: new Date(),
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
-    return successResponse(res, {
+    return success(res, {
       shipmentId: shipment.shipment_id,
       status: shipment.status,
       actualDeliveryDate: shipment.actual_delivery_date,
       deliveredAt: shipment.delivered_at
     }, '签收确认成功');
-  } catch (error) {
-    console.error('签收确认失败:', error);
-    return errorResponse(res, '签收确认失败', 500);
+  } catch (err) {
+    console.error('签收确认失败:', err);
+    return error(res, '签收确认失败', 500);
   }
 };
 
@@ -316,15 +316,15 @@ exports.cancelShipment = async (req, res) => {
 
     const shipment = await Shipment.findByPk(id);
     if (!shipment) {
-      return errorResponse(res, '发货单不存在', 404);
+      return error(res, '发货单不存在', 404);
     }
 
     if (shipment.status === 'delivered') {
-      return errorResponse(res, '已签收的发货单不能取消', 400);
+      return error(res, '已签收的发货单不能取消', 400);
     }
 
     if (shipment.status === 'cancelled') {
-      return errorResponse(res, '发货单已取消', 400);
+      return error(res, '发货单已取消', 400);
     }
 
     // 记录之前的状态，用于判断是否需要回退shipped_amount
@@ -333,7 +333,7 @@ exports.cancelShipment = async (req, res) => {
     await shipment.update({
       status: 'cancelled',
       cancel_reason: cancelReason,
-      updated_by: req.user.user_id
+      updated_by: req.user.id
     });
 
     // 如果之前已确认发货，回退合同的shipped_amount
@@ -343,14 +343,14 @@ exports.cancelShipment = async (req, res) => {
         const newShippedAmount = parseFloat(contract.shipped_amount || 0) - parseFloat(shipment.shipment_amount || 0);
         await contract.update({
           shipped_amount: Math.max(0, newShippedAmount), // 确保不会小于0
-          updated_by: req.user.user_id
+          updated_by: req.user.id
         });
       }
     }
 
-    return successResponse(res, shipment, '发货单取消成功');
-  } catch (error) {
-    console.error('取消发货失败:', error);
-    return errorResponse(res, '取消发货失败', 500);
+    return success(res, shipment, '发货单取消成功');
+  } catch (err) {
+    console.error('取消发货失败:', err);
+    return error(res, '取消发货失败', 500);
   }
 };
