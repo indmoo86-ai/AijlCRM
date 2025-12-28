@@ -371,6 +371,132 @@ async function testGetPaymentsList() {
 }
 
 /**
+ * 测试6: 查询发货单列表
+ */
+async function testGetShipmentsList() {
+  log('\n========================================', 'blue');
+  log('测试6: 查询发货单列表', 'blue');
+  log('========================================\n', 'blue');
+
+  try {
+    const response = await axios.get(
+      `${API_BASE_URL}/api/shipments`,
+      {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      }
+    );
+
+    const checks = [];
+
+    if (response.status === 200) {
+      log('✅ HTTP状态码正确 (200)', 'green');
+      checks.push(true);
+    } else {
+      log(`❌ HTTP状态码错误: ${response.status}`, 'red');
+      checks.push(false);
+    }
+
+    if (response.data && response.data.data) {
+      log('✅ 响应包含数据对象', 'green');
+      checks.push(true);
+
+      let shipments = null;
+      if (Array.isArray(response.data.data)) {
+        shipments = response.data.data;
+      } else if (response.data.data.list) {
+        shipments = response.data.data.list;
+      } else if (response.data.data.rows) {
+        shipments = response.data.data.rows;
+      }
+
+      if (shipments && shipments.length > 0) {
+        log(`✅ 找到 ${shipments.length} 条发货单记录`, 'green');
+        const firstShipment = shipments[0];
+        const shipmentNo = firstShipment.shipment_no || firstShipment.shipmentNo;
+        log(`   第一个发货单: ${shipmentNo}`, 'green');
+        checks.push(true);
+      } else {
+        log('⚠️  发货单列表为空（可能是正常情况）', 'yellow');
+        checks.push(true);
+      }
+    } else {
+      log('❌ 响应数据格式错误', 'red');
+      checks.push(false);
+    }
+
+    const allPassed = checks.every(check => check);
+    return { passed: allPassed, name: '查询发货单列表', module: '发货管理' };
+
+  } catch (error) {
+    log(`❌ 查询发货单列表失败: ${error.message}`, 'red');
+    return { passed: false, name: '查询发货单列表', module: '发货管理', error: error.message };
+  }
+}
+
+/**
+ * 测试7: 查询发票列表
+ */
+async function testGetInvoicesList() {
+  log('\n========================================', 'blue');
+  log('测试7: 查询发票列表', 'blue');
+  log('========================================\n', 'blue');
+
+  try {
+    const response = await axios.get(
+      `${API_BASE_URL}/api/invoices`,
+      {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      }
+    );
+
+    const checks = [];
+
+    if (response.status === 200) {
+      log('✅ HTTP状态码正确 (200)', 'green');
+      checks.push(true);
+    } else {
+      log(`❌ HTTP状态码错误: ${response.status}`, 'red');
+      checks.push(false);
+    }
+
+    if (response.data && response.data.data) {
+      log('✅ 响应包含数据对象', 'green');
+      checks.push(true);
+
+      let invoices = null;
+      if (Array.isArray(response.data.data)) {
+        invoices = response.data.data;
+      } else if (response.data.data.list) {
+        invoices = response.data.data.list;
+      } else if (response.data.data.rows) {
+        invoices = response.data.data.rows;
+      }
+
+      if (invoices && invoices.length > 0) {
+        log(`✅ 找到 ${invoices.length} 条发票记录`, 'green');
+        const firstInvoice = invoices[0];
+        const invoiceNo = firstInvoice.invoice_no || firstInvoice.invoiceNo;
+        log(`   第一个发票: ${invoiceNo}`, 'green');
+        checks.push(true);
+      } else {
+        log('⚠️  发票列表为空（可能是正常情况）', 'yellow');
+        checks.push(true);
+      }
+    } else {
+      log('❌ 响应数据格式错误', 'red');
+      checks.push(false);
+    }
+
+    const allPassed = checks.every(check => check);
+    return { passed: allPassed, name: '查询发票列表', module: '发票管理' };
+
+  } catch (error) {
+    log(`❌ 查询发票列表失败: ${error.message}`, 'red');
+    return { passed: false, name: '查询发票列表', module: '发票管理', error: error.message };
+  }
+}
+
+/**
  * 主测试函数
  */
 async function runTests() {
@@ -393,6 +519,8 @@ async function runTests() {
   results.push(await testGetQuotationsList());
   results.push(await testGetContractsList());
   results.push(await testGetPaymentsList());
+  results.push(await testGetShipmentsList());
+  results.push(await testGetInvoicesList());
 
   // 总结
   log('\n========================================', 'blue');
