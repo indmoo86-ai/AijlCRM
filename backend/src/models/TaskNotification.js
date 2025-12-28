@@ -58,6 +58,12 @@ const TaskNotification = sequelize.define('TaskNotification', {
   error_message: {
     type: DataTypes.STRING(500),
     comment: '失败错误信息'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
   }
 }, {
   tableName: 'task_notification',

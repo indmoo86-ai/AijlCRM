@@ -97,16 +97,11 @@ exports.createInvoice = async (req, res) => {
       created_by: req.user.id
     });
 
-    return success(res, {
+    const responseData = {
       invoiceId: invoice.invoice_id,
-      invoiceNo: invoice.invoice_no,
-      contractId: invoice.contract_id,
-      customerId: invoice.customer_id,
-      invoiceType: invoice.invoice_type,
-      invoiceAmount: invoice.invoice_amount,
-      status: invoice.status,
-      createdAt: invoice.created_at
-    }, '发票记录创建成功');
+      ...invoice.toJSON()
+    };
+    return success(res, responseData, '发票记录创建成功', 201);
   } catch (err) {
     console.error('创建发票记录失败:', err);
     console.error('错误详情:', err.message);

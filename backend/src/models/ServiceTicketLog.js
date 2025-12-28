@@ -57,6 +57,12 @@ const ServiceTicketLog = sequelize.define('ServiceTicketLog', {
     type: DataTypes.BIGINT,
     allowNull: false,
     comment: '操作人ID'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
   }
 }, {
   tableName: 'service_ticket_log',

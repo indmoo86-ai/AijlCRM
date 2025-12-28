@@ -81,13 +81,11 @@ exports.createTicket = async (req, res) => {
       created_by: req.user.id
     });
 
-    return success(res, {
+    const responseData = {
       ticketId: ticket.ticket_id,
-      ticketNo: ticket.ticket_no,
-      customerId: ticket.customer_id,
-      status: ticket.status,
-      createdAt: ticket.created_at
-    }, '工单创建成功');
+      ...ticket.toJSON()
+    };
+    return success(res, responseData, '工单创建成功', 201);
   } catch (err) {
     console.error('创建工单失败:', err);
     console.error('错误详情:', err.message);

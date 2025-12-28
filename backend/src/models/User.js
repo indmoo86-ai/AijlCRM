@@ -48,6 +48,18 @@ const User = sequelize.define('User', {
   lastLoginTime: {
     type: DataTypes.DATE,
     field: 'last_login_time'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '更新时间'
   }
 }, {
   tableName: 't_user',

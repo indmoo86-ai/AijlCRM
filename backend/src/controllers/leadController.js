@@ -99,6 +99,7 @@ exports.createLead = async (req, res) => {
 
   } catch (err) {
     console.error('创建线索错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '创建失败', 500);
   }
 };
@@ -217,6 +218,7 @@ exports.addFollowUp = async (req, res) => {
 
   } catch (err) {
     console.error('添加跟进记录错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '添加失败', 500);
   }
 };
@@ -285,6 +287,7 @@ exports.convertToCustomer = async (req, res) => {
 
   } catch (err) {
     console.error('线索转客户错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '转化失败', 500);
   }
 };

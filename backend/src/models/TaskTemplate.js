@@ -53,6 +53,18 @@ const TaskTemplate = sequelize.define('TaskTemplate', {
   updated_by: {
     type: DataTypes.BIGINT,
     comment: '修改人ID'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '更新时间'
   }
 }, {
   tableName: 'task_template',

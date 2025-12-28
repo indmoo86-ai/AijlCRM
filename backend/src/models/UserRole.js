@@ -26,6 +26,12 @@ const UserRole = sequelize.define('UserRole', {
     type: DataTypes.BIGINT,
     allowNull: false,
     comment: '分配人ID'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
   }
 }, {
   tableName: 'user_role',

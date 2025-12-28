@@ -64,6 +64,12 @@ const AuditLog = sequelize.define('AuditLog', {
   response_status: {
     type: DataTypes.INTEGER,
     comment: '响应状态码'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
   }
 }, {
   tableName: 'audit_log',

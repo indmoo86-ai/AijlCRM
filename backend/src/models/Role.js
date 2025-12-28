@@ -36,6 +36,18 @@ const Role = sequelize.define('Role', {
     type: DataTypes.INTEGER,
     defaultValue: 0,
     comment: '排序号'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '更新时间'
   }
 }, {
   tableName: 'role',

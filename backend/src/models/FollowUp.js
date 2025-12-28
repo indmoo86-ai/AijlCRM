@@ -46,6 +46,13 @@ const FollowUp = sequelize.define('FollowUp', {
     type: DataTypes.BIGINT,
     allowNull: false,
     field: 'operator_id'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    field: 'created_at',
+    comment: '创建时间'
   }
 }, {
   tableName: 't_follow_up',

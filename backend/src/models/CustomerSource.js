@@ -36,6 +36,12 @@ const CustomerSource = sequelize.define('CustomerSource', {
   description: {
     type: DataTypes.TEXT,
     comment: '描述'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
   }
 }, {
   tableName: 'customer_source',

@@ -50,6 +50,7 @@ exports.login = async (req, res) => {
 
   } catch (err) {
     console.error('登录错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '登录失败', 500);
   }
 };
@@ -66,6 +67,7 @@ exports.getProfile = async (req, res) => {
 
   } catch (err) {
     console.error('获取用户信息错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '获取失败', 500);
   }
 };
@@ -101,6 +103,7 @@ exports.changePassword = async (req, res) => {
 
   } catch (err) {
     console.error('修改密码错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '修改失败', 500);
   }
 };

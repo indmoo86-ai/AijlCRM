@@ -39,6 +39,7 @@ exports.getTaskList = async (req, res) => {
     }, '查询成功');
   } catch (err) {
     console.error('查询任务列表失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '查询任务列表失败', 500);
   }
 };
@@ -59,6 +60,7 @@ exports.getTaskDetail = async (req, res) => {
     return success(res, task, '查询成功');
   } catch (err) {
     console.error('查询任务详情失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '查询任务详情失败', 500);
   }
 };
@@ -92,6 +94,7 @@ exports.assignTask = async (req, res) => {
     return success(res, task, '任务分配成功');
   } catch (err) {
     console.error('分配任务失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '分配任务失败', 500);
   }
 };
@@ -132,6 +135,7 @@ exports.completeTask = async (req, res) => {
     }, '任务完成成功');
   } catch (err) {
     console.error('完成任务失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '完成任务失败', 500);
   }
 };
@@ -164,6 +168,7 @@ exports.deferTask = async (req, res) => {
     return success(res, task, '任务延期成功');
   } catch (err) {
     console.error('延期任务失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '延期任务失败', 500);
   }
 };
@@ -196,6 +201,7 @@ exports.getOverdueTasks = async (req, res) => {
     return success(res, tasks, '查询成功');
   } catch (err) {
     console.error('查询逾期任务失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '查询逾期任务失败', 500);
   }
 };
@@ -280,6 +286,7 @@ exports.getTaskStatistics = async (req, res) => {
     }, '查询成功');
   } catch (err) {
     console.error('任务统计分析失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '任务统计分析失败', 500);
   }
 };

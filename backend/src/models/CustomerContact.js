@@ -51,6 +51,18 @@ const CustomerContact = sequelize.define('CustomerContact', {
     type: DataTypes.BIGINT,
     allowNull: false,
     comment: '创建人ID'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '更新时间'
   }
 }, {
   tableName: 'customer_contact',

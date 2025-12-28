@@ -96,6 +96,7 @@ exports.getDashboardStats = async (req, res) => {
     });
   } catch (error) {
     console.error('获取仪表板统计失败:', error);
+    console.error('错误详情:', error.message);
     res.status(500).json({
       success: false,
       message: '获取统计数据失败',
@@ -131,6 +132,7 @@ exports.getSalesFunnel = async (req, res) => {
     });
   } catch (error) {
     console.error('获取销售漏斗数据失败:', error);
+    console.error('错误详情:', error.message);
     res.status(500).json({
       success: false,
       message: '获取销售漏斗数据失败',
@@ -189,6 +191,7 @@ exports.getPerformanceTrend = async (req, res) => {
     });
   } catch (error) {
     console.error('获取业绩趋势数据失败:', error);
+    console.error('错误详情:', error.message);
     res.status(500).json({
       success: false,
       message: '获取业绩趋势数据失败',
@@ -249,6 +252,7 @@ exports.getRecentActivities = async (req, res) => {
     });
   } catch (error) {
     console.error('获取最近活动失败:', error);
+    console.error('错误详情:', error.message);
     res.status(500).json({
       success: false,
       message: '获取最近活动失败',

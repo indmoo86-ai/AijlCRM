@@ -114,16 +114,11 @@ exports.createShipment = async (req, res) => {
       }
     }
 
-    return success(res, {
+    const responseData = {
       shipmentId: shipment.shipment_id,
-      shipmentNo: shipment.shipment_no,
-      shipmentTitle: shipment.shipment_title,
-      contractId: shipment.contract_id,
-      customerId: shipment.customer_id,
-      shipmentAmount: shipment.shipment_amount,
-      status: shipment.status,
-      createdAt: shipment.created_at
-    }, '发货单创建成功');
+      ...shipment.toJSON()
+    };
+    return success(res, responseData, '发货单创建成功', 201);
   } catch (err) {
     console.error('创建发货单失败:', err);
     console.error('错误详情:', err.message);

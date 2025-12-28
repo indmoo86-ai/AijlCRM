@@ -93,16 +93,11 @@ exports.createPayment = async (req, res) => {
       created_by: req.user.id
     });
 
-    return success(res, {
+    const responseData = {
       paymentId: payment.payment_id,
-      paymentNo: payment.payment_no,
-      contractId: payment.contract_id,
-      customerId: payment.customer_id,
-      paymentStage: payment.payment_stage,
-      paymentAmount: payment.payment_amount,
-      status: payment.status,
-      createdAt: payment.created_at
-    }, '收款记录创建成功');
+      ...payment.toJSON()
+    };
+    return success(res, responseData, '收款记录创建成功', 201);
   } catch (err) {
     console.error('创建收款记录失败:', err);
     console.error('错误详情:', err.message);

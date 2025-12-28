@@ -41,6 +41,18 @@ const Permission = sequelize.define('Permission', {
   description: {
     type: DataTypes.TEXT,
     comment: '权限描述'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+    comment: '更新时间'
   }
 }, {
   tableName: 'permission',

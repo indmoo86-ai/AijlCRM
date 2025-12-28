@@ -126,15 +126,11 @@ exports.createContract = async (req, res) => {
       }
     }
 
-    return success(res, {
+    const responseData = {
       contractId: contract.contract_id,
-      contractNo: contract.contract_no,
-      contractTitle: contract.contract_title,
-      customerId: contract.customer_id,
-      contractAmount: contract.contract_amount,
-      status: contract.status,
-      createdAt: contract.created_at
-    }, '合同创建成功');
+      ...contract.toJSON()
+    };
+    return success(res, responseData, '合同创建成功', 201);
   } catch (err) {
     console.error('创建合同失败:', err);
     console.error('错误详情:', err.message);
@@ -268,16 +264,11 @@ exports.createAmendment = async (req, res) => {
       created_by: req.user.id
     });
 
-    return success(res, {
+    const responseData = {
       amendmentId: amendment.amendment_id,
-      amendmentNo: amendment.amendment_no,
-      contractId: amendment.contract_id,
-      amendmentType: amendment.amendment_type,
-      amountChange: amendment.amount_change,
-      newContractAmount: amendment.new_contract_amount,
-      status: amendment.status,
-      createdAt: amendment.created_at
-    }, '补充协议创建成功');
+      ...amendment.toJSON()
+    };
+    return success(res, responseData, '补充协议创建成功', 201);
   } catch (err) {
     console.error('创建补充协议失败:', err);
     return error(res, '创建补充协议失败', 500);
