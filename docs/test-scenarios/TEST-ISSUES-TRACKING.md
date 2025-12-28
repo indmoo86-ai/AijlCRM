@@ -56,17 +56,17 @@
 | 模块 | 总场景 | 已测试 | 通过 | 失败 | 进度 |
 |------|--------|--------|------|------|------|
 | 用户认证 | 2 | 2 | 2 | 0 | 100% ✅ |
-| 产品管理 | 6 | 1 | 1 | 0 | 17% |
-| 客户管理 | 7 | 2 | 2 | 0 | 29% |
-| 线索管理 | 8 | 2 | 2 | 0 | 25% |
-| 报价单管理 | 7 | 2 | 2 | 0 | 29% |
+| 产品管理 | 6 | 6 | 6 | 0 | 100% ✅ |
+| 客户管理 | 7 | 5 | 5 | 0 | 71% 🟢 |
+| 线索管理 | 8 | 7 | 7 | 0 | 88% ✅ |
+| 报价单管理 | 7 | 5 | 5 | 0 | 71% 🟢 |
 | 合同管理 | 10 | 8 | 8 | 0 | 80% ✅ |
 | 任务管理 | 8 | 8 | 8 | 0 | 100% ✅ |
-| 发货管理 | 8 | 3 | 3 | 0 | 38% |
+| 发货管理 | 8 | 8 | 8 | 0 | 100% ✅ |
 | 收款管理 | 8 | 5 | 5 | 0 | 63% 🟢 |
 | 发票管理 | 8 | 5 | 5 | 0 | 63% 🟢 |
 | 售后服务 | 9 | 4 | 4 | 0 | 44% 🟢 |
-| **总计** | **79** | **42** | **42** | **0** | **53.2%** |
+| **总计** | **79** | **63** | **63** | **0** | **79.7%** |
 
 ---
 
@@ -338,6 +338,67 @@ Request failed with status code 404
 - PUT /api/tasks/:id/cancel - 取消任务 ✓ (新增)
 - PUT /api/tasks/:id/defer - 延期任务 ✓
 
+#### 问题 #007: 产品管理API参数格式不兼容
+
+**状态**: ✅ 已解决
+
+**场景**: PROD-001, PROD-003 - 创建产品分类和产品
+
+**预期结果**: 支持驼峰命名参数创建分类和产品
+
+**实际结果**: 只支持下划线命名，导致创建失败
+
+**修复方案**: 修改productController支持驼峰和下划线两种命名方式
+
+**修复代码**:
+```javascript
+// productController.js - createCategory
+const categoryName = req.body.categoryName || req.body.category_name;
+const categoryCode = req.body.categoryCode || req.body.category_code;
+
+// productController.js - createProduct
+const productCode = req.body.productCode || req.body.product_code;
+const productName = req.body.productName || req.body.product_name;
+```
+
+**测试结果**:
+- [x] 第1次测试: 2025-12-28 - ❌ 失败 (参数格式不兼容)
+- [x] 第2次测试: 2025-12-28 - ✅ 通过
+
+#### 问题 #008: 客户管理API字段映射错误
+
+**状态**: ✅ 已解决
+
+**场景**: CUST-001 - 创建客户
+
+**预期结果**: 成功创建客户
+
+**实际结果**: ValidationError - customerNo, customerName, salesOwnerId cannot be null
+
+**错误信息**:
+```
+notNull Violation: Customer.customerNo cannot be null
+notNull Violation: Customer.customerName cannot be null
+notNull Violation: Customer.salesOwnerId cannot be null
+```
+
+**修复方案**: 修改customerController使用Customer模型的camelCase字段名
+
+**修复代码**:
+```javascript
+// customerController.js - createCustomer
+const customer = await Customer.create({
+  customerNo,
+  customerName,
+  customerType: customerType || 1,
+  salesOwnerId: ownerId
+});
+```
+
+**测试结果**:
+- [x] 第1次测试: 2025-12-28 - ❌ 失败 (字段映射错误)
+- [x] 第2次测试: 2025-12-28 - ✅ 通过
+
 ---
 
 ## 问题模板
@@ -473,4 +534,4 @@ npx playwright show-report test-results/html-report
 
 **维护者**: Claude AI
 **最后更新**: 2025-12-28
-**状态**: 测试进行中 (53.2% 完成)
+**状态**: 测试进行中 (79.7% 完成)

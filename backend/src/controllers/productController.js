@@ -11,12 +11,16 @@ const { Op } = require('sequelize');
 // 创建产品分类
 exports.createCategory = async (req, res) => {
   try {
-    const { category_name, category_code, sort_order, description } = req.body;
+    // 支持驼峰和下划线两种命名方式
+    const categoryName = req.body.categoryName || req.body.category_name;
+    const categoryCode = req.body.categoryCode || req.body.category_code;
+    const sortOrder = req.body.sortOrder || req.body.sort_order;
+    const description = req.body.description;
 
     const category = await ProductCategory.create({
-      category_name,
-      category_code,
-      sort_order,
+      category_name: categoryName,
+      category_code: categoryCode,
+      sort_order: sortOrder,
       description,
       creator_id: req.user.id
     });
@@ -98,8 +102,27 @@ exports.updateCategoryStatus = async (req, res) => {
 // 创建产品
 exports.createProduct = async (req, res) => {
   try {
+    // 支持驼峰和下划线两种命名方式
+    const productCode = req.body.productCode || req.body.product_code;
+    const productName = req.body.productName || req.body.product_name;
+    const categoryId = req.body.categoryId || req.body.category_id;
+    const unitPrice = req.body.unitPrice || req.body.unit_price;
+    const unit = req.body.unit;
+    const brand = req.body.brand;
+    const specifications = req.body.specifications;
+    const description = req.body.description;
+    const status = req.body.status || 'active';
+
     const productData = {
-      ...req.body,
+      product_code: productCode,
+      product_name: productName,
+      category_id: categoryId,
+      unit_price: unitPrice,
+      unit,
+      brand,
+      specifications,
+      description,
+      status,
       created_by: req.user.id
     };
 

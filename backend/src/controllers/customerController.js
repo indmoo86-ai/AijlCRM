@@ -88,30 +88,23 @@ exports.createCustomer = async (req, res) => {
     // 生成客户编码
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const customer_code = `CUST-${dateStr}-${Date.now().toString().slice(-4)}`;
+    const customerNo = `CUST-${dateStr}-${Date.now().toString().slice(-4)}`;
 
     const customer = await Customer.create({
-      customer_code,
-      customer_name: customerName,
-      customer_type: customerType,
-      customer_level: customerLevel,
-      customer_stage: customerStage || 'lead',
+      customerNo,
+      customerName,
+      customerType: customerType || 1,
       industry,
       province,
       city,
       address,
-      contact_phone: contactPhone,
-      hotel_rooms: hotelRooms,
-      hotel_star: hotelStar,
-      source,
-      description,
-      owner_id: ownerId,
-      creator_id: req.user.id
+      roomCount: hotelRooms,
+      salesOwnerId: ownerId
     });
 
     // 响应格式标准化（包含主键ID + 完整数据）
     const responseData = {
-      customerId: customer.customer_id,
+      customerId: customer.id,
       ...customer.toJSON()
     };
 
