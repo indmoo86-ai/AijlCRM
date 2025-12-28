@@ -413,7 +413,7 @@ exports.getContractProgress = async (req, res) => {
     // 关联查询收款记录
     const payments = await Payment.findAll({
       where: { contract_id: id },
-      attributes: ['payment_id', 'payment_no', 'payment_stage', 'paid_amount', 'payment_method',
+      attributes: ['payment_id', 'payment_no', 'payment_stage', 'payment_amount', 'payment_method',
                    'status', 'payment_date', 'confirm_date'],
       order: [['payment_date', 'DESC']]
     });

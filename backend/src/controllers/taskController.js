@@ -6,6 +6,83 @@ const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
 /**
+ * 创建任务（手动创建自定义任务）
+ * POST /api/tasks
+ */
+exports.createTask = async (req, res) => {
+  try {
+    const {
+      taskTitle, task_title,
+      taskDescription, task_description,
+      taskType, task_type,
+      priority,
+      dueDate, due_date,
+      dueTime, due_time,
+      assigneeId, assignee_id,
+      sourceType, source_type,
+      sourceId, source_id,
+      reminderTime, reminder_time
+    } = req.body;
+
+    // 支持驼峰和下划线两种参数命名
+    const title = taskTitle || task_title;
+    const description = taskDescription || task_description;
+    const type = taskType || task_type || 'custom';
+    const dueDateValue = dueDate || due_date;
+    const dueTimeValue = dueTime || due_time;
+    const assignee = assigneeId || assignee_id || req.user.id;
+    const srcType = sourceType || source_type;
+    const srcId = sourceId || source_id;
+    const reminder = reminderTime || reminder_time;
+
+    // 验证必填字段
+    if (!title) {
+      return error(res, '任务标题不能为空', 400);
+    }
+
+    // 验证截止日期不能早于当前日期（仅对手动创建的任务验证）
+    if (dueDateValue) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDateTime = new Date(dueDateValue);
+      if (dueDateTime < today) {
+        return error(res, '截止日期不能早于当前日期', 400);
+      }
+    }
+
+    const task = await Task.create({
+      task_type: type,
+      task_title: title,
+      task_description: description,
+      priority: priority || 'medium',
+      status: 'pending',
+      due_date: dueDateValue,
+      due_time: dueTimeValue,
+      reminder_time: reminder,
+      assignee_id: assignee,
+      assigner_id: req.user.id,
+      assigned_at: new Date(),
+      source_type: srcType || null,
+      source_id: srcId || null,
+      unique_key: null, // 自定义任务不参与防重
+      created_by: req.user.id,
+      updated_by: req.user.id
+    });
+
+    return success(res, {
+      taskId: task.task_id,
+      taskTitle: task.task_title,
+      status: task.status,
+      createdAt: task.created_at
+    }, '任务创建成功', 201);
+  } catch (err) {
+    console.error('创建任务失败:', err);
+    console.error('错误详情:', err.message);
+    return error(res, '创建任务失败', 500);
+  }
+};
+
+/**
  * 查询任务列表
  * GET /api/tasks
  */
@@ -137,6 +214,93 @@ exports.completeTask = async (req, res) => {
     console.error('完成任务失败:', err);
     console.error('错误详情:', err.message);
     return error(res, '完成任务失败', 500);
+  }
+};
+
+/**
+ * 开始处理任务
+ * PUT /api/tasks/:id/start
+ */
+exports.startTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const task = await Task.findByPk(id);
+    if (!task) {
+      return error(res, '任务不存在', 404);
+    }
+
+    if (task.status === 'completed') {
+      return error(res, '任务已完成，无法再次修改', 400);
+    }
+
+    if (task.status === 'cancelled') {
+      return error(res, '任务已取消，无法开始处理', 400);
+    }
+
+    if (task.status === 'in_progress') {
+      return error(res, '任务已在处理中', 400);
+    }
+
+    await task.update({
+      status: 'in_progress',
+      started_at: new Date(),
+      updated_by: req.user.id
+    });
+
+    return success(res, {
+      taskId: task.task_id,
+      status: task.status,
+      startedAt: task.started_at
+    }, '任务已开始处理');
+  } catch (err) {
+    console.error('开始处理任务失败:', err);
+    console.error('错误详情:', err.message);
+    return error(res, '开始处理任务失败', 500);
+  }
+};
+
+/**
+ * 取消任务
+ * PUT /api/tasks/:id/cancel
+ */
+exports.cancelTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cancelReason, cancel_reason } = req.body;
+
+    const reason = cancelReason || cancel_reason;
+
+    const task = await Task.findByPk(id);
+    if (!task) {
+      return error(res, '任务不存在', 404);
+    }
+
+    if (task.status === 'completed') {
+      return error(res, '任务已完成，无法再次修改', 400);
+    }
+
+    if (task.status === 'cancelled') {
+      return error(res, '任务已取消', 400);
+    }
+
+    await task.update({
+      status: 'cancelled',
+      cancelled_at: new Date(),
+      cancel_reason: reason,
+      updated_by: req.user.id
+    });
+
+    return success(res, {
+      taskId: task.task_id,
+      status: task.status,
+      cancelledAt: task.cancelled_at,
+      cancelReason: task.cancel_reason
+    }, '任务已取消');
+  } catch (err) {
+    console.error('取消任务失败:', err);
+    console.error('错误详情:', err.message);
+    return error(res, '取消任务失败', 500);
   }
 };
 
