@@ -9,10 +9,17 @@
     "test:report": "playwright show-report",
     "install": "playwright install chromium"
   },
-  "keywords": ["e2e", "playwright", "crm"],
+  "keywords": [
+    "e2e",
+    "playwright",
+    "crm"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "@playwright/test": "^1.40.0"
+  },
+  "dependencies": {
+    "axios": "^1.13.2"
   }
 }
