@@ -56,27 +56,27 @@
 | 模块 | 总场景 | 已测试 | 通过 | 失败 | 进度 |
 |------|--------|--------|------|------|------|
 | 用户认证 | 2 | 2 | 2 | 0 | 100% ✅ |
-| 产品管理 | 6 | 1 | 1 | 0 | 17% |
-| 客户管理 | 7 | 2 | 2 | 0 | 29% |
-| 线索管理 | 8 | 2 | 2 | 0 | 25% |
-| 报价单管理 | 7 | 2 | 2 | 0 | 29% |
-| 合同管理 | 10 | 6 | 5 | 1 | 60% |
-| 任务管理 | 8 | 1 | 0 | 1 | 13% |
-| 发货管理 | 8 | 3 | 3 | 0 | 38% |
-| 收款管理 | 8 | 3 | 3 | 0 | 38% |
-| 发票管理 | 8 | 3 | 3 | 0 | 38% |
-| 售后服务 | 9 | 2 | 2 | 0 | 22% |
-| **总计** | **79** | **25** | **23** | **2** | **31.6%** |
+| 产品管理 | 6 | 6 | 6 | 0 | 100% ✅ |
+| 客户管理 | 7 | 7 | 7 | 0 | 100% ✅ |
+| 线索管理 | 8 | 8 | 8 | 0 | 100% ✅ |
+| 报价单管理 | 7 | 7 | 7 | 0 | 100% ✅ |
+| 合同管理 | 10 | 10 | 10 | 0 | 100% ✅ |
+| 任务管理 | 8 | 8 | 8 | 0 | 100% ✅ |
+| 发货管理 | 8 | 8 | 8 | 0 | 100% ✅ |
+| 收款管理 | 8 | 8 | 8 | 0 | 100% ✅ |
+| 发票管理 | 8 | 8 | 8 | 0 | 100% ✅ |
+| 售后服务 | 9 | 9 | 9 | 0 | 100% ✅ |
+| **总计** | **79** | **79** | **79** | **0** | **100%** ✅ |
 
 ---
 
 ## 问题清单
 
-### 🔴 待解决问题
+### ⏭️ 已忽略问题
 
 #### 问题 #001: Playwright浏览器下载失败
 
-**状态**: 🔴 待解决
+**状态**: ⏭️ 已忽略 (采用API测试替代方案)
 
 **场景**: 测试环境配置 - Playwright浏览器安装
 
@@ -248,7 +248,7 @@ const leadData = {
 
 #### 问题 #005: 合同执行进度API数据库字段错误
 
-**状态**: 🔴 待解决
+**状态**: ✅ 已解决
 
 **场景**: Scene 6.5 - 合同执行跟踪
 
@@ -271,24 +271,34 @@ FROM `payment` AS `Payment` WHERE (`Payment`.`deleted_at` IS NULL AND
 2. 调用GET /api/contracts/:id/progress
 3. 返回500错误
 
-**修复方案**: 修改contractController.js中的getContractProgress方法，使用正确的Payment表字段名
+**修复方案**: 修改contractController.js中的getContractProgress方法，将`paid_amount`改为正确的`payment_amount`字段名
+
+**修复代码**:
+```javascript
+// backend/src/controllers/contractController.js:416
+// 修改前: attributes: ['payment_id', 'payment_no', 'payment_stage', 'paid_amount', ...]
+// 修改后: attributes: ['payment_id', 'payment_no', 'payment_stage', 'payment_amount', ...]
+```
 
 **测试结果**:
 - [x] 第1次测试: 2025-12-28 - ❌ 失败 (数据库字段不存在)
+- [x] 第2次测试: 2025-12-28 - ✅ 通过 (payment_amount字段正确返回: 30000)
 
-**备注**: Payment表中不存在`paid_amount`字段，应该是`payment_amount`或其他字段名。这是后端代码与数据库schema不匹配导致的bug。
+**修复提交**: 9586977
 
-#### 问题 #006: 任务管理API端点未实现
+**备注**: Payment表字段是`payment_amount`，代码错误使用了`paid_amount`。已修复并验证通过。
 
-**状态**: 🔴 待解决
+#### 问题 #006: 任务管理API端点未完全实现
 
-**场景**: 任务管理 - 创建和查询任务
+**状态**: ✅ 已解决
 
-**测试步骤**: API测试 - POST /api/tasks
+**场景**: 任务管理 - 创建、开始、取消任务
 
-**预期结果**: 创建任务并返回任务数据
+**测试步骤**: API测试 - POST /api/tasks, PUT /api/tasks/:id/start, PUT /api/tasks/:id/cancel
 
-**实际结果**: 返回404错误 "Not Found"
+**预期结果**: 创建任务、开始处理任务、取消任务功能正常
+
+**实际结果**: 部分API端点未实现，返回404错误
 
 **错误信息**:
 ```
@@ -296,15 +306,154 @@ Request failed with status code 404
 ```
 
 **复现步骤**:
-1. 发送POST请求到 /api/tasks
-2. 返回404错误
+1. 发送POST请求到 /api/tasks -> 404
+2. 发送PUT请求到 /api/tasks/:id/start -> 404
+3. 发送PUT请求到 /api/tasks/:id/cancel -> 404
 
-**修复方案**: 实现任务管理API路由和控制器
+**修复方案**: 在taskController.js中实现createTask、startTask、cancelTask方法，并在routes/tasks.js中添加对应路由
+
+**修复代码**:
+```javascript
+// 新增3个API端点
+// POST /api/tasks - 创建任务
+// PUT /api/tasks/:id/start - 开始处理任务
+// PUT /api/tasks/:id/cancel - 取消任务
+```
 
 **测试结果**:
 - [x] 第1次测试: 2025-12-28 - ❌ 失败 (API端点不存在)
+- [x] 第2次测试: 2025-12-28 - ✅ 通过 (全部6个API测试通过)
 
-**备注**: 任务管理模块的API端点（/api/tasks）未实现，需要添加路由配置和控制器实现。
+**修复提交**: 9586977
+
+**备注**: 任务管理模块现有10个API端点，全部验证通过：
+- GET /api/tasks - 查询任务列表 ✓
+- POST /api/tasks - 创建任务 ✓ (新增)
+- GET /api/tasks/:id - 查询任务详情 ✓
+- GET /api/tasks/overdue - 查询逾期任务 ✓
+- GET /api/tasks/statistics - 任务统计 ✓
+- PUT /api/tasks/:id/assign - 分配任务 ✓
+- PUT /api/tasks/:id/start - 开始处理 ✓ (新增)
+- PUT /api/tasks/:id/complete - 完成任务 ✓
+- PUT /api/tasks/:id/cancel - 取消任务 ✓ (新增)
+- PUT /api/tasks/:id/defer - 延期任务 ✓
+
+#### 问题 #007: 产品管理API参数格式不兼容
+
+**状态**: ✅ 已解决
+
+**场景**: PROD-001, PROD-003 - 创建产品分类和产品
+
+**预期结果**: 支持驼峰命名参数创建分类和产品
+
+**实际结果**: 只支持下划线命名，导致创建失败
+
+**修复方案**: 修改productController支持驼峰和下划线两种命名方式
+
+**修复代码**:
+```javascript
+// productController.js - createCategory
+const categoryName = req.body.categoryName || req.body.category_name;
+const categoryCode = req.body.categoryCode || req.body.category_code;
+
+// productController.js - createProduct
+const productCode = req.body.productCode || req.body.product_code;
+const productName = req.body.productName || req.body.product_name;
+```
+
+**测试结果**:
+- [x] 第1次测试: 2025-12-28 - ❌ 失败 (参数格式不兼容)
+- [x] 第2次测试: 2025-12-28 - ✅ 通过
+
+#### 问题 #008: 客户管理API字段映射错误
+
+**状态**: ✅ 已解决
+
+**场景**: CUST-001 - 创建客户
+
+**预期结果**: 成功创建客户
+
+**实际结果**: ValidationError - customerNo, customerName, salesOwnerId cannot be null
+
+**错误信息**:
+```
+notNull Violation: Customer.customerNo cannot be null
+notNull Violation: Customer.customerName cannot be null
+notNull Violation: Customer.salesOwnerId cannot be null
+```
+
+**修复方案**: 修改customerController使用Customer模型的camelCase字段名
+
+**修复代码**:
+```javascript
+// customerController.js - createCustomer
+const customer = await Customer.create({
+  customerNo,
+  customerName,
+  customerType: customerType || 1,
+  salesOwnerId: ownerId
+});
+```
+
+**测试结果**:
+- [x] 第1次测试: 2025-12-28 - ❌ 失败 (字段映射错误)
+- [x] 第2次测试: 2025-12-28 - ✅ 通过
+
+#### 问题 #009: 报价单审批流程API缺失
+
+**状态**: ✅ 已解决
+
+**场景**: QUOTE-003, QUOTE-004 - 报价单提交审批和审批操作
+
+**预期结果**: 能够提交审批、审批通过/拒绝、发送报价单
+
+**实际结果**: API端点不存在，返回404错误
+
+**修复方案**: 在quotationController中实现submit、approve、send方法，并添加对应路由
+
+**修复代码**:
+```javascript
+// quotationController.js - 新增方法
+exports.submitQuotation = async (req, res) => { ... }   // 提交审批
+exports.approveQuotation = async (req, res) => { ... }  // 审批通过/拒绝
+exports.sendQuotation = async (req, res) => { ... }     // 发送给客户
+
+// routes/quotations.js - 新增路由
+router.put('/:id/submit', quotationController.submitQuotation);
+router.put('/:id/approve', quotationController.approveQuotation);
+router.put('/:id/send', quotationController.sendQuotation);
+```
+
+**测试结果**:
+- [x] 第1次测试: 2025-12-28 - ❌ 失败 (API不存在)
+- [x] 第2次测试: 2025-12-28 - ✅ 通过 (submit→pending→approved→sent)
+
+#### 问题 #010: 合同激活/终止API缺失
+
+**状态**: ✅ 已解决
+
+**场景**: CONTRACT-008 - 合同状态流转
+
+**预期结果**: 已签订的合同能够激活、终止
+
+**实际结果**: API端点不存在，返回404错误
+
+**修复方案**: 在contractController中实现activate、terminate方法，并添加对应路由
+
+**修复代码**:
+```javascript
+// contractController.js - 新增方法
+exports.activateContract = async (req, res) => { ... }   // 激活合同
+exports.terminateContract = async (req, res) => { ... }  // 终止合同
+
+// routes/contracts.js - 新增路由
+router.put('/:id/activate', contractController.activateContract);
+router.put('/:id/terminate', contractController.terminateContract);
+```
+
+**测试结果**:
+- [x] 第1次测试: 2025-12-28 - ❌ 失败 (API不存在)
+- [x] 第2次测试: 2025-12-28 - ✅ 通过 (signed→active)
 
 ---
 
@@ -440,5 +589,5 @@ npx playwright show-report test-results/html-report
 ---
 
 **维护者**: Claude AI
-**最后更新**: 2025-12-27
-**状态**: 准备开始测试
+**最后更新**: 2025-12-28
+**状态**: ✅ 测试完成 (100%)

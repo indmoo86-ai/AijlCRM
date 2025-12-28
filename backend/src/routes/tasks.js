@@ -15,11 +15,14 @@ router.get('/statistics', taskController.getTaskStatistics);      // 8.7 任务�
 
 // 任务基本操作
 router.get('/', taskController.getTaskList);                      // 8.1 查询任务列表
+router.post('/', taskController.createTask);                      // TASK-005 手动创建自定义任务
 router.get('/:id', taskController.getTaskDetail);                 // 8.2 查询任务详情
 
 // 任务操作
 router.put('/:id/assign', taskController.assignTask);             // 8.3 分配任务
+router.put('/:id/start', taskController.startTask);               // TASK-006 开始处理任务
 router.put('/:id/complete', taskController.completeTask);         // 8.4 完成任务
+router.put('/:id/cancel', taskController.cancelTask);             // TASK-006 取消任务
 router.put('/:id/defer', taskController.deferTask);               // 8.5 延期任务
 
 module.exports = router;

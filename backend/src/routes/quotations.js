@@ -24,4 +24,9 @@ router.put('/:id/validity', quotationController.extendValidity);
 router.post('/:id/pdf', quotationController.generatePDF);
 router.post('/:id/convert-to-contract', quotationController.convertToContract);
 
+// 报价单审批流程
+router.put('/:id/submit', quotationController.submitQuotation);     // 提交审批
+router.put('/:id/approve', quotationController.approveQuotation);   // 审批通过/拒绝
+router.put('/:id/send', quotationController.sendQuotation);         // 发送给客户
+
 module.exports = router;

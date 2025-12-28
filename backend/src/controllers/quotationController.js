@@ -245,3 +245,115 @@ exports.convertToContract = async (req, res) => {
     return error(res, '报价单转合同失败', 500);
   }
 };
+
+/**
+ * 提交报价单审批
+ * PUT /api/quotations/:id/submit
+ */
+exports.submitQuotation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quotation = await Quotation.findByPk(id);
+
+    if (!quotation) {
+      return error(res, '报价单不存在', 404);
+    }
+
+    if (quotation.status !== 'draft') {
+      return error(res, '只有草稿状态的报价单才能提交审批', 400);
+    }
+
+    await quotation.update({
+      status: 'pending',
+      submitted_at: new Date(),
+      submitted_by: req.user.id,
+      updated_by: req.user.id
+    });
+
+    return success(res, {
+      quotationId: quotation.quotation_id,
+      status: quotation.status,
+      submittedAt: quotation.submitted_at
+    }, '报价单已提交审批');
+  } catch (err) {
+    console.error('提交报价单审批失败:', err);
+    return error(res, '提交审批失败', 500);
+  }
+};
+
+/**
+ * 审批报价单
+ * PUT /api/quotations/:id/approve
+ */
+exports.approveQuotation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { approved, comment } = req.body;
+
+    const quotation = await Quotation.findByPk(id);
+
+    if (!quotation) {
+      return error(res, '报价单不存在', 404);
+    }
+
+    if (quotation.status !== 'pending') {
+      return error(res, '只有待审批状态的报价单才能审批', 400);
+    }
+
+    const newStatus = approved ? 'approved' : 'rejected';
+
+    await quotation.update({
+      status: newStatus,
+      approved_at: new Date(),
+      approved_by: req.user.id,
+      approval_comment: comment,
+      updated_by: req.user.id
+    });
+
+    return success(res, {
+      quotationId: quotation.quotation_id,
+      status: quotation.status,
+      approved: approved,
+      approvedAt: quotation.approved_at,
+      comment: comment
+    }, approved ? '报价单审批通过' : '报价单已拒绝');
+  } catch (err) {
+    console.error('审批报价单失败:', err);
+    return error(res, '审批失败', 500);
+  }
+};
+
+/**
+ * 发送报价单给客户
+ * PUT /api/quotations/:id/send
+ */
+exports.sendQuotation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quotation = await Quotation.findByPk(id);
+
+    if (!quotation) {
+      return error(res, '报价单不存在', 404);
+    }
+
+    if (quotation.status !== 'approved' && quotation.status !== 'draft') {
+      return error(res, '只有已审批或草稿状态的报价单才能发送', 400);
+    }
+
+    await quotation.update({
+      status: 'sent',
+      sent_at: new Date(),
+      sent_by: req.user.id,
+      updated_by: req.user.id
+    });
+
+    return success(res, {
+      quotationId: quotation.quotation_id,
+      status: quotation.status,
+      sentAt: quotation.sent_at
+    }, '报价单已发送');
+  } catch (err) {
+    console.error('发送报价单失败:', err);
+    return error(res, '发送失败', 500);
+  }
+};

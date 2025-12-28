@@ -30,4 +30,8 @@ router.delete('/:id/files/:fileId', contractController.deleteContractFile); // 7
 // 合同执行进度
 router.get('/:id/progress', contractController.getContractProgress);     // 7.11 查询合同执行进度
 
+// 合同状态操作
+router.put('/:id/activate', contractController.activateContract);        // 7.12 激活合同
+router.put('/:id/terminate', contractController.terminateContract);      // 7.13 终止合同
+
 module.exports = router;

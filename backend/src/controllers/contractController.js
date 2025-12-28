@@ -413,7 +413,7 @@ exports.getContractProgress = async (req, res) => {
     // 关联查询收款记录
     const payments = await Payment.findAll({
       where: { contract_id: id },
-      attributes: ['payment_id', 'payment_no', 'payment_stage', 'paid_amount', 'payment_method',
+      attributes: ['payment_id', 'payment_no', 'payment_stage', 'payment_amount', 'payment_method',
                    'status', 'payment_date', 'confirm_date'],
       order: [['payment_date', 'DESC']]
     });
@@ -434,5 +434,85 @@ exports.getContractProgress = async (req, res) => {
   } catch (err) {
     console.error('查询合同执行进度失败:', err);
     return error(res, '查询合同执行进度失败', 500);
+  }
+};
+
+/**
+ * 激活合同
+ * PUT /api/contracts/:id/activate
+ */
+exports.activateContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { activateDate, activateNote } = req.body;
+
+    const contract = await Contract.findByPk(id);
+
+    if (!contract) {
+      return error(res, '合同不存在', 404);
+    }
+
+    if (contract.status !== 'signed') {
+      return error(res, '只有已签订的合同才能激活', 400);
+    }
+
+    await contract.update({
+      status: 'active',
+      activate_date: activateDate || new Date(),
+      activate_note: activateNote,
+      activated_by: req.user.id,
+      activated_at: new Date(),
+      updated_by: req.user.id
+    });
+
+    return success(res, {
+      contractId: contract.contract_id,
+      status: contract.status,
+      activateDate: contract.activate_date,
+      activatedAt: contract.activated_at
+    }, '合同已激活');
+  } catch (err) {
+    console.error('激活合同失败:', err);
+    return error(res, '激活合同失败', 500);
+  }
+};
+
+/**
+ * 终止合同
+ * PUT /api/contracts/:id/terminate
+ */
+exports.terminateContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { terminateReason, terminateDate } = req.body;
+
+    const contract = await Contract.findByPk(id);
+
+    if (!contract) {
+      return error(res, '合同不存在', 404);
+    }
+
+    if (contract.status === 'terminated' || contract.status === 'completed') {
+      return error(res, '合同已终止或已完成，无法再次操作', 400);
+    }
+
+    await contract.update({
+      status: 'terminated',
+      terminate_date: terminateDate || new Date(),
+      terminate_reason: terminateReason,
+      terminated_by: req.user.id,
+      terminated_at: new Date(),
+      updated_by: req.user.id
+    });
+
+    return success(res, {
+      contractId: contract.contract_id,
+      status: contract.status,
+      terminateDate: contract.terminate_date,
+      terminateReason: contract.terminate_reason
+    }, '合同已终止');
+  } catch (err) {
+    console.error('终止合同失败:', err);
+    return error(res, '终止合同失败', 500);
   }
 };
