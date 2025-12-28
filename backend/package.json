@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
+    "playwright": "^1.57.0",
     "sqlite3": "^5.1.7"
   }
 }

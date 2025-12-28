@@ -119,6 +119,36 @@
 
 ---
 
+## 2025-12-28
+
+### 📦 开发环境改进
+
+#### Playwright 浏览器安装方案
+- **问题**：Claude Code 环境无法直接下载 Playwright 浏览器（网络限制）
+- **解决方案**：通过 GitHub Release 分发预下载的浏览器文件
+  1. 本地打包浏览器文件（233 MB，包含 chromium-1200, ffmpeg-1011）
+  2. 上传到 GitHub Release（playwright-browsers-v1.0）
+  3. Claude Code 环境从 Release 下载并解压
+  4. 验证安装成功（Chromium 143.0.7499.4 启动正常）
+- **影响范围**：开发和测试环境的 Playwright 自动化测试
+- **相关文档**：
+  - 新增 `docs/PLAYWRIGHT-BROWSER-SETUP.md` - 完整设置指南
+  - 新增 `docs/tutorials/PLAYWRIGHT-SETUP-TUTORIAL.md` - 详细图文教程（769行）
+  - 新增 `scripts/install-playwright-browsers.sh` - 自动安装脚本
+- **下载链接**：https://github.com/indmoo86-ai/AijlCRM/releases/download/playwright-browsers-v1.0/playwright-browsers-mac-20251228.tar.gz
+
+#### 新增依赖
+- ✅ `playwright@1.57.0` 添加到 `backend/package.json` devDependencies
+- 安装方式：`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --save-dev playwright@1.57.0`
+
+#### 测试验证
+- ✅ Chromium 浏览器启动测试通过
+- ✅ Playwright API 调用正常
+- ✅ 浏览器版本：143.0.7499.4 (ARM64 for Mac)
+- ⚠️ E2E 测试需要应用服务器运行（预期行为）
+
+---
+
 **维护责任**：所有开发人员
 **更新频率**：每次重要变更后立即更新
-**最后更新**：2025-12-27
+**最后更新**：2025-12-28
