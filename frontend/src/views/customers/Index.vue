@@ -133,7 +133,8 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="800px"
+      width="90%"
+      style="max-width: 1200px"
       @close="resetForm"
     >
       <el-form
@@ -290,7 +291,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
-import { getCustomerList, createCustomer, updateCustomer, advanceCustomerStage } from '@/api/customers'
+import { getCustomerList, createCustomer, updateCustomer, advanceCustomerStage, deleteCustomer } from '@/api/customers'
 import dayjs from 'dayjs'
 
 const loading = ref(false)
@@ -353,8 +354,8 @@ const fetchData = async () => {
       ...searchForm
     }
     const res = await getCustomerList(params)
-    tableData.value = res.data.rows || []
-    pagination.total = res.data.total || 0
+    tableData.value = res.data.list || res.data.rows || []
+    pagination.total = res.data.pagination?.total || res.data.total || 0
   } catch (error) {
     console.error('Failed to fetch customers:', error)
   } finally {
@@ -464,7 +465,8 @@ const handleDelete = async (row) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
+    await deleteCustomer(row.customer_id)
     ElMessage.success('删除成功')
     fetchData()
   } catch (error) {

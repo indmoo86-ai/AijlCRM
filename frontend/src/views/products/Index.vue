@@ -144,7 +144,8 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="900px"
+      width="90%"
+      style="max-width: 1200px"
       @close="resetForm"
     >
       <el-form
@@ -347,8 +348,8 @@ const fetchData = async () => {
       ...searchForm
     }
     const res = await getProductList(params)
-    tableData.value = res.data.rows || []
-    pagination.total = res.data.total || 0
+    tableData.value = res.data.list || res.data.rows || []
+    pagination.total = res.data.pagination?.total || res.data.total || 0
   } catch (error) {
     console.error('Failed to fetch products:', error)
   } finally {

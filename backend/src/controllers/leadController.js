@@ -118,39 +118,64 @@ exports.createLead = async (req, res) => {
 
     console.log('准备创建线索数据:', JSON.stringify(leadData, null, 2));
 
+    // 根据手机号+省份查找是否已有客户
+    let customer = null;
+    let isNewCustomer = false;
+
+    if (leadData.phone && leadData.province) {
+      // 查找手机号+省份相同的已有客户
+      customer = await Customer.findOne({
+        where: {
+          phone: leadData.phone,
+          province: leadData.province
+        }
+      });
+    }
+
+    // 创建线索
     const lead = await Lead.create(leadData);
 
-    // 自动创建对应的客户
-    const customerNo = await Customer.generateCustomerNo();
-    const customer = await Customer.create({
-      customerNo,
-      customerName: leadData.customerName || leadData.hotelName,
-      customerType: 1, // 潜在客户
-      province: leadData.province,
-      city: leadData.city,
-      district: leadData.district,
-      address: leadData.address,
-      roomCount: leadData.roomCount,
-      salesOwnerId: leadData.salesOwnerId,
-      sourceLeadId: lead.id,
-      totalAmount: 0,
-      contractCount: 0,
-      referralCount: 0
-    });
-
-    // 更新线索关联的客户ID
-    await lead.update({ customerId: customer.id });
+    if (customer) {
+      // 已有客户，关联线索到该客户
+      console.log(`发现已有客户(ID:${customer.id})，手机号:${leadData.phone}，省份:${leadData.province}`);
+      await lead.update({ customerId: customer.id });
+    } else {
+      // 新客户，自动创建
+      isNewCustomer = true;
+      const customerNo = await Customer.generateCustomerNo();
+      customer = await Customer.create({
+        customerNo,
+        customerName: leadData.customerName || leadData.hotelName,
+        customerType: 1, // 潜在客户
+        province: leadData.province,
+        city: leadData.city,
+        district: leadData.district,
+        address: leadData.address,
+        roomCount: leadData.roomCount,
+        phone: leadData.phone,
+        salesOwnerId: leadData.salesOwnerId,
+        sourceLeadId: lead.id,
+        totalAmount: 0,
+        contractCount: 0,
+        referralCount: 0
+      });
+      // 更新线索关联的客户ID
+      await lead.update({ customerId: customer.id });
+      console.log(`创建新客户(ID:${customer.id})，客户编号:${customer.customerNo}`);
+    }
 
     // 返回标准化的响应格式，包含leadId和customerId字段
     const responseData = {
       leadId: lead.id,
       customerId: customer.id,
       customerNo: customer.customerNo,
+      isNewCustomer,
       ...lead.toJSON(),
       customer: customer.toJSON()
     };
 
-    return success(res, responseData, '创建成功', 201);
+    const message = isNewCustomer ? '创建成功，已自动创建客户' : '创建成功，已关联到已有客户';
+    return success(res, responseData, message, 201);
 
   } catch (err) {
     console.error('创建线索错误:', err);

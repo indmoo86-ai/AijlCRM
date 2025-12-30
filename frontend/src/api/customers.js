@@ -64,3 +64,13 @@ export function advanceCustomerStage(id, data) {
     data
   })
 }
+
+/**
+ * 删除客户
+ */
+export function deleteCustomer(id) {
+  return request({
+    url: `/customers/${id}`,
+    method: 'delete'
+  })
+}

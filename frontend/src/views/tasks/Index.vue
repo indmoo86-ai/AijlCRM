@@ -237,7 +237,8 @@
     <el-dialog
       v-model="dialogVisible"
       title="新建任务"
-      width="700px"
+      width="90%"
+      style="max-width: 1200px"
       @close="resetForm"
     >
       <el-form
@@ -388,8 +389,8 @@ const fetchData = async () => {
       ...searchForm
     }
     const res = await getTaskList(params)
-    tableData.value = res.data.rows || []
-    pagination.total = res.data.total || 0
+    tableData.value = res.data.list || res.data.rows || []
+    pagination.total = res.data.total || res.data.pagination?.total || 0
     
     // 更新统计数据
     if (res.data.stats) {

@@ -2,6 +2,7 @@
  * 待办任务管理 Controller
  */
 const Task = require('../models/Task');
+const User = require('../models/User');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -100,6 +101,10 @@ exports.getTaskList = async (req, res) => {
 
     const { count, rows } = await Task.findAndCountAll({
       where,
+      include: [
+        { model: User, as: 'assignee', attributes: ['id', 'username', 'name'] },
+        { model: User, as: 'assigner', attributes: ['id', 'username', 'name'] }
+      ],
       order: [['due_date', 'ASC'], ['priority', 'DESC'], ['created_at', 'DESC']],
       limit: parseInt(pageSize),
       offset: parseInt(offset)

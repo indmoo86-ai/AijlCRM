@@ -144,6 +144,10 @@ User.hasMany(Lead, {
   foreignKey: 'salesOwnerId',
   as: 'ownedLeads'
 });
+Lead.belongsTo(User, {
+  foreignKey: 'createdBy',
+  as: 'createdByUser'
+});
 
 // Lead - Customer 关联（推荐人）
 Lead.belongsTo(Customer, {

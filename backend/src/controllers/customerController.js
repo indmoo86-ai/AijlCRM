@@ -336,3 +336,29 @@ exports.exportCustomers = async (req, res) => {
     return error(res, '导出客户数据失败', 500);
   }
 };
+
+/**
+ * 删除客户
+ * DELETE /api/customers/:id
+ */
+exports.deleteCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const customer = await Customer.findByPk(id);
+
+    if (!customer) {
+      return error(res, '客户不存在', 404);
+    }
+
+    // 检查是否有关联数据（可选：报价单、合同等）
+    // 这里暂时允许直接删除
+
+    await customer.destroy();
+
+    return success(res, null, '删除成功');
+  } catch (err) {
+    console.error('删除客户失败:', err);
+    console.error('错误详情:', err.message);
+    return error(res, '删除客户失败', 500);
+  }
+};

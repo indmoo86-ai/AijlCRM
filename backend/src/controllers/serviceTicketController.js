@@ -3,6 +3,10 @@
  */
 const ServiceTicket = require('../models/ServiceTicket');
 const ServiceTicketLog = require('../models/ServiceTicketLog');
+const Customer = require('../models/Customer');
+const Product = require('../models/Product');
+const Contract = require('../models/Contract');
+const User = require('../models/User');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -24,6 +28,12 @@ exports.getTicketList = async (req, res) => {
 
     const { count, rows } = await ServiceTicket.findAndCountAll({
       where,
+      include: [
+        { model: Customer, as: 'customer', attributes: ['id', 'customerName'] },
+        { model: Product, as: 'product', attributes: ['product_id', 'product_code', 'product_name'] },
+        { model: Contract, as: 'contract', attributes: ['contract_id', 'contract_no', 'contract_title'] },
+        { model: User, as: 'assignee', attributes: ['id', 'username', 'name'] }
+      ],
       order: [['priority', 'DESC'], ['reported_at', 'DESC']],
       limit: parseInt(pageSize),
       offset: parseInt(offset)

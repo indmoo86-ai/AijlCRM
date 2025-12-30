@@ -6,6 +6,8 @@ const ShipmentItem = require('../models/ShipmentItem');
 const Contract = require('../models/Contract');
 const ContractItem = require('../models/ContractItem');
 const Product = require('../models/Product');
+const Customer = require('../models/Customer');
+const User = require('../models/User');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -74,8 +76,9 @@ exports.createShipment = async (req, res) => {
         const remainingQuantity = item.remainingQuantity || item.remaining_quantity || 0;
         const unitPrice = item.unitPrice || item.unit_price;
 
-        // 如果没有提供contract_item_id，尝试从合同明细中查找
-        if (!contractItemId && productId && contractId) {
+        // 从合同明细中查找contract_item_id和contract_quantity
+        let finalContractQuantity = contractQuantity;
+        if (productId && contractId) {
           const contractItem = await ContractItem.findOne({
             where: {
               contract_id: contractId,
@@ -83,8 +86,18 @@ exports.createShipment = async (req, res) => {
             }
           });
           if (contractItem) {
-            contractItemId = contractItem.item_id;
+            if (!contractItemId) {
+              contractItemId = contractItem.item_id;
+            }
+            // 如果没有提供contract_quantity，从合同明细获取
+            if (!finalContractQuantity) {
+              finalContractQuantity = contractItem.quantity;
+            }
           }
+        }
+        // 如果还是没有contract_quantity，使用this_shipment_quantity作为默认值
+        if (!finalContractQuantity) {
+          finalContractQuantity = thisShipmentQuantity;
         }
 
         // 如果没有提供product_code、product_name或product_unit，从数据库获取
@@ -104,10 +117,10 @@ exports.createShipment = async (req, res) => {
           product_code: productCode,
           product_name: productName,
           product_unit: productUnit,
-          contract_quantity: contractQuantity,
+          contract_quantity: finalContractQuantity,
           already_shipped_quantity: alreadyShippedQuantity,
           this_shipment_quantity: thisShipmentQuantity,
-          remaining_quantity: remainingQuantity,
+          remaining_quantity: remainingQuantity || (finalContractQuantity - thisShipmentQuantity),
           unit_price: unitPrice,
           subtotal: thisShipmentQuantity * unitPrice
         });
@@ -147,6 +160,11 @@ exports.getShipmentList = async (req, res) => {
 
     const { count, rows } = await Shipment.findAndCountAll({
       where,
+      include: [
+        { model: Contract, as: 'contract', attributes: ['contract_id', 'contract_no', 'contract_title'] },
+        { model: Customer, as: 'customer', attributes: ['id', 'customerName'] },
+        { model: User, as: 'owner', attributes: ['id', 'username', 'name'] }
+      ],
       order: [['created_at', 'DESC']],
       limit: parseInt(pageSize),
       offset: parseInt(offset)

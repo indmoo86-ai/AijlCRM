@@ -4,6 +4,8 @@
 const Quotation = require('../models/Quotation');
 const QuotationItem = require('../models/QuotationItem');
 const Product = require('../models/Product');
+const Customer = require('../models/Customer');
+const User = require('../models/User');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -106,6 +108,10 @@ exports.getQuotationList = async (req, res) => {
 
     const { count, rows } = await Quotation.findAndCountAll({
       where,
+      include: [
+        { model: Customer, as: 'customer', attributes: ['id', 'customerName'] },
+        { model: User, as: 'owner', attributes: ['id', 'username', 'name'] }
+      ],
       order: [['created_at', 'DESC']],
       limit: parseInt(pageSize),
       offset: parseInt(offset)

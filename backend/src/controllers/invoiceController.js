@@ -3,6 +3,8 @@
  */
 const Invoice = require('../models/Invoice');
 const Contract = require('../models/Contract');
+const Customer = require('../models/Customer');
+const User = require('../models/User');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -28,6 +30,11 @@ exports.getInvoiceList = async (req, res) => {
 
     const { count, rows } = await Invoice.findAndCountAll({
       where,
+      include: [
+        { model: Contract, as: 'contract', attributes: ['contract_id', 'contract_no', 'contract_title'] },
+        { model: Customer, as: 'customer', attributes: ['id', 'customerName'] },
+        { model: User, as: 'owner', attributes: ['id', 'username', 'name'] }
+      ],
       order: [['invoice_date', 'DESC'], ['created_at', 'DESC']],
       limit: parseInt(pageSize),
       offset: parseInt(offset)

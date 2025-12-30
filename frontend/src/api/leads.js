@@ -74,3 +74,13 @@ export function getLeadStatistics() {
     method: 'get'
   })
 }
+
+/**
+ * 删除线索
+ */
+export function deleteLead(id) {
+  return request({
+    url: `/leads/${id}`,
+    method: 'delete'
+  })
+}

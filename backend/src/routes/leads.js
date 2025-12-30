@@ -30,4 +30,7 @@ router.put('/:id/assign', leadController.assignLead);
 // 放弃线索
 router.put('/:id/abandon', leadController.abandonLead);
 
+// 删除线索
+router.delete('/:id', leadController.deleteLead);
+
 module.exports = router;

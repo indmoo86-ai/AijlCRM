@@ -70,3 +70,11 @@ export function abandonLead(id, data) {
     data
   })
 }
+
+// 删除线索
+export function deleteLead(id) {
+  return request({
+    url: `/leads/${id}`,
+    method: 'delete'
+  })
+}

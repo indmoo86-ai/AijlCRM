@@ -163,7 +163,8 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="700px"
+      width="90%"
+      style="max-width: 1200px"
       @close="resetForm"
     >
       <el-form
@@ -299,7 +300,7 @@ const formRules = {
 const fetchCustomers = async () => {
   try {
     const res = await getCustomerList({ pageSize: 1000 })
-    customers.value = res.data.rows || []
+    customers.value = res.data.list || res.data.rows || []
   } catch (error) {
     console.error('Failed to fetch customers:', error)
   }
@@ -315,8 +316,8 @@ const fetchData = async () => {
       ...searchForm
     }
     const res = await getQuotationList(params)
-    tableData.value = res.data.rows || []
-    pagination.total = res.data.total || 0
+    tableData.value = res.data.list || res.data.rows || []
+    pagination.total = res.data.pagination?.total || res.data.total || 0
   } catch (error) {
     console.error('Failed to fetch quotations:', error)
   } finally {

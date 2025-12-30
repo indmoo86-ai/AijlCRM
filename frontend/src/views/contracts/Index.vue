@@ -162,7 +162,8 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="800px"
+      width="90%"
+      style="max-width: 1200px"
       @close="resetForm"
     >
       <el-form
@@ -262,7 +263,8 @@
     <el-dialog
       v-model="progressDialogVisible"
       title="合同执行进度"
-      width="600px"
+      width="90%"
+      style="max-width: 800px"
     >
       <el-descriptions :column="2" border v-if="currentContract.contract_id">
         <el-descriptions-item label="合同编号" :span="2">
@@ -364,7 +366,7 @@ const formRules = {
 const fetchCustomers = async () => {
   try {
     const res = await getCustomerList({ pageSize: 1000 })
-    customers.value = res.data.rows || []
+    customers.value = res.data.list || res.data.rows || []
   } catch (error) {
     console.error('Failed to fetch customers:', error)
   }
@@ -380,8 +382,8 @@ const fetchData = async () => {
       ...searchForm
     }
     const res = await getContractList(params)
-    tableData.value = res.data.rows || []
-    pagination.total = res.data.total || 0
+    tableData.value = res.data.list || res.data.rows || []
+    pagination.total = res.data.pagination?.total || res.data.total || 0
   } catch (error) {
     console.error('Failed to fetch contracts:', error)
   } finally {

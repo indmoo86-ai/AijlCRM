@@ -7,6 +7,8 @@ const ContractAmendment = require('../models/ContractAmendment');
 const Shipment = require('../models/Shipment');
 const Payment = require('../models/Payment');
 const Product = require('../models/Product');
+const Customer = require('../models/Customer');
+const User = require('../models/User');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -35,6 +37,10 @@ exports.getContractList = async (req, res) => {
 
     const { count, rows } = await Contract.findAndCountAll({
       where,
+      include: [
+        { model: Customer, as: 'customer', attributes: ['id', 'customerName'] },
+        { model: User, as: 'owner', attributes: ['id', 'username', 'name'] }
+      ],
       order: [['created_at', 'DESC']],
       limit: parseInt(pageSize),
       offset: parseInt(offset)

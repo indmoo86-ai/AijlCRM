@@ -160,9 +160,6 @@
               <el-button link type="primary" size="small" @click="handleEdit(row)">
                 编辑
               </el-button>
-              <el-button link type="success" size="small" @click="handleConvert(row)">
-                转客户
-              </el-button>
               <el-button link type="danger" size="small" @click="handleDelete(row)">
                 删除
               </el-button>
@@ -188,7 +185,8 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="750px"
+      width="90%"
+      style="max-width: 1200px"
       @close="resetForm"
     >
       <el-form
@@ -278,9 +276,9 @@
           </el-row>
         </el-form-item>
 
-        <!-- 第四行：来源渠道、意向程度 -->
+        <!-- 第四行：来源渠道、客户经理、意向程度 -->
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="来源渠道" prop="channelSource">
               <el-select v-model="form.channelSource" placeholder="请选择" style="width: 100%">
                 <el-option label="官网咨询" value="website" />
@@ -293,38 +291,7 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="意向程度" prop="intentionLevel">
-              <el-select v-model="form.intentionLevel" placeholder="请选择" style="width: 100%">
-                <el-option label="高" value="high" />
-                <el-option label="中" value="medium" />
-                <el-option label="低" value="low" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <!-- 第五行：需求分类、客户经理 -->
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="需求分类" prop="demandCategories">
-              <el-select
-                v-model="form.demandCategories"
-                multiple
-                placeholder="请选择（可多选）"
-                style="width: 100%"
-              >
-                <el-option label="无人酒店" value="unmanned_hotel" />
-                <el-option label="自助入住" value="self_checkin" />
-                <el-option label="智能客控" value="smart_room_control" />
-                <el-option label="送货机器人" value="delivery_robot" />
-                <el-option label="酒管系统" value="pms" />
-                <el-option label="酒店门锁" value="hotel_lock" />
-                <el-option label="其他" value="other" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="客户经理" prop="salesOwnerId">
               <el-select
                 v-model="form.salesOwnerId"
@@ -341,7 +308,34 @@
               </el-select>
             </el-form-item>
           </el-col>
+          <el-col :span="8">
+            <el-form-item label="意向程度" prop="intentionLevel">
+              <el-select v-model="form.intentionLevel" placeholder="请选择" style="width: 100%">
+                <el-option label="高" value="high" />
+                <el-option label="中" value="medium" />
+                <el-option label="低" value="low" />
+              </el-select>
+            </el-form-item>
+          </el-col>
         </el-row>
+
+        <!-- 第五行：需求分类（占满一行） -->
+        <el-form-item label="需求分类" prop="demandCategories">
+          <el-select
+            v-model="form.demandCategories"
+            multiple
+            placeholder="请选择（可多选）"
+            style="width: 100%"
+          >
+            <el-option label="无人酒店" value="unmanned_hotel" />
+            <el-option label="自助入住" value="self_checkin" />
+            <el-option label="智能客控" value="smart_room_control" />
+            <el-option label="送货机器人" value="delivery_robot" />
+            <el-option label="酒管系统" value="pms" />
+            <el-option label="酒店门锁" value="hotel_lock" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </el-form-item>
 
         <!-- 第六行：需求描述 -->
         <el-form-item label="需求描述" prop="requirement">
@@ -368,7 +362,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
-import { getLeadList, createLead, updateLead, convertToCustomer, deleteLead } from '@/api/leads'
+import { getLeadList, createLead, updateLead, deleteLead } from '@/api/leads'
 import { getUserList } from '@/api/users'
 import dayjs from 'dayjs'
 import { regionData, codeToText } from 'element-china-area-data'
@@ -448,6 +442,9 @@ const formRules = {
   ],
   intentionLevel: [
     { required: true, message: '请选择意向程度', trigger: 'change' }
+  ],
+  demandCategories: [
+    { required: true, type: 'array', min: 1, message: '请选择需求分类', trigger: 'change' }
   ]
 }
 
@@ -688,29 +685,6 @@ const handleEdit = (row) => {
 // 查看
 const handleView = (row) => {
   ElMessage.info('查看详情功能开发中')
-}
-
-// 转客户
-const handleConvert = async (row) => {
-  try {
-    await ElMessageBox.confirm('确定要将此线索转为客户吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-
-    await convertToCustomer(row.id, {
-      customerType: 'single_hotel',
-      customerLevel: 'B'
-    })
-
-    ElMessage.success('转客户成功')
-    fetchData()
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Convert failed:', error)
-    }
-  }
 }
 
 // 删除

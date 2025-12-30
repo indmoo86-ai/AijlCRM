@@ -94,6 +94,16 @@ const Lead = sequelize.define('Lead', {
   remark: {
     type: DataTypes.TEXT
   },
+  demandCategories: {
+    type: DataTypes.TEXT,
+    field: 'demand_categories',
+    comment: '需求分类JSON数组'
+  },
+  createdBy: {
+    type: DataTypes.BIGINT,
+    field: 'created_by',
+    comment: '创建人ID'
+  },
   created_at: {
     type: DataTypes.DATE,
     allowNull: false,

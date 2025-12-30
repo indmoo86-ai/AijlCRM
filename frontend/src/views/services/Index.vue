@@ -95,8 +95,12 @@
             {{ row.customer?.customerName || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="product_name" label="产品名称" width="150" />
+
+        <el-table-column prop="product" label="产品名称" width="150">
+          <template #default="{ row }">
+            {{ row.product?.product_name || '-' }}
+          </template>
+        </el-table-column>
         
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
@@ -188,7 +192,8 @@
     <el-dialog
       v-model="dialogVisible"
       title="新建售后工单"
-      width="900px"
+      width="90%"
+      style="max-width: 1200px"
       @close="resetForm"
     >
       <el-form
@@ -383,7 +388,7 @@ const formRules = {
 const fetchCustomers = async () => {
   try {
     const res = await getCustomerList({ pageSize: 1000 })
-    customers.value = res.data.rows || []
+    customers.value = res.data.list || res.data.rows || []
   } catch (error) {
     console.error('Failed to fetch customers:', error)
   }
@@ -393,7 +398,7 @@ const fetchCustomers = async () => {
 const fetchContracts = async () => {
   try {
     const res = await getContractList({ pageSize: 1000 })
-    contracts.value = res.data.rows || []
+    contracts.value = res.data.list || res.data.rows || []
   } catch (error) {
     console.error('Failed to fetch contracts:', error)
   }
@@ -403,7 +408,7 @@ const fetchContracts = async () => {
 const fetchProducts = async () => {
   try {
     const res = await getProductList({ pageSize: 1000 })
-    products.value = res.data.rows || []
+    products.value = res.data.list || res.data.rows || []
   } catch (error) {
     console.error('Failed to fetch products:', error)
   }
@@ -419,7 +424,7 @@ const fetchData = async () => {
       ...searchForm
     }
     const res = await getServiceTicketList(params)
-    tableData.value = res.data.rows || []
+    tableData.value = res.data.list || res.data.rows || []
     pagination.total = res.data.total || 0
   } catch (error) {
     console.error('Failed to fetch service tickets:', error)

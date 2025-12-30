@@ -81,6 +81,30 @@ const routes = [
         meta: { title: '合同详情', hidden: true }
       },
       {
+        path: 'shipments',
+        name: 'Shipments',
+        component: () => import('@/views/shipments/Index.vue'),
+        meta: { title: '发货管理', icon: 'Van' }
+      },
+      {
+        path: 'payments',
+        name: 'Payments',
+        component: () => import('@/views/payments/Index.vue'),
+        meta: { title: '收款管理', icon: 'Money' }
+      },
+      {
+        path: 'invoices',
+        name: 'Invoices',
+        component: () => import('@/views/invoices/Index.vue'),
+        meta: { title: '发票管理', icon: 'Ticket' }
+      },
+      {
+        path: 'service-tickets',
+        name: 'ServiceTickets',
+        component: () => import('@/views/services/Index.vue'),
+        meta: { title: '售后管理', icon: 'Service' }
+      },
+      {
         path: 'tasks',
         name: 'Tasks',
         component: () => import('@/views/tasks/Index.vue'),

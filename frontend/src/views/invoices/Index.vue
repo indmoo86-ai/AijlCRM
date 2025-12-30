@@ -170,7 +170,8 @@
     <el-dialog
       v-model="dialogVisible"
       title="新建发票"
-      width="900px"
+      width="90%"
+      style="max-width: 1200px"
       @close="resetForm"
     >
       <el-form
@@ -354,7 +355,7 @@ const formRules = {
 const fetchContracts = async () => {
   try {
     const res = await getContractList({ pageSize: 1000, status: 'active' })
-    contracts.value = res.data.rows || []
+    contracts.value = res.data.list || res.data.rows || []
   } catch (error) {
     console.error('Failed to fetch contracts:', error)
   }
@@ -382,7 +383,7 @@ const fetchData = async () => {
       ...searchForm
     }
     const res = await getInvoiceList(params)
-    tableData.value = res.data.rows || []
+    tableData.value = res.data.list || res.data.rows || []
     pagination.total = res.data.total || 0
   } catch (error) {
     console.error('Failed to fetch invoices:', error)
