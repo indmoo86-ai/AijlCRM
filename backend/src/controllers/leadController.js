@@ -16,7 +16,9 @@ exports.getLeads = async (req, res) => {
       city,
       keyword,
       startDate,
-      endDate
+      endDate,
+      demandCategory,
+      intentionLevel
     } = req.query;
 
     const where = {};
@@ -28,6 +30,11 @@ exports.getLeads = async (req, res) => {
     if (mediaOwnerId) where.mediaOwnerId = mediaOwnerId;
     if (province) where.province = province;
     if (city) where.city = city;
+    if (intentionLevel) where.intentionLevel = intentionLevel;
+    // 需求分类搜索（demandCategories是JSON数组格式存储）
+    if (demandCategory) {
+      where.demandCategories = { [Op.like]: `%${demandCategory}%` };
+    }
 
     // 关键词搜索
     if (keyword) {
@@ -59,7 +66,8 @@ exports.getLeads = async (req, res) => {
       where,
       include: [
         { model: User, as: 'salesOwner', attributes: ['id', 'name'] },
-        { model: User, as: 'mediaOwner', attributes: ['id', 'name'] }
+        { model: User, as: 'mediaOwner', attributes: ['id', 'name'] },
+        { model: User, as: 'createdByUser', attributes: ['id', 'name'] }
       ],
       order: [['created_at', 'DESC']],
       limit: parseInt(pageSize),
@@ -77,22 +85,69 @@ exports.getLeads = async (req, res) => {
 // 创建线索
 exports.createLead = async (req, res) => {
   try {
-    const leadData = req.body;
+    console.log('创建线索请求体:', JSON.stringify(req.body, null, 2));
+    console.log('当前用户:', req.user);
+
+    // 支持驼峰和下划线两种命名方式
+    const leadData = {
+      customerName: req.body.customerName || req.body.customer_name,
+      hotelName: req.body.hotelName || req.body.hotel_name || req.body.customer_name,
+      province: req.body.province,
+      city: req.body.city,
+      district: req.body.district,
+      address: req.body.address,
+      roomCount: req.body.roomCount || req.body.room_count,
+      phone: req.body.phone || req.body.contact_phone,
+      wechat: req.body.wechat,
+      channelSource: req.body.channelSource || req.body.channel_source || req.body.source || 'other',
+      firstDemand: req.body.firstDemand || req.body.first_demand || req.body.requirement || req.body.notes,
+      mediaOwnerId: req.body.mediaOwnerId || req.body.media_owner_id,
+      salesOwnerId: req.body.salesOwnerId || req.body.sales_owner_id || req.user?.id,
+      status: req.body.status || 1,
+      intentionLevel: req.body.intentionLevel || req.body.intention_level || req.body.priority,
+      expectedSignDate: req.body.expectedSignDate || req.body.expected_sign_date || req.body.expected_close_date,
+      estimatedAmount: req.body.estimatedAmount || req.body.estimated_amount,
+      contactPerson: req.body.contactPerson || req.body.contact_person,
+      contactEmail: req.body.contactEmail || req.body.contact_email,
+      demandCategories: req.body.demandCategories || req.body.demand_categories,
+      createdBy: req.user?.id
+    };
 
     // 生成线索编号
     leadData.leadNo = await Lead.generateLeadNo();
 
-    // 设置默认状态
-    if (!leadData.status) {
-      leadData.status = 1; // 新建
-    }
+    console.log('准备创建线索数据:', JSON.stringify(leadData, null, 2));
 
     const lead = await Lead.create(leadData);
 
-    // 返回标准化的响应格式，包含leadId字段
+    // 自动创建对应的客户
+    const customerNo = await Customer.generateCustomerNo();
+    const customer = await Customer.create({
+      customerNo,
+      customerName: leadData.customerName || leadData.hotelName,
+      customerType: 1, // 潜在客户
+      province: leadData.province,
+      city: leadData.city,
+      district: leadData.district,
+      address: leadData.address,
+      roomCount: leadData.roomCount,
+      salesOwnerId: leadData.salesOwnerId,
+      sourceLeadId: lead.id,
+      totalAmount: 0,
+      contractCount: 0,
+      referralCount: 0
+    });
+
+    // 更新线索关联的客户ID
+    await lead.update({ customerId: customer.id });
+
+    // 返回标准化的响应格式，包含leadId和customerId字段
     const responseData = {
       leadId: lead.id,
-      ...lead.toJSON()
+      customerId: customer.id,
+      customerNo: customer.customerNo,
+      ...lead.toJSON(),
+      customer: customer.toJSON()
     };
 
     return success(res, responseData, '创建成功', 201);
@@ -190,11 +245,22 @@ exports.addFollowUp = async (req, res) => {
       return error(res, '无权操作', 403);
     }
 
+    // 支持驼峰和下划线两种命名方式
+    const followType = followUpData.followType || followUpData.follow_type;
+    const content = followUpData.content;
+    const nextFollowTime = followUpData.nextFollowTime || followUpData.next_follow_time;
+    const nextFollowPlan = followUpData.nextFollowPlan || followUpData.next_follow_plan;
+    const intentionLevel = followUpData.intentionLevel || followUpData.intention_level;
+
     // 创建跟进记录
     const followUp = await FollowUp.create({
       bizType: 1, // 线索
       bizId: id,
-      ...followUpData,
+      followType,
+      content,
+      nextFollowTime,
+      nextFollowPlan,
+      intentionLevel,
       operatorId: req.user.id
     });
 
@@ -255,7 +321,7 @@ exports.convertToCustomer = async (req, res) => {
     // 生成客户编号
     const customerNo = await Customer.generateCustomerNo();
 
-    // 创建客户
+    // 创建客户 (salesOwnerId必填，如果线索没有则使用当前用户)
     const customer = await Customer.create({
       customerNo,
       customerName: customerName || lead.hotelName,
@@ -266,7 +332,7 @@ exports.convertToCustomer = async (req, res) => {
       district: lead.district,
       address: lead.address,
       roomCount: lead.roomCount,
-      salesOwnerId: lead.salesOwnerId,
+      salesOwnerId: lead.salesOwnerId || req.user.id,
       sourceLeadId: id
     });
 
@@ -354,5 +420,36 @@ exports.abandonLead = async (req, res) => {
   } catch (err) {
     console.error('放弃线索错误:', err);
     return error(res, '操作失败', 500);
+  }
+};
+
+// 删除线索
+exports.deleteLead = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const lead = await Lead.findByPk(id);
+    if (!lead) {
+      return error(res, '线索不存在', 404);
+    }
+
+    // 权限检查：只有管理员或线索负责人可删除
+    if (req.user.role === 1 && lead.salesOwnerId !== req.user.id) {
+      return error(res, '无权操作', 403);
+    }
+
+    // 已转化的线索不可删除
+    if (lead.status === 3) {
+      return error(res, '已转化的线索不可删除', 400);
+    }
+
+    await lead.destroy();
+
+    return success(res, null, '删除成功');
+
+  } catch (err) {
+    console.error('删除线索错误:', err);
+    console.error('错误详情:', err.message);
+    return error(res, '删除失败', 500);
   }
 };

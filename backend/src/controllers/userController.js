@@ -8,20 +8,21 @@ const { Op } = require('sequelize');
 // 获取用户列表
 exports.getUserList = async (req, res) => {
   try {
-    const { page = 1, pageSize = 20, is_active, keyword } = req.query;
+    const { page = 1, pageSize = 20, status, keyword } = req.query;
 
     const where = {};
-    if (is_active !== undefined) where.is_active = is_active;
+    if (status !== undefined) where.status = status;
     if (keyword) {
       where[Op.or] = [
-        { real_name: { [Op.like]: `%${keyword}%` } },
-        { mobile: { [Op.like]: `%${keyword}%` } }
+        { name: { [Op.like]: `%${keyword}%` } },
+        { phone: { [Op.like]: `%${keyword}%` } },
+        { username: { [Op.like]: `%${keyword}%` } }
       ];
     }
 
     const { count, rows } = await User.findAndCountAll({
       where,
-      attributes: { exclude: ['password_hash'] },
+      attributes: { exclude: ['password'] },
       limit: parseInt(pageSize),
       offset: (parseInt(page) - 1) * parseInt(pageSize),
       order: [['created_at', 'DESC']]
@@ -30,6 +31,7 @@ exports.getUserList = async (req, res) => {
     return paginate(res, rows, page, pageSize, count);
   } catch (err) {
     console.error('查询用户列表错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '查询失败', 500);
   }
 };

@@ -49,6 +49,7 @@ const invoiceRoutes = require('./routes/invoices');
 const serviceTicketRoutes = require('./routes/serviceTickets');
 const attachmentRoutes = require('./routes/attachments');
 const dashboardRoutes = require('./routes/dashboard');
+const userRoutes = require('./routes/users');
 
 // 注册路由
 app.use('/api/auth', authRoutes);
@@ -64,6 +65,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/service-tickets', serviceTicketRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/users', userRoutes);
 
 // 404 处理
 app.use((req, res) => {

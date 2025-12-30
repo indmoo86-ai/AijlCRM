@@ -149,6 +149,62 @@
 
 ---
 
+---
+
+## 2025-12-30
+
+### 🚀 线索管理模块优化
+
+#### 表单字段优化
+- **变更内容**：
+  1. 移除"预估金额"字段（estimatedAmount）
+  2. 调整微信和房间数输入框宽度，与联系电话保持一致
+  3. 地区改为必选字段，添加自定义验证器
+  4. 新增"客户经理"下拉选择，从系统用户列表获取
+  5. 新增"需求分类"多选下拉（无人酒店、自助入住、智能客控、送货机器人、酒管系统、酒店门锁、其他）
+- **影响范围**：`frontend/src/views/leads/Index.vue`
+- **相关文档**：本次变更日志
+
+#### 列表筛选条件增强
+- **变更内容**：
+  1. 新增需求分类（demandCategory）筛选
+  2. 新增客户经理（salesOwnerId）筛选
+  3. 新增地区（province）筛选，使用中国省市区级联选择器
+  4. 新增意向程度（intentionLevel）筛选
+- **影响范围**：
+  - 前端：`frontend/src/views/leads/Index.vue`
+  - 后端：`backend/src/controllers/leadController.js`
+
+### 🔧 用户API模块新增
+
+#### 新增用户列表API
+- **变更内容**：
+  1. 新增 `backend/src/routes/users.js` 用户路由
+  2. 在 `backend/src/app.js` 注册 `/api/users` 路由
+  3. 新增 `frontend/src/api/users.js` 前端API封装
+  4. 修复 `backend/src/controllers/userController.js` 字段映射问题
+- **API端点**：
+  - `GET /api/users` - 获取用户列表（支持分页和搜索）
+  - `POST /api/users` - 创建用户
+  - `PUT /api/users/:id` - 更新用户
+  - `PUT /api/users/:id/status` - 更新用户状态
+  - `PUT /api/users/:id/roles` - 分配用户角色
+- **影响范围**：用户管理模块、线索管理模块（客户经理选择）
+
+### 🐛 Bug修复
+
+#### 用户控制器字段映射修复
+- **问题**：userController 使用了错误的字段名（real_name, mobile, password_hash）
+- **解决方案**：更正为与 User 模型一致的字段名（name, phone, password）
+- **影响范围**：`backend/src/controllers/userController.js`
+
+#### 线索筛选参数修复
+- **问题**：前端传 customerName 参数，后端期望 keyword 参数
+- **解决方案**：前端统一使用 keyword 参数名
+- **影响范围**：`frontend/src/views/leads/Index.vue`
+
+---
+
 **维护责任**：所有开发人员
 **更新频率**：每次重要变更后立即更新
-**最后更新**：2025-12-28
+**最后更新**：2025-12-30
