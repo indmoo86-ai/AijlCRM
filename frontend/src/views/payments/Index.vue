@@ -63,31 +63,31 @@
         show-summary
         :summary-method="getSummaries"
       >
-        <el-table-column prop="payment_no" label="收款编号" width="150" />
-        
-        <el-table-column prop="contract" label="合同编号" width="150">
+        <el-table-column prop="payment_no" label="收款编号" width="140" />
+
+        <el-table-column prop="contract" label="合同编号" width="130">
           <template #default="{ row }">
             {{ row.contract?.contract_no || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="customer" label="客户名称" width="180">
+
+        <el-table-column prop="customer" label="客户名称" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.customer?.customerName || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="payment_stage" label="收款阶段" width="120" />
-        
-        <el-table-column prop="payment_amount" label="收款金额" width="130" align="right">
+
+        <el-table-column prop="payment_stage" label="收款阶段" min-width="100" />
+
+        <el-table-column prop="payment_amount" label="收款金额" width="110" align="right">
           <template #default="{ row }">
             ¥{{ formatAmount(row.payment_amount) }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="payment_date" label="收款日期" width="120" />
-        
-        <el-table-column prop="payment_method" label="收款方式" width="120">
+
+        <el-table-column prop="payment_date" label="收款日期" width="100" />
+
+        <el-table-column prop="payment_method" label="收款方式" width="90">
           <template #default="{ row }">
             <span v-if="row.payment_method === 'bank_transfer'">银行转账</span>
             <span v-else-if="row.payment_method === 'cash'">现金</span>
@@ -96,10 +96,10 @@
             <span v-else>{{ row.payment_method }}</span>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="transaction_no" label="交易单号" width="150" />
-        
-        <el-table-column prop="status" label="状态" width="100">
+
+        <el-table-column prop="transaction_no" label="交易单号" min-width="130" />
+
+        <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag v-if="row.status === 'pending'" type="warning">待确认</el-tag>
             <el-tag v-else-if="row.status === 'confirmed'" type="success">已确认</el-tag>
@@ -107,14 +107,14 @@
             <el-tag v-else>{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="created_at" label="创建时间" width="160">
+
+        <el-table-column prop="created_at" label="创建时间" width="150">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        
-        <el-table-column label="操作" width="240" fixed="right">
+
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">
@@ -127,7 +127,7 @@
                 size="small"
                 @click="handleConfirm(row)"
               >
-                确认收款
+                确认
               </el-button>
               <el-button
                 v-if="row.status === 'confirmed'"

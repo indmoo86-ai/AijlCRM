@@ -83,6 +83,11 @@ const Lead = sequelize.define('Lead', {
     type: DataTypes.BIGINT,
     field: 'referrer_customer_id'
   },
+  customerId: {
+    type: DataTypes.BIGINT,
+    field: 'customer_id',
+    comment: '关联客户ID'
+  },
   lastFollowTime: {
     type: DataTypes.DATE,
     field: 'last_follow_time'
@@ -103,6 +108,12 @@ const Lead = sequelize.define('Lead', {
     type: DataTypes.BIGINT,
     field: 'created_by',
     comment: '创建人ID'
+  },
+  warningLevel: {
+    type: DataTypes.TINYINT,
+    field: 'warning_level',
+    defaultValue: 0,
+    comment: '预警级别：0正常(绿色)/1轻度预警(橙色)/2严重预警(红色)'
   },
   created_at: {
     type: DataTypes.DATE,

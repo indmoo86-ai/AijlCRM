@@ -64,39 +64,39 @@
         show-summary
         :summary-method="getSummaries"
       >
-        <el-table-column prop="invoice_no" label="发票号码" width="150" />
-        
-        <el-table-column prop="contract" label="合同编号" width="150">
+        <el-table-column prop="invoice_no" label="发票号码" width="140" />
+
+        <el-table-column prop="contract" label="合同编号" width="130">
           <template #default="{ row }">
             {{ row.contract?.contract_no || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="customer" label="客户名称" width="180">
+
+        <el-table-column prop="customer" label="客户名称" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.customer?.customerName || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="invoice_type" label="发票类型" width="120">
+
+        <el-table-column prop="invoice_type" label="发票类型" width="100">
           <template #default="{ row }">
-            <span v-if="row.invoice_type === 'vat_normal'">增值税普通发票</span>
-            <span v-else-if="row.invoice_type === 'vat_special'">增值税专用发票</span>
+            <span v-if="row.invoice_type === 'vat_normal'">普票</span>
+            <span v-else-if="row.invoice_type === 'vat_special'">专票</span>
             <span v-else>{{ row.invoice_type }}</span>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="invoice_amount" label="开票金额" width="130" align="right">
+
+        <el-table-column prop="invoice_amount" label="开票金额" width="110" align="right">
           <template #default="{ row }">
             ¥{{ formatAmount(row.invoice_amount) }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="invoice_date" label="开票日期" width="120" />
-        
-        <el-table-column prop="invoice_title" label="发票抬头" width="200" />
-        
-        <el-table-column prop="status" label="状态" width="100">
+
+        <el-table-column prop="invoice_date" label="开票日期" width="100" />
+
+        <el-table-column prop="invoice_title" label="发票抬头" min-width="160" show-overflow-tooltip />
+
+        <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag v-if="row.status === 'pending'" type="warning">待开票</el-tag>
             <el-tag v-else-if="row.status === 'issued'" type="success">已开票</el-tag>
@@ -105,14 +105,14 @@
             <el-tag v-else>{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="created_at" label="创建时间" width="160">
+
+        <el-table-column prop="created_at" label="创建时间" width="150">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        
-        <el-table-column label="操作" width="240" fixed="right">
+
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">
@@ -125,7 +125,7 @@
                 size="small"
                 @click="handleConfirm(row)"
               >
-                确认开票
+                开票
               </el-button>
               <el-button
                 v-if="row.status === 'issued'"
@@ -134,7 +134,7 @@
                 size="small"
                 @click="handleMail(row)"
               >
-                确认邮寄
+                邮寄
               </el-button>
               <el-button
                 v-if="row.status === 'issued'"

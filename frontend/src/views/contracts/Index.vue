@@ -63,22 +63,22 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column prop="contract_no" label="合同编号" width="150" />
-        <el-table-column prop="contract_title" label="合同标题" width="200" />
-        
-        <el-table-column prop="customer" label="客户名称" width="180">
+        <el-table-column prop="contract_no" label="合同编号" width="140" />
+        <el-table-column prop="contract_title" label="合同标题" min-width="160" show-overflow-tooltip />
+
+        <el-table-column prop="customer" label="客户名称" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.customer?.customerName || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="contract_amount" label="合同金额" width="130" align="right">
+
+        <el-table-column prop="contract_amount" label="合同金额" width="110" align="right">
           <template #default="{ row }">
             ¥{{ formatAmount(row.contract_amount) }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="status" label="状态" width="100">
+
+        <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag v-if="row.status === 'draft'" type="info">草稿</el-tag>
             <el-tag v-else-if="row.status === 'pending'" type="warning">待签署</el-tag>
@@ -88,29 +88,29 @@
             <el-tag v-else>{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="signed_date" label="签订日期" width="120" />
-        <el-table-column prop="delivery_deadline" label="交付期限" width="120" />
-        
-        <el-table-column prop="shipped_amount" label="已发货金额" width="120" align="right">
+
+        <el-table-column prop="signed_date" label="签订日期" width="100" />
+        <el-table-column prop="delivery_deadline" label="交付期限" width="100" />
+
+        <el-table-column prop="shipped_amount" label="已发货" width="100" align="right">
           <template #default="{ row }">
             ¥{{ formatAmount(row.shipped_amount) }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="received_amount" label="已收款金额" width="120" align="right">
+
+        <el-table-column prop="received_amount" label="已收款" width="100" align="right">
           <template #default="{ row }">
             ¥{{ formatAmount(row.received_amount) }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="created_at" label="创建时间" width="160">
+
+        <el-table-column prop="created_at" label="创建时间" width="150">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        
-        <el-table-column label="操作" width="260" fixed="right">
+
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">
@@ -306,21 +306,34 @@
         <el-button @click="progressDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 合同详情抽屉 -->
+    <ContractDetail
+      v-model="detailDrawerVisible"
+      :contract-id="selectedContractId"
+      @refresh="fetchData"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
 import { getContractList, createContract, updateContract, deleteContract, signContract, getContractProgress } from '@/api/contracts'
 import { getCustomerList } from '@/api/customers'
+import ContractDetail from './components/ContractDetail.vue'
 import dayjs from 'dayjs'
+
+const route = useRoute()
 
 const loading = ref(false)
 const submitLoading = ref(false)
 const dialogVisible = ref(false)
 const progressDialogVisible = ref(false)
+const detailDrawerVisible = ref(false)
+const selectedContractId = ref(null)
 const dialogTitle = ref('新建合同')
 const formRef = ref(null)
 const tableData = ref([])
@@ -440,9 +453,10 @@ const handleEdit = (row) => {
   dialogVisible.value = true
 }
 
-// 查看
+// 查看详情
 const handleView = (row) => {
-  ElMessage.info('查看详情功能开发中')
+  selectedContractId.value = row.contract_id
+  detailDrawerVisible.value = true
 }
 
 // 签署合同
@@ -578,9 +592,18 @@ const formatAmount = (amount) => {
 }
 
 // 组件挂载时获取数据
-onMounted(() => {
+onMounted(async () => {
   fetchCustomers()
-  fetchData()
+  await fetchData()
+
+  // 如果URL带有viewId参数，自动打开合同详情
+  if (route.query.viewId) {
+    const contractId = parseInt(route.query.viewId)
+    if (contractId) {
+      selectedContractId.value = contractId
+      detailDrawerVisible.value = true
+    }
+  }
 })
 </script>
 

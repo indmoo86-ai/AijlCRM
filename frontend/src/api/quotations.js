@@ -115,3 +115,75 @@ export function deleteQuotationItem(quotationId, itemId) {
     method: 'delete'
   })
 }
+
+/**
+ * 根据线索ID获取最新报价单
+ */
+export function getLatestQuotationByLead(leadId) {
+  return request({
+    url: `/quotations/lead/${leadId}/latest`,
+    method: 'get'
+  })
+}
+
+/**
+ * 根据线索ID获取所有报价单历史
+ */
+export function getQuotationsByLead(leadId) {
+  return request({
+    url: `/quotations/lead/${leadId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 作废报价单
+ */
+export function voidQuotation(id) {
+  return request({
+    url: `/quotations/${id}/void`,
+    method: 'put'
+  })
+}
+
+/**
+ * 修改报价单（生成新版本）
+ */
+export function reviseQuotation(id, data) {
+  return request({
+    url: `/quotations/${id}/revise`,
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 获取报价单PDF数据
+ */
+export function getQuotationPDF(id) {
+  return request({
+    url: `/quotations/${id}/pdf`,
+    method: 'get'
+  })
+}
+
+/**
+ * 发送报价单
+ */
+export function sendQuotation(id) {
+  return request({
+    url: `/quotations/${id}/send`,
+    method: 'put'
+  })
+}
+
+/**
+ * 导出报价单Excel
+ */
+export function exportQuotationExcel(id) {
+  return request({
+    url: `/quotations/${id}/export-excel`,
+    method: 'get',
+    responseType: 'blob'
+  })
+}

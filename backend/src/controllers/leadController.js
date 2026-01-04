@@ -18,7 +18,8 @@ exports.getLeads = async (req, res) => {
       startDate,
       endDate,
       demandCategory,
-      intentionLevel
+      intentionLevel,
+      warningLevel
     } = req.query;
 
     const where = {};
@@ -31,6 +32,10 @@ exports.getLeads = async (req, res) => {
     if (province) where.province = province;
     if (city) where.city = city;
     if (intentionLevel) where.intentionLevel = intentionLevel;
+    // 预警状态筛选
+    if (warningLevel !== undefined && warningLevel !== '') {
+      where.warningLevel = parseInt(warningLevel);
+    }
     // 需求分类搜索（demandCategories是JSON数组格式存储）
     if (demandCategory) {
       where.demandCategories = { [Op.like]: `%${demandCategory}%` };
@@ -74,7 +79,43 @@ exports.getLeads = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    return paginate(res, rows, page, pageSize, count);
+    // 获取每个线索的最新跟踪记录
+    const leadIds = rows.map(lead => lead.id).filter(Boolean);
+    let followUpMap = {};
+
+    if (leadIds.length > 0) {
+      const latestFollowUps = await FollowUp.findAll({
+        where: {
+          bizType: 1,
+          bizId: { [Op.in]: leadIds }
+        },
+        include: [{ model: User, as: 'operator', attributes: ['id', 'name'] }],
+        order: [['created_at', 'DESC']]
+      });
+
+      console.log(`[getLeads] 查询线索IDs: ${leadIds.join(',')}, 找到跟踪记录: ${latestFollowUps.length}条`);
+
+      // 按线索ID分组，取每个线索的最新跟踪记录
+      latestFollowUps.forEach(followUp => {
+        if (!followUpMap[followUp.bizId]) {
+          followUpMap[followUp.bizId] = followUp;
+        }
+      });
+
+      console.log(`[getLeads] followUpMap keys: ${Object.keys(followUpMap).join(',')}`);
+    }
+
+    // 将最新跟踪记录附加到线索数据
+    const rowsWithFollowUp = rows.map(lead => {
+      const leadJson = lead.toJSON();
+      leadJson.latestFollowUp = followUpMap[lead.id] || null;
+      return leadJson;
+    });
+
+    const withFollowUpCount = rowsWithFollowUp.filter(r => r.latestFollowUp).length;
+    console.log(`[getLeads] 返回 ${rowsWithFollowUp.length} 条线索，其中 ${withFollowUpCount} 条有跟踪记录`);
+
+    return paginate(res, rowsWithFollowUp, page, pageSize, count);
 
   } catch (err) {
     console.error('获取线索列表错误:', err);
@@ -109,9 +150,16 @@ exports.createLead = async (req, res) => {
       estimatedAmount: req.body.estimatedAmount || req.body.estimated_amount,
       contactPerson: req.body.contactPerson || req.body.contact_person,
       contactEmail: req.body.contactEmail || req.body.contact_email,
-      demandCategories: req.body.demandCategories || req.body.demand_categories,
       createdBy: req.user?.id
     };
+
+    // 处理需求分类：如果是数组则转为JSON字符串
+    const demandCategories = req.body.demandCategories || req.body.demand_categories;
+    if (demandCategories) {
+      leadData.demandCategories = Array.isArray(demandCategories)
+        ? JSON.stringify(demandCategories)
+        : demandCategories;
+    }
 
     // 生成线索编号
     leadData.leadNo = await Lead.generateLeadNo();
@@ -164,6 +212,19 @@ exports.createLead = async (req, res) => {
       console.log(`创建新客户(ID:${customer.id})，客户编号:${customer.customerNo}`);
     }
 
+    // 创建跟踪记录
+    try {
+      await FollowUp.create({
+        bizType: 1, // 线索
+        bizId: lead.id,
+        followType: 'create',
+        content: `创建了线索，客户：${leadData.customerName || leadData.hotelName}，房间数：${leadData.roomCount || '-'}`,
+        operatorId: req.user?.id
+      });
+    } catch (followUpErr) {
+      console.error('创建跟踪记录失败:', followUpErr);
+    }
+
     // 返回标准化的响应格式，包含leadId和customerId字段
     const responseData = {
       leadId: lead.id,
@@ -188,11 +249,18 @@ exports.createLead = async (req, res) => {
 exports.getLeadDetail = async (req, res) => {
   try {
     const { id } = req.params;
+    const { Quotation, Contract } = require('../models');
 
     const lead = await Lead.findByPk(id, {
       include: [
         { model: User, as: 'salesOwner', attributes: ['id', 'name', 'phone'] },
-        { model: User, as: 'mediaOwner', attributes: ['id', 'name', 'phone'] }
+        { model: User, as: 'mediaOwner', attributes: ['id', 'name', 'phone'] },
+        { model: User, as: 'createdByUser', attributes: ['id', 'name'] },
+        {
+          model: Customer,
+          as: 'customer',
+          attributes: ['id', 'customerNo', 'customerName', 'customerType', 'phone', 'totalAmount', 'contractCount']
+        }
       ]
     });
 
@@ -212,13 +280,112 @@ exports.getLeadDetail = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    // 获取关联的报价单（优先通过lead_id，其次通过customer_id）
+    const { QuotationItem } = require('../models');
+    let quotations = [];
+    // 先通过lead_id查找
+    quotations = await Quotation.findAll({
+      where: { lead_id: id },
+      include: [
+        { model: User, as: 'owner', attributes: ['id', 'name'] },
+        { model: QuotationItem, as: 'items' }
+      ],
+      order: [['version', 'DESC'], ['created_at', 'DESC']],
+      limit: 20
+    });
+    // 如果没有找到，再通过customer_id查找
+    if (quotations.length === 0 && lead.customerId) {
+      quotations = await Quotation.findAll({
+        where: { customer_id: lead.customerId },
+        include: [
+          { model: User, as: 'owner', attributes: ['id', 'name'] },
+          { model: QuotationItem, as: 'items' }
+        ],
+        order: [['version', 'DESC'], ['created_at', 'DESC']],
+        limit: 20
+      });
+    }
+
+    // 获取关联的合同（通过lead_id或customer_id）
+    const { ContractItem } = require('../models');
+    let contracts = [];
+    // 先通过lead_id查找
+    contracts = await Contract.findAll({
+      where: { lead_id: id },
+      include: [
+        { model: User, as: 'owner', attributes: ['id', 'name'] },
+        { model: ContractItem, as: 'items' }
+      ],
+      order: [['created_at', 'DESC']],
+      limit: 10
+    });
+    // 如果没有找到，再通过customer_id查找
+    if (contracts.length === 0 && lead.customerId) {
+      contracts = await Contract.findAll({
+        where: { customer_id: lead.customerId },
+        include: [
+          { model: User, as: 'owner', attributes: ['id', 'name'] },
+          { model: ContractItem, as: 'items' }
+        ],
+        order: [['created_at', 'DESC']],
+        limit: 10
+      });
+    }
+
+    // 计算时间提醒
+    const now = new Date();
+    const timeReminders = [];
+
+    // 下次跟进日期提醒
+    if (lead.nextFollowDate) {
+      const nextFollowDate = new Date(lead.nextFollowDate);
+      const diffDays = Math.ceil((nextFollowDate - now) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) {
+        timeReminders.push({ type: 'overdue', message: `已逾期${Math.abs(diffDays)}天未跟进`, date: lead.nextFollowDate });
+      } else if (diffDays === 0) {
+        timeReminders.push({ type: 'today', message: '今日需跟进', date: lead.nextFollowDate });
+      } else if (diffDays <= 3) {
+        timeReminders.push({ type: 'upcoming', message: `${diffDays}天后需跟进`, date: lead.nextFollowDate });
+      }
+    }
+
+    // 预期签约日期提醒
+    if (lead.expectedSignDate) {
+      const expectedDate = new Date(lead.expectedSignDate);
+      const diffDays = Math.ceil((expectedDate - now) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) {
+        timeReminders.push({ type: 'overdue', message: `预期签约已过期${Math.abs(diffDays)}天`, date: lead.expectedSignDate });
+      } else if (diffDays <= 7) {
+        timeReminders.push({ type: 'upcoming', message: `距预期签约还有${diffDays}天`, date: lead.expectedSignDate });
+      }
+    }
+
+    // 长期未跟进提醒
+    if (lead.lastFollowTime) {
+      const lastFollow = new Date(lead.lastFollowTime);
+      const diffDays = Math.ceil((now - lastFollow) / (1000 * 60 * 60 * 24));
+      if (diffDays > 14) {
+        timeReminders.push({ type: 'warning', message: `已${diffDays}天未跟进`, date: lead.lastFollowTime });
+      }
+    } else if (lead.created_at) {
+      const createdAt = new Date(lead.created_at);
+      const diffDays = Math.ceil((now - createdAt) / (1000 * 60 * 60 * 24));
+      if (diffDays > 7) {
+        timeReminders.push({ type: 'warning', message: `创建${diffDays}天未跟进`, date: lead.created_at });
+      }
+    }
+
     return success(res, {
       lead,
-      followUps
+      followUps,
+      quotations,
+      contracts,
+      timeReminders
     });
 
   } catch (err) {
     console.error('获取线索详情错误:', err);
+    console.error('错误详情:', err.message);
     return error(res, '获取失败', 500);
   }
 };
@@ -244,7 +411,50 @@ exports.updateLead = async (req, res) => {
       return error(res, '已转化的线索不可编辑', 400);
     }
 
+    // 记录变更内容
+    const changes = [];
+    const oldData = lead.toJSON();
+
+    // 检测关键字段变更
+    const fieldLabels = {
+      customerName: '客户名称',
+      hotelName: '酒店名称',
+      phone: '联系电话',
+      wechat: '微信',
+      province: '省份',
+      city: '城市',
+      district: '区县',
+      roomCount: '房间数',
+      intentionLevel: '意向程度',
+      channelSource: '来源渠道',
+      firstDemand: '需求描述',
+      demandCategories: '需求分类'
+    };
+
+    for (const [field, label] of Object.entries(fieldLabels)) {
+      if (updateData[field] !== undefined && updateData[field] !== oldData[field]) {
+        const oldVal = oldData[field] || '-';
+        const newVal = updateData[field] || '-';
+        changes.push(`${label}: ${oldVal} → ${newVal}`);
+      }
+    }
+
     await lead.update(updateData);
+
+    // 创建跟踪记录
+    if (changes.length > 0) {
+      try {
+        await FollowUp.create({
+          bizType: 1, // 线索
+          bizId: lead.id,
+          followType: 'edit',
+          content: `编辑了线索信息：${changes.join('；')}`,
+          operatorId: req.user?.id
+        });
+      } catch (followUpErr) {
+        console.error('创建跟踪记录失败:', followUpErr);
+      }
+    }
 
     return success(res, lead, '更新成功');
 
@@ -273,9 +483,10 @@ exports.addFollowUp = async (req, res) => {
     // 支持驼峰和下划线两种命名方式
     const followType = followUpData.followType || followUpData.follow_type;
     const content = followUpData.content;
-    const nextFollowTime = followUpData.nextFollowTime || followUpData.next_follow_time;
+    const nextFollowDate = followUpData.nextFollowDate || followUpData.next_follow_date;
     const nextFollowPlan = followUpData.nextFollowPlan || followUpData.next_follow_plan;
     const intentionLevel = followUpData.intentionLevel || followUpData.intention_level;
+    const attachments = followUpData.attachments || followUpData.attachments;
 
     // 创建跟进记录
     const followUp = await FollowUp.create({
@@ -283,19 +494,23 @@ exports.addFollowUp = async (req, res) => {
       bizId: id,
       followType,
       content,
-      nextFollowTime,
-      nextFollowPlan,
+      nextFollowDate,
+      nextPlan: nextFollowPlan,
       intentionLevel,
+      attachments: attachments ? (typeof attachments === 'string' ? JSON.parse(attachments) : attachments) : null,
       operatorId: req.user.id
     });
 
     // 更新线索的最后跟进时间和意向度
-    const updateData = { lastFollowTime: new Date() };
-    if (followUpData.intentionLevel) {
-      updateData.intentionLevel = followUpData.intentionLevel;
+    const updateData = {
+      lastFollowTime: new Date(),
+      warningLevel: 0 // 跟踪后重置预警状态为正常
+    };
+    if (intentionLevel) {
+      updateData.intentionLevel = intentionLevel;
     }
-    if (followUpData.nextFollowDate) {
-      updateData.nextFollowDate = followUpData.nextFollowDate;
+    if (nextFollowDate) {
+      updateData.nextFollowDate = nextFollowDate;
     }
 
     // 如果是新建状态,自动变更为跟进中

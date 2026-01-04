@@ -119,9 +119,9 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column prop="task_title" label="任务标题" width="200" />
-        
-        <el-table-column prop="task_type" label="任务类型" width="120">
+        <el-table-column prop="task_title" label="任务标题" min-width="160" show-overflow-tooltip />
+
+        <el-table-column prop="task_type" label="任务类型" width="90">
           <template #default="{ row }">
             <span v-if="row.task_type === 'follow_lead'">跟进线索</span>
             <span v-else-if="row.task_type === 'visit_customer'">拜访客户</span>
@@ -132,8 +132,8 @@
             <span v-else>{{ row.task_type }}</span>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="source_type" label="关联对象" width="150">
+
+        <el-table-column prop="source_type" label="关联对象" min-width="100">
           <template #default="{ row }">
             <span v-if="row.source_type === 'lead'">线索</span>
             <span v-else-if="row.source_type === 'customer'">客户</span>
@@ -143,16 +143,16 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="priority" label="优先级" width="100">
+
+        <el-table-column prop="priority" label="优先级" width="70">
           <template #default="{ row }">
             <el-tag v-if="row.priority === 'high'" type="danger">高</el-tag>
             <el-tag v-else-if="row.priority === 'medium'" type="warning">中</el-tag>
             <el-tag v-else type="info">低</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="status" label="状态" width="100">
+
+        <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag v-if="row.status === 'pending'" type="warning">待处理</el-tag>
             <el-tag v-else-if="row.status === 'in_progress'" type="primary">进行中</el-tag>
@@ -161,34 +161,34 @@
             <el-tag v-else>{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="due_date" label="截止日期" width="120">
+
+        <el-table-column prop="due_date" label="截止日期" width="100">
           <template #default="{ row }">
             <span :class="{ 'overdue-text': isOverdue(row.due_date, row.status) }">
               {{ row.due_date || '-' }}
             </span>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="assignee" label="负责人" width="100">
+
+        <el-table-column prop="assignee" label="负责人" width="80">
           <template #default="{ row }">
             {{ row.assignee?.username || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="assigner" label="创建人" width="100">
+
+        <el-table-column prop="assigner" label="创建人" width="80">
           <template #default="{ row }">
             {{ row.assigner?.username || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="created_at" label="创建时间" width="160">
+
+        <el-table-column prop="created_at" label="创建时间" width="150">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        
-        <el-table-column label="操作" width="220" fixed="right">
+
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">

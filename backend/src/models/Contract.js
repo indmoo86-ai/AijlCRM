@@ -44,6 +44,89 @@ const Contract = sequelize.define('Contract', {
     allowNull: false,
     comment: '合同总金额'
   },
+  amount_in_words: {
+    type: DataTypes.STRING(200),
+    allowNull: true,
+    comment: '金额大写'
+  },
+  // 签署信息
+  signing_location: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: '签署地点'
+  },
+  // 甲方信息
+  party_a_name: {
+    type: DataTypes.STRING(200),
+    allowNull: true,
+    comment: '甲方名称'
+  },
+  party_a_address: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: '甲方地址'
+  },
+  party_a_representative: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: '甲方代表'
+  },
+  party_a_phone: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: '甲方电话'
+  },
+  party_a_fax: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: '甲方传真'
+  },
+  // 项目信息
+  hotel_name: {
+    type: DataTypes.STRING(200),
+    allowNull: true,
+    comment: '酒店名称'
+  },
+  room_count: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: '房间数量'
+  },
+  project_address: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: '项目地址'
+  },
+  // 交付信息
+  delivery_method: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: '交货方式'
+  },
+  delivery_address: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: '交货地点'
+  },
+  freight_bearer: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: 'party_a',
+    comment: '运费承担方：party_a甲方/party_b乙方'
+  },
+  // 质保信息
+  warranty_period: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 5,
+    comment: '质保期限（年）'
+  },
+  lifetime_maintenance: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: true,
+    comment: '是否终身保修'
+  },
   // 条款字段
   payment_terms: {
     type: DataTypes.JSON,
@@ -138,6 +221,11 @@ const Contract = sequelize.define('Contract', {
     type: DataTypes.BIGINT,
     allowNull: true,
     comment: '来源报价单ID'
+  },
+  lead_id: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+    comment: '关联线索ID'
   },
   // 权限控制字段
   owner_id: {

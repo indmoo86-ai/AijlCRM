@@ -155,6 +155,16 @@ Lead.belongsTo(Customer, {
   as: 'referrer'
 });
 
+// Lead - Customer 关联（关联客户）
+Lead.belongsTo(Customer, {
+  foreignKey: 'customerId',
+  as: 'customer'
+});
+Customer.hasMany(Lead, {
+  foreignKey: 'customerId',
+  as: 'leads'
+});
+
 // Customer - Lead 关联（来源线索）
 Customer.belongsTo(Lead, {
   foreignKey: 'sourceLeadId',
@@ -221,6 +231,16 @@ Customer.hasMany(Quotation, {
   as: 'quotations'
 });
 
+// Quotation - Lead 关联
+Quotation.belongsTo(Lead, {
+  foreignKey: 'lead_id',
+  as: 'lead'
+});
+Lead.hasMany(Quotation, {
+  foreignKey: 'lead_id',
+  as: 'quotations'
+});
+
 // Quotation - User 关联（负责人）
 Quotation.belongsTo(User, {
   foreignKey: 'owner_id',
@@ -271,6 +291,16 @@ Contract.belongsTo(User, {
 User.hasMany(Contract, {
   foreignKey: 'owner_id',
   as: 'ownedContracts'
+});
+
+// Contract - Lead 关联
+Contract.belongsTo(Lead, {
+  foreignKey: 'lead_id',
+  as: 'lead'
+});
+Lead.hasMany(Contract, {
+  foreignKey: 'lead_id',
+  as: 'contracts'
 });
 
 // ContractItem - Contract & Product 关联

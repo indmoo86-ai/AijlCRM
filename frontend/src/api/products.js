@@ -54,6 +54,17 @@ export function deleteProduct(id) {
 }
 
 /**
+ * 批量更新产品状态
+ */
+export function batchUpdateProductStatus(ids, status) {
+  return request({
+    url: '/products/batch-status',
+    method: 'post',
+    data: { ids, status }
+  })
+}
+
+/**
  * 获取产品分类列表
  */
 export function getProductCategories() {

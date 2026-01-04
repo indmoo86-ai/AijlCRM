@@ -267,3 +267,50 @@ exports.exportProducts = async (req, res) => {
     return error(res, '导出失败', 500);
   }
 };
+
+// 批量更新产品状态
+exports.batchUpdateStatus = async (req, res) => {
+  try {
+    const { ids, status } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return error(res, '请选择要操作的产品', 400);
+    }
+
+    if (!['active', 'inactive'].includes(status)) {
+      return error(res, '无效的状态值', 400);
+    }
+
+    const result = await Product.update(
+      { status, updated_by: req.user.id },
+      { where: { product_id: { [Op.in]: ids } } }
+    );
+
+    return success(res, {
+      updated: result[0],
+      status: status === 'active' ? '在售' : '停售'
+    }, `成功${status === 'active' ? '上架' : '下架'}${result[0]}个产品`);
+  } catch (err) {
+    console.error('批量更新状态错误:', err);
+    console.error('错误详情:', err.message);
+    return error(res, '操作失败', 500);
+  }
+};
+
+// 删除产品（软删除）
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const product = await Product.findByPk(id);
+    if (!product) {
+      return error(res, '产品不存在', 404);
+    }
+
+    await product.destroy();
+    return success(res, null, '删除成功');
+  } catch (err) {
+    console.error('删除产品错误:', err);
+    return error(res, '删除失败', 500);
+  }
+};

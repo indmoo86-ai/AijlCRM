@@ -77,10 +77,10 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column prop="ticket_no" label="工单编号" width="150" />
-        <el-table-column prop="ticket_title" label="工单标题" width="200" />
-        
-        <el-table-column prop="ticket_type" label="工单类型" width="120">
+        <el-table-column prop="ticket_no" label="工单编号" width="140" />
+        <el-table-column prop="ticket_title" label="工单标题" min-width="150" show-overflow-tooltip />
+
+        <el-table-column prop="ticket_type" label="工单类型" width="90">
           <template #default="{ row }">
             <span v-if="row.ticket_type === 'malfunction'">故障报修</span>
             <span v-else-if="row.ticket_type === 'consultation'">咨询</span>
@@ -89,20 +89,20 @@
             <span v-else>{{ row.ticket_type }}</span>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="customer" label="客户名称" width="180">
+
+        <el-table-column prop="customer" label="客户名称" min-width="130" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.customer?.customerName || '-' }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="product" label="产品名称" width="150">
+        <el-table-column prop="product" label="产品名称" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.product?.product_name || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="priority" label="优先级" width="100">
+
+        <el-table-column prop="priority" label="优先级" width="70">
           <template #default="{ row }">
             <el-tag v-if="row.priority === 'urgent'" type="danger">紧急</el-tag>
             <el-tag v-else-if="row.priority === 'high'" type="warning">高</el-tag>
@@ -110,31 +110,31 @@
             <el-tag v-else type="info">低</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="status" label="状态" width="120">
+
+        <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }">
             <el-tag v-if="row.status === 'pending'" type="warning">待处理</el-tag>
             <el-tag v-else-if="row.status === 'in_progress'" type="primary">处理中</el-tag>
-            <el-tag v-else-if="row.status === 'waiting_customer'" type="">待客户确认</el-tag>
+            <el-tag v-else-if="row.status === 'waiting_customer'" type="">待确认</el-tag>
             <el-tag v-else-if="row.status === 'resolved'" type="success">已解决</el-tag>
             <el-tag v-else-if="row.status === 'closed'" type="info">已关闭</el-tag>
             <el-tag v-else>{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="assigned_to" label="处理人" width="100">
+
+        <el-table-column prop="assigned_to" label="处理人" width="80">
           <template #default="{ row }">
             {{ row.assignee?.username || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="created_at" label="创建时间" width="160">
+
+        <el-table-column prop="created_at" label="创建时间" width="150">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        
-        <el-table-column label="操作" width="260" fixed="right">
+
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">

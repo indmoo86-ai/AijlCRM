@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config();
 
 const { testConnection } = require('./config/database');
+const { startScheduler } = require('./tasks/scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -90,7 +91,11 @@ const startServer = async () => {
     await testConnection();
     app.listen(PORT, () => {
       console.log(`\n✓ 服务器运行在: http://localhost:${PORT}`);
-      console.log(`✓ 环境: ${process.env.NODE_ENV || 'development'}\n`);
+      console.log(`✓ 环境: ${process.env.NODE_ENV || 'development'}`);
+
+      // 启动定时任务
+      startScheduler();
+      console.log('✓ 定时任务调度器已启动\n');
     });
   } catch (error) {
     console.error('✗ 服务器启动失败:', error);

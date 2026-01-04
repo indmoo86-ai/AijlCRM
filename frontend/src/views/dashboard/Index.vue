@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard">
     <h2 class="page-title">工作台</h2>
-    
+
     <!-- 统计卡片 -->
     <el-row :gutter="20" style="margin-bottom: 20px;">
       <el-col :span="6">
@@ -18,7 +18,7 @@
           </div>
         </el-card>
       </el-col>
-      
+
       <el-col :span="6">
         <el-card shadow="hover" class="stat-card-wrapper">
           <div class="stat-card">
@@ -33,7 +33,7 @@
           </div>
         </el-card>
       </el-col>
-      
+
       <el-col :span="6">
         <el-card shadow="hover" class="stat-card-wrapper">
           <div class="stat-card">
@@ -48,7 +48,7 @@
           </div>
         </el-card>
       </el-col>
-      
+
       <el-col :span="6">
         <el-card shadow="hover" class="stat-card-wrapper">
           <div class="stat-card">
@@ -64,7 +64,7 @@
         </el-card>
       </el-col>
     </el-row>
-    
+
     <!-- 图表区域 -->
     <el-row :gutter="20" style="margin-bottom: 20px;">
       <!-- 销售漏斗 -->
@@ -78,17 +78,16 @@
           <div ref="salesFunnelChart" style="height: 350px;"></div>
         </el-card>
       </el-col>
-      
+
       <!-- 业绩趋势 -->
       <el-col :span="12">
         <el-card shadow="never">
           <template #header>
             <div class="card-header">
               <span>业绩趋势</span>
-              <el-radio-group v-model="trendPeriod" size="small" @change="loadPerformanceTrend">
-                <el-radio-button label="week">本周</el-radio-button>
-                <el-radio-button label="month">本月</el-radio-button>
-                <el-radio-button label="quarter">本季度</el-radio-button>
+              <el-radio-group v-model="trendPeriod" size="small" @change="loadMonthlyTrend">
+                <el-radio-button label="6">近6月</el-radio-button>
+                <el-radio-button label="12">近12月</el-radio-button>
               </el-radio-group>
             </div>
           </template>
@@ -96,7 +95,7 @@
         </el-card>
       </el-col>
     </el-row>
-    
+
     <el-row :gutter="20" style="margin-bottom: 20px;">
       <!-- 任务完成情况 -->
       <el-col :span="8">
@@ -109,7 +108,7 @@
           <div ref="taskStatusChart" style="height: 300px;"></div>
         </el-card>
       </el-col>
-      
+
       <!-- 客户类型分布 -->
       <el-col :span="8">
         <el-card shadow="never">
@@ -121,7 +120,7 @@
           <div ref="customerTypeChart" style="height: 300px;"></div>
         </el-card>
       </el-col>
-      
+
       <!-- 产品销售排行 -->
       <el-col :span="8">
         <el-card shadow="never">
@@ -134,7 +133,7 @@
         </el-card>
       </el-col>
     </el-row>
-    
+
     <!-- 快捷操作和待办任务 -->
     <el-row :gutter="20">
       <!-- 快捷操作 -->
@@ -155,7 +154,7 @@
           </div>
         </el-card>
       </el-col>
-      
+
       <!-- 待办任务 -->
       <el-col :span="12">
         <el-card shadow="never">
@@ -169,7 +168,7 @@
             <el-timeline-item
               v-for="task in todoTasks"
               :key="task.task_id"
-              :timestamp="task.due_date"
+              :timestamp="formatDate(task.due_date)"
               placement="top"
               :type="getTaskTimelineType(task)"
             >
@@ -196,6 +195,15 @@ import { Plus, Document, Files, Tickets, Money } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
+import {
+  getDashboardStats,
+  getSalesFunnel,
+  getTaskStats,
+  getCustomerTypeStats,
+  getProductSalesRank,
+  getTodoTasks,
+  getMonthlyTrend
+} from '@/api/dashboard'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -226,20 +234,64 @@ let customerTypeInstance = null
 let productRankInstance = null
 
 // 趋势周期
-const trendPeriod = ref('month')
+const trendPeriod = ref('12')
 
 // 待办任务
 const todoTasks = ref([])
 
+// 加载统计数据
+const loadStats = async () => {
+  try {
+    const res = await getDashboardStats()
+    if (res.success && res.data) {
+      stats.leads = res.data.leads?.count || 0
+      stats.leadsChange = res.data.leads?.monthlyChange || 0
+      stats.customers = res.data.customers?.count || 0
+      stats.customersChange = res.data.customers?.monthlyChange || 0
+      stats.pendingTasks = res.data.tasks?.pending || 0
+      stats.overdueTasks = res.data.tasks?.overdue || 0
+      stats.monthlyContract = res.data.contracts?.monthlyAmount || 0
+      stats.contractCount = res.data.contracts?.count || 0
+    }
+  } catch (error) {
+    console.error('加载统计数据失败:', error)
+  }
+}
+
+// 加载销售漏斗数据
+const loadSalesFunnel = async () => {
+  try {
+    const res = await getSalesFunnel()
+    if (res.success && res.data) {
+      initSalesFunnelChart(res.data)
+    }
+  } catch (error) {
+    console.error('加载销售漏斗失败:', error)
+    // 使用默认空数据
+    initSalesFunnelChart([])
+  }
+}
+
 // 初始化销售漏斗图表
-const initSalesFunnelChart = () => {
+const initSalesFunnelChart = (data) => {
   if (!salesFunnelChart.value) return
-  
-  salesFunnelInstance = echarts.init(salesFunnelChart.value)
+
+  if (!salesFunnelInstance) {
+    salesFunnelInstance = echarts.init(salesFunnelChart.value)
+  }
+
+  const chartData = data.length > 0 ? data : [
+    { value: 0, name: '线索' },
+    { value: 0, name: '客户' },
+    { value: 0, name: '报价' },
+    { value: 0, name: '合同' },
+    { value: 0, name: '成交' }
+  ]
+
   const option = {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: {c} ({d}%)'
+      formatter: '{b}: {c}'
     },
     series: [{
       name: '销售漏斗',
@@ -250,23 +302,33 @@ const initSalesFunnelChart = () => {
         position: 'inside',
         formatter: '{b}: {c}'
       },
-      data: [
-        { value: 120, name: '线索' },
-        { value: 80, name: '客户' },
-        { value: 50, name: '报价' },
-        { value: 30, name: '合同' },
-        { value: 25, name: '成交' }
-      ]
+      data: chartData
     }]
   }
   salesFunnelInstance.setOption(option)
 }
 
+// 加载月度趋势数据
+const loadMonthlyTrend = async () => {
+  try {
+    const res = await getMonthlyTrend({ months: parseInt(trendPeriod.value) })
+    if (res.success && res.data) {
+      initPerformanceTrendChart(res.data)
+    }
+  } catch (error) {
+    console.error('加载月度趋势失败:', error)
+    initPerformanceTrendChart({ labels: [], contract: [], payment: [] })
+  }
+}
+
 // 初始化业绩趋势图表
-const initPerformanceTrendChart = () => {
+const initPerformanceTrendChart = (data) => {
   if (!performanceTrendChart.value) return
-  
-  performanceTrendInstance = echarts.init(performanceTrendChart.value)
+
+  if (!performanceTrendInstance) {
+    performanceTrendInstance = echarts.init(performanceTrendChart.value)
+  }
+
   const option = {
     tooltip: {
       trigger: 'axis'
@@ -276,7 +338,7 @@ const initPerformanceTrendChart = () => {
     },
     xAxis: {
       type: 'category',
-      data: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+      data: data.labels || []
     },
     yAxis: {
       type: 'value',
@@ -288,14 +350,14 @@ const initPerformanceTrendChart = () => {
       {
         name: '合同金额',
         type: 'line',
-        data: [12, 15, 18, 22, 25, 30, 28, 32, 35, 38, 40, 45],
+        data: data.contract || [],
         smooth: true,
         itemStyle: { color: '#409eff' }
       },
       {
         name: '回款金额',
         type: 'line',
-        data: [10, 12, 15, 18, 20, 25, 22, 28, 30, 32, 35, 38],
+        data: data.payment || [],
         smooth: true,
         itemStyle: { color: '#67c23a' }
       }
@@ -304,11 +366,34 @@ const initPerformanceTrendChart = () => {
   performanceTrendInstance.setOption(option)
 }
 
+// 加载任务统计数据
+const loadTaskStats = async () => {
+  try {
+    const res = await getTaskStats()
+    if (res.success && res.data) {
+      initTaskStatusChart(res.data)
+    }
+  } catch (error) {
+    console.error('加载任务统计失败:', error)
+    initTaskStatusChart([])
+  }
+}
+
 // 初始化任务状态图表
-const initTaskStatusChart = () => {
+const initTaskStatusChart = (data) => {
   if (!taskStatusChart.value) return
-  
-  taskStatusInstance = echarts.init(taskStatusChart.value)
+
+  if (!taskStatusInstance) {
+    taskStatusInstance = echarts.init(taskStatusChart.value)
+  }
+
+  const chartData = data.length > 0 ? data : [
+    { value: 0, name: '待处理', itemStyle: { color: '#e6a23c' } },
+    { value: 0, name: '进行中', itemStyle: { color: '#409eff' } },
+    { value: 0, name: '已完成', itemStyle: { color: '#67c23a' } },
+    { value: 0, name: '已取消', itemStyle: { color: '#909399' } }
+  ]
+
   const option = {
     tooltip: {
       trigger: 'item'
@@ -322,22 +407,39 @@ const initTaskStatusChart = () => {
         show: true,
         formatter: '{b}: {c}'
       },
-      data: [
-        { value: 15, name: '待处理', itemStyle: { color: '#e6a23c' } },
-        { value: 25, name: '进行中', itemStyle: { color: '#409eff' } },
-        { value: 60, name: '已完成', itemStyle: { color: '#67c23a' } },
-        { value: 5, name: '已取消', itemStyle: { color: '#909399' } }
-      ]
+      data: chartData
     }]
   }
   taskStatusInstance.setOption(option)
 }
 
+// 加载客户类型统计
+const loadCustomerTypeStats = async () => {
+  try {
+    const res = await getCustomerTypeStats()
+    if (res.success && res.data) {
+      initCustomerTypeChart(res.data)
+    }
+  } catch (error) {
+    console.error('加载客户类型统计失败:', error)
+    initCustomerTypeChart([])
+  }
+}
+
 // 初始化客户类型图表
-const initCustomerTypeChart = () => {
+const initCustomerTypeChart = (data) => {
   if (!customerTypeChart.value) return
-  
-  customerTypeInstance = echarts.init(customerTypeChart.value)
+
+  if (!customerTypeInstance) {
+    customerTypeInstance = echarts.init(customerTypeChart.value)
+  }
+
+  const chartData = data.length > 0 ? data : [
+    { value: 0, name: '潜在客户', itemStyle: { color: '#909399' } },
+    { value: 0, name: '正式客户', itemStyle: { color: '#409eff' } },
+    { value: 0, name: 'VIP客户', itemStyle: { color: '#f56c6c' } }
+  ]
+
   const option = {
     tooltip: {
       trigger: 'item'
@@ -346,11 +448,7 @@ const initCustomerTypeChart = () => {
       name: '客户类型',
       type: 'pie',
       radius: '60%',
-      data: [
-        { value: 45, name: '潜在客户', itemStyle: { color: '#909399' } },
-        { value: 35, name: '正式客户', itemStyle: { color: '#409eff' } },
-        { value: 20, name: 'VIP客户', itemStyle: { color: '#f56c6c' } }
-      ],
+      data: chartData,
       label: {
         formatter: '{b}: {d}%'
       }
@@ -359,11 +457,32 @@ const initCustomerTypeChart = () => {
   customerTypeInstance.setOption(option)
 }
 
+// 加载产品销售排行
+const loadProductSalesRank = async () => {
+  try {
+    const res = await getProductSalesRank({ limit: 5 })
+    if (res.success && res.data) {
+      initProductRankChart(res.data)
+    }
+  } catch (error) {
+    console.error('加载产品排行失败:', error)
+    initProductRankChart([])
+  }
+}
+
 // 初始化产品排行图表
-const initProductRankChart = () => {
+const initProductRankChart = (data) => {
   if (!productRankChart.value) return
-  
-  productRankInstance = echarts.init(productRankChart.value)
+
+  if (!productRankInstance) {
+    productRankInstance = echarts.init(productRankChart.value)
+  }
+
+  // 反转数据以便从下到上显示排名
+  const reversedData = [...data].reverse()
+  const names = reversedData.map(item => item.name)
+  const values = reversedData.map(item => item.value)
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -376,12 +495,12 @@ const initProductRankChart = () => {
     },
     yAxis: {
       type: 'category',
-      data: ['智能门锁', '智能开关', '智能窗帘', '智能音箱', '智能网关']
+      data: names.length > 0 ? names : ['暂无数据']
     },
     series: [{
       name: '销售量',
       type: 'bar',
-      data: [350, 280, 220, 180, 150],
+      data: values.length > 0 ? values : [0],
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
           { offset: 0, color: '#83bff6' },
@@ -393,40 +512,29 @@ const initProductRankChart = () => {
   productRankInstance.setOption(option)
 }
 
-// 加载统计数据
-const loadStats = async () => {
-  // 模拟数据，实际应从 API 获取
-  stats.leads = 156
-  stats.leadsChange = 23
-  stats.customers = 89
-  stats.customersChange = 12
-  stats.pendingTasks = 15
-  stats.overdueTasks = 3
-  stats.monthlyContract = 450000
-  stats.contractCount = 12
-}
-
 // 加载待办任务
 const loadTodoTasks = async () => {
-  // 模拟数据
-  todoTasks.value = [
-    { task_id: 1, task_title: '跟进张三的采购意向', due_date: '2025-12-27', priority: 'high' },
-    { task_id: 2, task_title: '准备XX酒店的报价方案', due_date: '2025-12-28', priority: 'medium' },
-    { task_id: 3, task_title: '拜访李四客户', due_date: '2025-12-29', priority: 'high' },
-    { task_id: 4, task_title: '整理本月销售数据', due_date: '2025-12-30', priority: 'low' }
-  ]
-}
-
-// 加载业绩趋势
-const loadPerformanceTrend = () => {
-  // 实际应根据 trendPeriod.value 从 API 获取数据
-  initPerformanceTrendChart()
+  try {
+    const res = await getTodoTasks({ limit: 5 })
+    if (res.success && res.data) {
+      todoTasks.value = res.data
+    }
+  } catch (error) {
+    console.error('加载待办任务失败:', error)
+    todoTasks.value = []
+  }
 }
 
 // 格式化金额
 const formatAmount = (amount) => {
   if (!amount) return '¥0'
   return '¥' + (amount / 10000).toFixed(1) + 'w'
+}
+
+// 格式化日期
+const formatDate = (date) => {
+  if (!date) return '-'
+  return dayjs(date).format('YYYY-MM-DD')
 }
 
 // 获取任务时间轴类型
@@ -478,18 +586,23 @@ const handleResize = () => {
 }
 
 onMounted(async () => {
-  await loadStats()
-  await loadTodoTasks()
-  
+  // 加载所有数据
+  await Promise.all([
+    loadStats(),
+    loadTodoTasks()
+  ])
+
   await nextTick()
-  
-  // 初始化所有图表
-  initSalesFunnelChart()
-  initPerformanceTrendChart()
-  initTaskStatusChart()
-  initCustomerTypeChart()
-  initProductRankChart()
-  
+
+  // 加载图表数据
+  await Promise.all([
+    loadSalesFunnel(),
+    loadMonthlyTrend(),
+    loadTaskStats(),
+    loadCustomerTypeStats(),
+    loadProductSalesRank()
+  ])
+
   // 监听窗口大小变化
   window.addEventListener('resize', handleResize)
 })
@@ -501,7 +614,7 @@ onUnmounted(() => {
   taskStatusInstance?.dispose()
   customerTypeInstance?.dispose()
   productRankInstance?.dispose()
-  
+
   window.removeEventListener('resize', handleResize)
 })
 </script>

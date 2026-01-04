@@ -63,28 +63,28 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column prop="shipment_no" label="发货单号" width="150" />
-        <el-table-column prop="shipment_title" label="发货单标题" width="200" />
-        
-        <el-table-column prop="contract" label="合同编号" width="150">
+        <el-table-column prop="shipment_no" label="发货单号" width="140" />
+        <el-table-column prop="shipment_title" label="发货单标题" min-width="150" show-overflow-tooltip />
+
+        <el-table-column prop="contract" label="合同编号" width="130">
           <template #default="{ row }">
             {{ row.contract?.contract_no || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="customer" label="客户名称" width="180">
+
+        <el-table-column prop="customer" label="客户名称" min-width="130" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.customer?.customerName || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="shipment_amount" label="发货金额" width="120" align="right">
+
+        <el-table-column prop="shipment_amount" label="发货金额" width="100" align="right">
           <template #default="{ row }">
             ¥{{ formatAmount(row.shipment_amount) }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="status" label="状态" width="100">
+
+        <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag v-if="row.status === 'draft'" type="info">草稿</el-tag>
             <el-tag v-else-if="row.status === 'pending'" type="warning">待发货</el-tag>
@@ -94,20 +94,20 @@
             <el-tag v-else>{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="logistics_company" label="物流公司" width="120" />
-        <el-table-column prop="tracking_no" label="运单号" width="150" />
-        
-        <el-table-column prop="planned_ship_date" label="计划发货日期" width="120" />
-        <el-table-column prop="actual_ship_date" label="实际发货日期" width="120" />
-        
-        <el-table-column prop="created_at" label="创建时间" width="160">
+
+        <el-table-column prop="logistics_company" label="物流公司" min-width="100" />
+        <el-table-column prop="tracking_no" label="运单号" min-width="120" />
+
+        <el-table-column prop="planned_ship_date" label="计划发货" width="100" />
+        <el-table-column prop="actual_ship_date" label="实际发货" width="100" />
+
+        <el-table-column prop="created_at" label="创建时间" width="150">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        
-        <el-table-column label="操作" width="280" fixed="right">
+
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">
@@ -129,7 +129,7 @@
                 size="small"
                 @click="handleConfirm(row)"
               >
-                确认发货
+                发货
               </el-button>
               <el-button
                 v-if="row.status === 'shipped' || row.status === 'in_transit'"
@@ -138,7 +138,7 @@
                 size="small"
                 @click="handleComplete(row)"
               >
-                确认送达
+                送达
               </el-button>
               <el-button link type="danger" size="small" @click="handleDelete(row)">
                 删除

@@ -9,6 +9,11 @@ const { authenticate } = require('../middleware/auth');
 // 所有合同接口都需要身份验证
 router.use(authenticate);
 
+// 从报价单创建合同
+router.get('/quotation-info/:quotationId', contractController.getQuotationInfoForContract);  // 获取报价单信息用于创建合同
+router.post('/from-quotation', contractController.createContractFromQuotation);              // 从报价单创建合同
+router.post('/calculate-payment', contractController.calculatePaymentAmounts);               // 计算付款金额
+
 // 合同基本操作
 router.get('/', contractController.getContractList);           // 7.1 获取合同列表
 router.post('/', contractController.createContract);           // 7.2 创建合同
@@ -29,6 +34,9 @@ router.delete('/:id/files/:fileId', contractController.deleteContractFile); // 7
 
 // 合同执行进度
 router.get('/:id/progress', contractController.getContractProgress);     // 7.11 查询合同执行进度
+
+// 导出合同Word
+router.get('/:id/export-word', contractController.exportContractWord);   // 导出合同Word文档
 
 // 合同状态操作
 router.put('/:id/activate', contractController.activateContract);        // 7.12 激活合同

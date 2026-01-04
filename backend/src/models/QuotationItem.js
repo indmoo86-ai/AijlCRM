@@ -32,20 +32,47 @@ const QuotationItem = sequelize.define('QuotationItem', {
     allowNull: false,
     comment: '产品名称快照'
   },
+  specification: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: '产品规格快照'
+  },
   quantity: {
     type: DataTypes.INTEGER,
     allowNull: false,
     comment: '数量'
   },
+  cost_price: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+    comment: '成本单价'
+  },
+  sale_price: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: false,
+    comment: '销售单价（原价）'
+  },
   unit_price: {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: false,
-    comment: '单价'
+    comment: '实际单价（优惠后）'
+  },
+  cost_subtotal: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+    comment: '成本小计'
+  },
+  sale_subtotal: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: false,
+    comment: '销售小计（名义价格）'
   },
   subtotal: {
     type: DataTypes.DECIMAL(15, 2),
     allowNull: false,
-    comment: '小计'
+    comment: '实际小计（优惠后）'
   },
   notes: {
     type: DataTypes.TEXT,

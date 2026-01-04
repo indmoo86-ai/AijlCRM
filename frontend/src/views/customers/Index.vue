@@ -61,42 +61,42 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column prop="customerNo" label="客户编号" width="150" />
-        <el-table-column prop="customerName" label="客户名称" width="200" />
-        
-        <el-table-column prop="customerType" label="客户类型" width="100">
+        <el-table-column prop="customerNo" label="客户编号" width="140" />
+        <el-table-column prop="customerName" label="客户名称" min-width="160" show-overflow-tooltip />
+
+        <el-table-column prop="customerType" label="客户类型" width="85">
           <template #default="{ row }">
             <el-tag v-if="row.customerType === 3" type="danger">VIP</el-tag>
             <el-tag v-else-if="row.customerType === 2" type="success">正式</el-tag>
             <el-tag v-else type="info">潜在</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="industry" label="所属行业" width="120" />
-        <el-table-column prop="city" label="所在城市" width="120" />
-        <el-table-column prop="roomCount" label="房间数" width="100" />
-        
-        <el-table-column prop="totalAmount" label="累计金额" width="120">
+
+        <el-table-column prop="industry" label="所属行业" min-width="100" />
+        <el-table-column prop="city" label="所在城市" min-width="100" />
+        <el-table-column prop="roomCount" label="房间数" width="80" />
+
+        <el-table-column prop="totalAmount" label="累计金额" width="110" align="right">
           <template #default="{ row }">
             ¥{{ formatAmount(row.totalAmount) }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="contractCount" label="合同数" width="90" />
-        
-        <el-table-column prop="lastContactTime" label="最后联系" width="160">
+
+        <el-table-column prop="contractCount" label="合同数" width="75" />
+
+        <el-table-column prop="lastContactTime" label="最后联系" width="150">
           <template #default="{ row }">
             {{ formatDate(row.lastContactTime) }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="createdAt" label="创建时间" width="160">
+
+        <el-table-column prop="createdAt" label="创建时间" width="150">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
-        
-        <el-table-column label="操作" width="220" fixed="right">
+
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">
@@ -106,7 +106,7 @@
                 编辑
               </el-button>
               <el-button link type="success" size="small" @click="handleAdvanceStage(row)">
-                推进阶段
+                推进
               </el-button>
               <el-button link type="danger" size="small" @click="handleDelete(row)">
                 删除

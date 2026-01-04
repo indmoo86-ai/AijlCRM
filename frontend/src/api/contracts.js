@@ -115,3 +115,45 @@ export function deleteContractItem(contractId, itemId) {
     method: 'delete'
   })
 }
+
+/**
+ * 获取报价单信息用于创建合同
+ */
+export function getQuotationInfoForContract(quotationId) {
+  return request({
+    url: `/contracts/quotation-info/${quotationId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 从报价单创建合同
+ */
+export function createContractFromQuotation(data) {
+  return request({
+    url: '/contracts/from-quotation',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 计算付款金额
+ */
+export function calculatePaymentAmounts(data) {
+  return request({
+    url: '/contracts/calculate-payment',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 导出合同Word数据
+ */
+export function exportContractWord(id) {
+  return request({
+    url: `/contracts/${id}/export-word`,
+    method: 'get'
+  })
+}

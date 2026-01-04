@@ -41,3 +41,56 @@ export function getRecentActivities(params) {
     params
   })
 }
+
+/**
+ * 获取任务统计（按状态分布）
+ */
+export function getTaskStats() {
+  return request({
+    url: '/dashboard/task-stats',
+    method: 'get'
+  })
+}
+
+/**
+ * 获取客户类型分布
+ */
+export function getCustomerTypeStats() {
+  return request({
+    url: '/dashboard/customer-type-stats',
+    method: 'get'
+  })
+}
+
+/**
+ * 获取产品销售排行
+ */
+export function getProductSalesRank(params) {
+  return request({
+    url: '/dashboard/product-sales-rank',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取待办任务列表
+ */
+export function getTodoTasks(params) {
+  return request({
+    url: '/dashboard/todo-tasks',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取月度业绩趋势
+ */
+export function getMonthlyTrend(params) {
+  return request({
+    url: '/dashboard/monthly-trend',
+    method: 'get',
+    params
+  })
+}

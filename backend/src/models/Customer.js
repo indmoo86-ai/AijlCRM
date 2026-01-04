@@ -40,6 +40,14 @@ const Customer = sequelize.define('Customer', {
   address: {
     type: DataTypes.STRING(500)
   },
+  phone: {
+    type: DataTypes.STRING(20),
+    comment: '联系电话'
+  },
+  wechat: {
+    type: DataTypes.STRING(50),
+    comment: '微信号'
+  },
   roomCount: {
     type: DataTypes.INTEGER,
     field: 'room_count'

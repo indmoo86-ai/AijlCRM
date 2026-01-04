@@ -4,9 +4,27 @@
       <template #header>
         <div class="card-header">
           <span>产品管理</span>
-          <el-button type="primary" :icon="Plus" @click="handleCreate">
-            新建产品
-          </el-button>
+          <div class="header-actions">
+            <el-button
+              v-if="selectedIds.length > 0"
+              type="success"
+              :icon="Top"
+              @click="handleBatchStatus('active')"
+            >
+              批量上架 ({{ selectedIds.length }})
+            </el-button>
+            <el-button
+              v-if="selectedIds.length > 0"
+              type="warning"
+              :icon="Bottom"
+              @click="handleBatchStatus('inactive')"
+            >
+              批量下架 ({{ selectedIds.length }})
+            </el-button>
+            <el-button type="primary" :icon="Plus" @click="handleCreate">
+              新建产品
+            </el-button>
+          </div>
         </div>
       </template>
       
@@ -69,48 +87,62 @@
         border
         stripe
         style="width: 100%"
+        @selection-change="handleSelectionChange"
       >
-        <el-table-column prop="product_code" label="产品编码" width="140" />
-        <el-table-column prop="product_name" label="产品名称" width="200" />
-        <el-table-column prop="brand" label="品牌" width="120" />
-        
-        <el-table-column prop="category" label="产品分类" width="120">
+        <el-table-column type="selection" width="50" />
+        <el-table-column label="主图" width="80">
+          <template #default="{ row }">
+            <el-image
+              v-if="row.main_image"
+              :src="row.main_image"
+              :preview-src-list="[row.main_image]"
+              fit="cover"
+              style="width: 50px; height: 50px; border-radius: 4px;"
+            />
+            <span v-else class="no-image">暂无</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="product_code" label="产品编码" min-width="140" />
+        <el-table-column prop="product_name" label="产品名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="brand" label="品牌" min-width="100" />
+
+        <el-table-column prop="category" label="产品分类" min-width="100">
           <template #default="{ row }">
             {{ row.category?.category_name || '-' }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="supplier" label="供应商" width="150" />
-        
+
+        <el-table-column prop="supplier" label="供应商" min-width="130" show-overflow-tooltip />
+
         <el-table-column prop="cost_price" label="成本价" width="100" align="right">
           <template #default="{ row }">
             ¥{{ formatAmount(row.cost_price) }}
           </template>
         </el-table-column>
-        
+
         <el-table-column prop="sale_price" label="销售价" width="100" align="right">
           <template #default="{ row }">
             ¥{{ formatAmount(row.sale_price) }}
           </template>
         </el-table-column>
-        
-        <el-table-column prop="unit" label="单位" width="80" />
-        
-        <el-table-column prop="status" label="状态" width="90">
+
+        <el-table-column prop="unit" label="单位" width="60" />
+
+        <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag v-if="row.status === 'active'" type="success">在售</el-tag>
             <el-tag v-else-if="row.status === 'inactive'" type="danger">停售</el-tag>
             <el-tag v-else type="info">草稿</el-tag>
           </template>
         </el-table-column>
-        
-        <el-table-column prop="created_at" label="创建时间" width="160">
+
+        <el-table-column prop="created_at" label="创建时间" width="150">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        
-        <el-table-column label="操作" width="200" fixed="right">
+
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">
@@ -248,6 +280,56 @@
           </el-col>
         </el-row>
         
+        <!-- 产品主图 -->
+        <el-form-item label="产品主图">
+          <el-upload
+            class="main-image-uploader"
+            :action="uploadUrl"
+            :headers="uploadHeaders"
+            :show-file-list="false"
+            :on-success="handleMainImageSuccess"
+            :before-upload="beforeImageUpload"
+            accept="image/*"
+          >
+            <el-image
+              v-if="form.main_image"
+              :src="form.main_image"
+              fit="cover"
+              class="main-image-preview"
+            />
+            <el-icon v-else class="main-image-uploader-icon"><Plus /></el-icon>
+          </el-upload>
+          <el-button
+            v-if="form.main_image"
+            type="danger"
+            size="small"
+            link
+            style="margin-left: 10px;"
+            @click="form.main_image = ''"
+          >
+            删除主图
+          </el-button>
+        </el-form-item>
+
+        <!-- 产品说明图 -->
+        <el-form-item label="产品说明图">
+          <el-upload
+            class="product-images-uploader"
+            :action="uploadUrl"
+            :headers="uploadHeaders"
+            list-type="picture-card"
+            :file-list="productImageList"
+            :on-success="handleProductImageSuccess"
+            :on-remove="handleProductImageRemove"
+            :before-upload="beforeImageUpload"
+            accept="image/*"
+            :limit="10"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+          <div class="upload-tip">最多上传10张图片，支持jpg、png格式</div>
+        </el-form-item>
+
         <el-form-item label="产品描述" prop="description">
           <el-input
             v-model="form.description"
@@ -269,11 +351,19 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Refresh } from '@element-plus/icons-vue'
-import { getProductList, createProduct, updateProduct, deleteProduct, getProductCategories } from '@/api/products'
+import { Plus, Search, Refresh, Top, Bottom } from '@element-plus/icons-vue'
+import { getProductList, createProduct, updateProduct, deleteProduct, getProductCategories, batchUpdateProductStatus } from '@/api/products'
 import dayjs from 'dayjs'
+
+// 上传配置
+const uploadUrl = import.meta.env.VITE_API_URL + '/attachments/upload'
+const uploadHeaders = computed(() => ({
+  Authorization: `Bearer ${localStorage.getItem('token')}`
+}))
+const productImageList = ref([])
+const selectedIds = ref([])
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -306,6 +396,8 @@ const form = reactive({
   cost_price: 0,
   sale_price: 0,
   unit: '台',
+  main_image: '',
+  product_images: [],
   description: '',
   status: 'active'
 })
@@ -394,6 +486,20 @@ const handleCreate = () => {
 // 编辑
 const handleEdit = (row) => {
   dialogTitle.value = '编辑产品'
+  // 解析产品说明图
+  let images = []
+  if (row.product_images) {
+    try {
+      images = typeof row.product_images === 'string' ? JSON.parse(row.product_images) : row.product_images
+    } catch (e) {
+      images = []
+    }
+  }
+  productImageList.value = images.map((url, idx) => ({
+    name: `image_${idx}`,
+    url: url
+  }))
+
   Object.assign(form, {
     product_id: row.product_id,
     product_code: row.product_code,
@@ -404,6 +510,8 @@ const handleEdit = (row) => {
     cost_price: parseFloat(row.cost_price) || 0,
     sale_price: parseFloat(row.sale_price) || 0,
     unit: row.unit,
+    main_image: row.main_image || '',
+    product_images: images,
     description: row.description,
     status: row.status
   })
@@ -437,14 +545,18 @@ const handleDelete = async (row) => {
 // 提交表单
 const handleSubmit = async () => {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (!valid) return
-    
+
     submitLoading.value = true
     try {
-      const submitData = { ...form }
-      
+      const submitData = {
+        ...form,
+        // 将产品说明图数组转为JSON字符串存储
+        product_images: form.product_images.length > 0 ? JSON.stringify(form.product_images) : null
+      }
+
       if (form.product_id) {
         await updateProduct(form.product_id, submitData)
         ElMessage.success('更新成功')
@@ -452,7 +564,7 @@ const handleSubmit = async () => {
         await createProduct(submitData)
         ElMessage.success('创建成功')
       }
-      
+
       dialogVisible.value = false
       fetchData()
     } catch (error) {
@@ -477,8 +589,80 @@ const resetForm = () => {
   form.cost_price = 0
   form.sale_price = 0
   form.unit = '台'
+  form.main_image = ''
+  form.product_images = []
   form.description = ''
   form.status = 'active'
+  productImageList.value = []
+}
+
+// 表格选择变化
+const handleSelectionChange = (selection) => {
+  selectedIds.value = selection.map(item => item.product_id)
+}
+
+// 批量更新状态
+const handleBatchStatus = async (status) => {
+  const statusText = status === 'active' ? '上架' : '下架'
+  try {
+    await ElMessageBox.confirm(
+      `确定要${statusText}选中的 ${selectedIds.value.length} 个产品吗？`,
+      '批量操作',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    await batchUpdateProductStatus(selectedIds.value, status)
+    ElMessage.success(`成功${statusText} ${selectedIds.value.length} 个产品`)
+    selectedIds.value = []
+    fetchData()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Batch update failed:', error)
+    }
+  }
+}
+
+// 主图上传成功
+const handleMainImageSuccess = (response) => {
+  if (response.success && response.data) {
+    form.main_image = response.data.url
+    ElMessage.success('主图上传成功')
+  } else {
+    ElMessage.error('上传失败')
+  }
+}
+
+// 产品说明图上传成功
+const handleProductImageSuccess = (response, file, fileList) => {
+  if (response.success && response.data) {
+    form.product_images.push(response.data.url)
+  }
+}
+
+// 产品说明图删除
+const handleProductImageRemove = (file) => {
+  const url = file.url || file.response?.data?.url
+  form.product_images = form.product_images.filter(u => u !== url)
+}
+
+// 图片上传前验证
+const beforeImageUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt5M = file.size / 1024 / 1024 < 5
+
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件!')
+    return false
+  }
+  if (!isLt5M) {
+    ElMessage.error('图片大小不能超过5MB!')
+    return false
+  }
+  return true
 }
 
 // 格式化日期
@@ -509,6 +693,11 @@ onMounted(() => {
   align-items: center;
 }
 
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .search-form {
   margin-bottom: 20px;
 }
@@ -516,5 +705,60 @@ onMounted(() => {
 .table-actions {
   display: flex;
   gap: 5px;
+}
+
+.no-image {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 主图上传 */
+.main-image-uploader {
+  display: inline-block;
+}
+
+.main-image-uploader :deep(.el-upload) {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-image-uploader :deep(.el-upload:hover) {
+  border-color: #409eff;
+}
+
+.main-image-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+}
+
+.main-image-preview {
+  width: 100px;
+  height: 100px;
+}
+
+/* 产品说明图 */
+.product-images-uploader :deep(.el-upload-list--picture-card .el-upload-list__item) {
+  width: 80px;
+  height: 80px;
+}
+
+.product-images-uploader :deep(.el-upload--picture-card) {
+  width: 80px;
+  height: 80px;
+  line-height: 80px;
+}
+
+.upload-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
 }
 </style>

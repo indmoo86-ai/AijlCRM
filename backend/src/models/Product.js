@@ -51,9 +51,13 @@ const Product = sequelize.define('Product', {
     defaultValue: '台',
     comment: '单位'
   },
+  main_image: {
+    type: DataTypes.STRING(500),
+    comment: '产品主图URL'
+  },
   product_images: {
     type: DataTypes.TEXT,
-    comment: '产品图片URL列表（JSON数组）'
+    comment: '产品说明图URL列表（JSON数组）'
   },
   description: {
     type: DataTypes.TEXT,
