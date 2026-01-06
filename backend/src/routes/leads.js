@@ -2,35 +2,36 @@ const express = require('express');
 const router = express.Router();
 const leadController = require('../controllers/leadController');
 const { authenticateToken } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 
 // 所有路由都需要认证
 router.use(authenticateToken);
 
 // 获取线索列表
-router.get('/', leadController.getLeads);
+router.get('/', checkPermission('lead:view'), leadController.getLeads);
 
 // 创建线索
-router.post('/', leadController.createLead);
+router.post('/', checkPermission('lead:create'), leadController.createLead);
 
 // 获取线索详情
-router.get('/:id', leadController.getLeadDetail);
+router.get('/:id', checkPermission('lead:view'), leadController.getLeadDetail);
 
 // 更新线索
-router.put('/:id', leadController.updateLead);
+router.put('/:id', checkPermission('lead:edit'), leadController.updateLead);
 
 // 添加跟进记录
-router.post('/:id/follow-up', leadController.addFollowUp);
+router.post('/:id/follow-up', checkPermission('lead:follow'), leadController.addFollowUp);
 
 // 线索转客户
-router.post('/:id/convert', leadController.convertToCustomer);
+router.post('/:id/convert', checkPermission('lead:convert'), leadController.convertToCustomer);
 
 // 分配线索
-router.put('/:id/assign', leadController.assignLead);
+router.put('/:id/assign', checkPermission('lead:edit'), leadController.assignLead);
 
 // 放弃线索
-router.put('/:id/abandon', leadController.abandonLead);
+router.put('/:id/abandon', checkPermission('lead:edit'), leadController.abandonLead);
 
 // 删除线索
-router.delete('/:id', leadController.deleteLead);
+router.delete('/:id', checkPermission('lead:delete'), leadController.deleteLead);
 
 module.exports = router;
