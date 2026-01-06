@@ -51,6 +51,7 @@ const serviceTicketRoutes = require('./routes/serviceTickets');
 const attachmentRoutes = require('./routes/attachments');
 const dashboardRoutes = require('./routes/dashboard');
 const userRoutes = require('./routes/users');
+const roleRoutes = require('./routes/roles');
 const settingsRoutes = require('./routes/settings');
 
 // 注册路由
@@ -68,6 +69,7 @@ app.use('/api/service-tickets', serviceTicketRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/roles', roleRoutes);
 app.use('/api/settings', settingsRoutes);
 
 // 404 处理
