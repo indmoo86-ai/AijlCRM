@@ -42,4 +42,15 @@ router.get('/:id/export-word', contractController.exportContractWord);   // 导�
 router.put('/:id/activate', contractController.activateContract);        // 7.12 激活合同
 router.put('/:id/terminate', contractController.terminateContract);      // 7.13 终止合同
 
+// 合同跟踪记录
+router.get('/:id/track-records', contractController.getContractTrackRecords);   // 获取跟踪记录
+router.post('/:id/track-records', contractController.addContractTrackRecord);   // 添加跟踪记录
+
+// 合同状态流转
+router.put('/:id/confirm', contractController.confirmContract);         // 确认合同 (draft -> pending)
+router.put('/:id/send-out', contractController.sendOutContract);        // 寄出合同 (pending -> sent)
+router.put('/:id/receive-back', contractController.receiveBackContract); // 收回合同 (sent -> active)
+router.put('/:id/void', contractController.voidContract);               // 作废合同
+router.put('/:id/restore', contractController.restoreContract);         // 恢复合同
+
 module.exports = router;

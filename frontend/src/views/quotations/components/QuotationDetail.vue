@@ -90,19 +90,41 @@
       <el-button type="primary" @click="$emit('export-pdf', quotation)">
         导出PDF
       </el-button>
+      <el-button
+        v-if="quotation.status !== 'voided'"
+        type="danger"
+        @click="handleVoid"
+      >
+        作废报价单
+      </el-button>
     </div>
   </div>
 </template>
 
 <script setup>
-defineProps({
+import { ElMessageBox } from 'element-plus'
+
+const props = defineProps({
   quotation: {
     type: Object,
     default: null
   }
 })
 
-defineEmits(['export-pdf'])
+const emit = defineEmits(['export-pdf', 'void'])
+
+const handleVoid = async () => {
+  try {
+    await ElMessageBox.confirm('确定要作废此报价单吗？作废后不可恢复。', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    emit('void', props.quotation)
+  } catch {
+    // 用户取消
+  }
+}
 
 const formatAmount = (amount) => {
   const num = parseFloat(amount) || 0

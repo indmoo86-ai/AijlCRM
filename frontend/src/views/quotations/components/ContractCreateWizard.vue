@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title="从报价单创建合同"
-    width="900px"
+    width="1200px"
     :close-on-click-modal="false"
     :destroy-on-close="true"
     @close="handleClose"
@@ -12,7 +12,7 @@
       <el-steps :active="currentStep" simple finish-status="success" class="wizard-steps">
         <el-step title="基础信息" />
         <el-step title="付款条款" />
-        <el-step title="交付质保" />
+        <el-step title="交付发票" />
         <el-step title="确认提交" />
       </el-steps>
 
@@ -23,21 +23,12 @@
           <el-form ref="basicFormRef" :model="formData" :rules="basicRules" label-width="100px">
             <el-divider content-position="left">合同信息</el-divider>
             <el-row :gutter="20">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="合同标题" prop="contract_title">
                   <el-input v-model="formData.contract_title" placeholder="请输入合同标题" />
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
-                <el-form-item label="合同金额">
-                  <el-input :value="formatMoney(quotationInfo.total_amount)" disabled>
-                    <template #suffix>元</template>
-                  </el-input>
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="20">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="签署日期" prop="signed_date">
                   <el-date-picker
                     v-model="formData.signed_date"
@@ -48,7 +39,7 @@
                   />
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="签署地点" prop="signing_location">
                   <el-input v-model="formData.signing_location" placeholder="请输入签署地点" />
                 </el-form-item>
@@ -57,14 +48,19 @@
 
             <el-divider content-position="left">甲方信息（客户）</el-divider>
             <el-row :gutter="20">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="甲方名称" prop="party_a_name">
                   <el-input v-model="formData.party_a_name" placeholder="请输入甲方名称" />
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="甲方代表" prop="party_a_representative">
                   <el-input v-model="formData.party_a_representative" placeholder="请输入甲方代表姓名" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="联系电话" prop="party_a_phone">
+                  <el-input v-model="formData.party_a_phone" placeholder="请输入联系电话" />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -75,27 +71,78 @@
                 </el-form-item>
               </el-col>
             </el-row>
+
+            <el-divider content-position="left">乙方信息（我方）</el-divider>
             <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="联系电话" prop="party_a_phone">
-                  <el-input v-model="formData.party_a_phone" placeholder="请输入联系电话" />
+              <el-col :span="8">
+                <el-form-item label="选择主体" prop="party_b_id">
+                  <el-select
+                    v-model="formData.party_b_id"
+                    placeholder="请选择合同主体"
+                    style="width: 100%"
+                    @change="handlePartyBChange"
+                  >
+                    <el-option
+                      v-for="party in contractParties"
+                      :key="party.party_id"
+                      :label="party.party_name"
+                      :value="party.party_id"
+                    >
+                      <span>{{ party.party_name }}</span>
+                      <el-tag v-if="party.is_default === 1" type="success" size="small" style="margin-left: 8px">默认</el-tag>
+                    </el-option>
+                  </el-select>
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
-                <el-form-item label="传真" prop="party_a_fax">
-                  <el-input v-model="formData.party_a_fax" placeholder="请输入传真号码" />
+              <el-col :span="8">
+                <el-form-item label="乙方名称">
+                  <el-input v-model="formData.party_b_name" placeholder="乙方名称" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="乙方代表">
+                  <el-input v-model="formData.party_b_representative" placeholder="乙方代表" disabled />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="20">
+              <el-col :span="8">
+                <el-form-item label="联系电话">
+                  <el-input v-model="formData.party_b_phone" placeholder="联系电话" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="16">
+                <el-form-item label="乙方地址">
+                  <el-input v-model="formData.party_b_address" placeholder="乙方地址" disabled />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="20">
+              <el-col :span="8">
+                <el-form-item label="税号">
+                  <el-input v-model="formData.party_b_tax_id" placeholder="税号" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="开户行">
+                  <el-input v-model="formData.party_b_bank_name" placeholder="开户行" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="银行账号">
+                  <el-input v-model="formData.party_b_bank_account" placeholder="银行账号" disabled />
                 </el-form-item>
               </el-col>
             </el-row>
 
             <el-divider content-position="left">项目信息</el-divider>
             <el-row :gutter="20">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="酒店名称" prop="hotel_name">
                   <el-input v-model="formData.hotel_name" placeholder="请输入酒店名称" />
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="房间数量" prop="room_count">
                   <el-input-number
                     v-model="formData.room_count"
@@ -104,6 +151,9 @@
                     style="width: 100%"
                   />
                 </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <!-- 空列，保持布局 -->
               </el-col>
             </el-row>
             <el-row :gutter="20">
@@ -119,61 +169,40 @@
         <!-- 步骤2: 付款条款 -->
         <div v-show="currentStep === 1" class="step-panel">
           <el-form ref="paymentFormRef" :model="formData" label-width="100px">
-            <el-divider content-position="left">付款方式</el-divider>
+            <el-divider content-position="left">收款方式</el-divider>
             <el-row :gutter="20">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="付款方式">
                   <el-input v-model="formData.payment_method" placeholder="银行电汇" />
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
+              <el-col :span="16">
                 <el-form-item label="合同总金额">
                   <span class="total-amount">¥{{ formatMoney(quotationInfo.total_amount) }}</span>
                 </el-form-item>
               </el-col>
             </el-row>
+            <el-row :gutter="20">
+              <el-col :span="8">
+                <el-form-item label="户名">
+                  <el-input v-model="formData.bank_account_name" placeholder="请输入户名" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="开户行">
+                  <el-input v-model="formData.bank_name" placeholder="请输入开户行" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="账号">
+                  <el-input v-model="formData.bank_account_no" placeholder="请输入银行账号" />
+                </el-form-item>
+              </el-col>
+            </el-row>
 
             <el-divider content-position="left">付款阶段（共3期）</el-divider>
-            <div v-for="(stage, index) in formData.payment_stages" :key="index" class="payment-stage">
-              <div class="stage-header">
-                <span class="stage-number">第{{ index + 1 }}期 - {{ stage.name }}</span>
-                <el-tag :type="index === 0 ? 'danger' : index === 1 ? 'warning' : 'success'" size="small">
-                  {{ stage.percentage }}%
-                </el-tag>
-              </div>
-              <el-row :gutter="20">
-                <el-col :span="8">
-                  <el-form-item label="比例">
-                    <el-input-number
-                      v-model="stage.percentage"
-                      :min="0"
-                      :max="100"
-                      :step="5"
-                      controls-position="right"
-                      style="width: 100%"
-                      @change="handlePercentageChange"
-                    >
-                      <template #suffix>%</template>
-                    </el-input-number>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="金额">
-                    <el-input :value="formatMoney(stage.amount)" disabled>
-                      <template #suffix>元</template>
-                    </el-input>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="付款条件">
-                    <el-input v-model="stage.condition" placeholder="付款条件" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </div>
-
             <!-- 比例验证提示 -->
-            <div v-if="totalPercentage !== 100" class="percentage-warning">
+            <div v-if="totalPercentage !== 100" class="percentage-warning" style="margin-bottom: 16px;">
               <el-alert
                 :title="`当前付款比例合计：${totalPercentage}%，应为100%`"
                 type="warning"
@@ -181,36 +210,52 @@
                 show-icon
               />
             </div>
-
-            <el-divider content-position="left">收款账户信息</el-divider>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="户名">
-                  <el-input v-model="formData.bank_account_name" placeholder="请输入户名" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="开户行">
-                  <el-input v-model="formData.bank_name" placeholder="请输入开户行" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="20">
-              <el-col :span="24">
-                <el-form-item label="账号">
-                  <el-input v-model="formData.bank_account_no" placeholder="请输入银行账号" />
-                </el-form-item>
+            <el-row :gutter="16" class="payment-stages-row">
+              <el-col v-for="(stage, index) in formData.payment_stages" :key="index" :span="8">
+                <div class="payment-stage-card" :class="'stage-' + (index + 1)">
+                  <div class="stage-header">
+                    <span class="stage-title">第{{ index + 1 }}期 - {{ stage.name }}</span>
+                    <el-tag :type="index === 0 ? 'danger' : index === 1 ? 'warning' : 'success'" size="small">
+                      {{ stage.percentage }}%
+                    </el-tag>
+                  </div>
+                  <div class="stage-body">
+                    <div class="stage-row">
+                      <div class="stage-field flex-1">
+                        <label>比例</label>
+                        <el-input-number
+                          v-model="stage.percentage"
+                          :min="0"
+                          :max="100"
+                          :step="5"
+                          size="small"
+                          controls-position="right"
+                          style="width: 100%"
+                          @change="handlePercentageChange"
+                        />
+                      </div>
+                      <div class="stage-field flex-1">
+                        <label>金额</label>
+                        <div class="stage-amount">¥{{ formatMoney(stage.amount) }}</div>
+                      </div>
+                    </div>
+                    <div class="stage-field">
+                      <label>付款条件</label>
+                      <el-input v-model="stage.condition" size="small" placeholder="付款条件" />
+                    </div>
+                  </div>
+                </div>
               </el-col>
             </el-row>
           </el-form>
         </div>
 
-        <!-- 步骤3: 交付质保 -->
+        <!-- 步骤3: 交付发票 -->
         <div v-show="currentStep === 2" class="step-panel">
           <el-form ref="deliveryFormRef" :model="formData" label-width="100px">
             <el-divider content-position="left">交付信息</el-divider>
             <el-row :gutter="20">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="交货方式">
                   <el-select v-model="formData.delivery_method" placeholder="请选择" style="width: 100%">
                     <el-option label="送货上门" value="送货上门" />
@@ -219,7 +264,7 @@
                   </el-select>
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="运费承担">
                   <el-select v-model="formData.freight_bearer" placeholder="请选择" style="width: 100%">
                     <el-option label="甲方承担" value="party_a" />
@@ -227,16 +272,7 @@
                   </el-select>
                 </el-form-item>
               </el-col>
-            </el-row>
-            <el-row :gutter="20">
-              <el-col :span="24">
-                <el-form-item label="交货地点">
-                  <el-input v-model="formData.delivery_address" placeholder="请输入交货地点" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="20">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="交付期限">
                   <el-date-picker
                     v-model="formData.delivery_deadline"
@@ -248,10 +284,47 @@
                 </el-form-item>
               </el-col>
             </el-row>
+            <el-row :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="交货地点">
+                  <el-input v-model="formData.delivery_address" placeholder="请输入交货地点" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-divider content-position="left">发票信息</el-divider>
+            <el-row :gutter="20">
+              <el-col :span="8">
+                <el-form-item label="发票类型">
+                  <el-select v-model="formData.invoice_type" placeholder="请选择" style="width: 100%">
+                    <el-option label="不开票" value="none" />
+                    <el-option label="普通发票" value="normal" />
+                    <el-option label="专用发票" value="special" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col v-if="formData.invoice_type !== 'none'" :span="8">
+                <el-form-item label="开票单位">
+                  <el-input v-model="formData.invoice_company" placeholder="请输入开票单位" />
+                </el-form-item>
+              </el-col>
+              <el-col v-if="formData.invoice_type !== 'none'" :span="8">
+                <el-form-item label="税号">
+                  <el-input v-model="formData.invoice_tax_id" placeholder="请输入税号" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row v-if="formData.invoice_type !== 'none'" :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="开票备注">
+                  <el-input v-model="formData.invoice_remark" placeholder="请输入开票备注" />
+                </el-form-item>
+              </el-col>
+            </el-row>
 
             <el-divider content-position="left">质保信息</el-divider>
             <el-row :gutter="20">
-              <el-col :span="12">
+              <el-col :span="8">
                 <el-form-item label="质保期限">
                   <el-input-number
                     v-model="formData.warranty_period"
@@ -259,12 +332,15 @@
                     :max="10"
                     controls-position="right"
                     style="width: 100%"
-                  >
-                    <template #suffix>年</template>
-                  </el-input-number>
+                  />
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
+              <el-col :span="8">
+                <el-form-item label="单位">
+                  <span style="line-height: 32px;">年</span>
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
                 <el-form-item label="终身保修">
                   <el-switch v-model="formData.lifetime_maintenance" />
                 </el-form-item>
@@ -302,10 +378,14 @@
               </el-descriptions-item>
             </el-descriptions>
 
-            <el-descriptions title="交付与质保" :column="2" border size="small" style="margin-top: 16px">
+            <el-descriptions title="交付、发票与质保" :column="2" border size="small" style="margin-top: 16px">
               <el-descriptions-item label="交货方式">{{ formData.delivery_method || '-' }}</el-descriptions-item>
               <el-descriptions-item label="运费承担">{{ formData.freight_bearer === 'party_a' ? '甲方' : '乙方' }}</el-descriptions-item>
               <el-descriptions-item label="交货地点" :span="2">{{ formData.delivery_address || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="发票类型">{{ invoiceTypeText }}</el-descriptions-item>
+              <el-descriptions-item v-if="formData.invoice_type !== 'none'" label="开票单位">{{ formData.invoice_company || '-' }}</el-descriptions-item>
+              <el-descriptions-item v-if="formData.invoice_type !== 'none'" label="税号">{{ formData.invoice_tax_id || '-' }}</el-descriptions-item>
+              <el-descriptions-item v-if="formData.invoice_type !== 'none'" label="开票备注">{{ formData.invoice_remark || '-' }}</el-descriptions-item>
               <el-descriptions-item label="质保期限">{{ formData.warranty_period }}年</el-descriptions-item>
               <el-descriptions-item label="终身保修">{{ formData.lifetime_maintenance ? '是' : '否' }}</el-descriptions-item>
             </el-descriptions>
@@ -344,9 +424,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getQuotationInfoForContract, createContractFromQuotation } from '@/api/contracts'
+import { getActiveContractParties } from '@/api/contractParties'
 
 const props = defineProps({
   modelValue: {
@@ -374,6 +455,9 @@ const basicFormRef = ref(null)
 const paymentFormRef = ref(null)
 const deliveryFormRef = ref(null)
 
+// 合同主体列表
+const contractParties = ref([])
+
 // 从API获取的报价单信息
 const quotationInfo = reactive({
   quotation_id: null,
@@ -384,18 +468,36 @@ const quotationInfo = reactive({
   lead: {}
 })
 
+// 获取当前日期 YYYY-MM-DD 格式
+const getCurrentDate = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // 表单数据
 const formData = reactive({
   // 基础信息
   contract_title: '',
-  signed_date: '',
-  signing_location: '',
+  signed_date: getCurrentDate(),
+  signing_location: '温州',
   // 甲方信息
   party_a_name: '',
   party_a_address: '',
   party_a_representative: '',
   party_a_phone: '',
   party_a_fax: '',
+  // 乙方信息
+  party_b_id: null,
+  party_b_name: '',
+  party_b_representative: '',
+  party_b_phone: '',
+  party_b_address: '',
+  party_b_tax_id: '',
+  party_b_bank_name: '',
+  party_b_bank_account: '',
   // 项目信息
   hotel_name: '',
   room_count: null,
@@ -407,17 +509,22 @@ const formData = reactive({
     { stage: 2, name: '发货款', percentage: 60, amount: 0, condition: '乙方发货前一个工作日内' },
     { stage: 3, name: '验收款', percentage: 10, amount: 0, condition: '项目验收合格后七个工作日内' }
   ],
-  bank_account_name: '温州艾居来智能科技有限公司',
-  bank_name: '宁波银行股份有限公司温州经济技术开发区支行',
-  bank_account_no: '86041110000759370',
+  bank_account_name: '',
+  bank_name: '',
+  bank_account_no: '',
   // 交付信息
   delivery_method: '送货上门',
   delivery_address: '',
   freight_bearer: 'party_a',
   delivery_deadline: '',
+  // 发票信息
+  invoice_type: 'normal',  // none=不开票, normal=普通发票, special=专用发票
+  invoice_company: '',     // 开票单位，默认取甲方名称
+  invoice_tax_id: '',      // 税号
+  invoice_remark: '',      // 开票备注
   // 质保信息
-  warranty_period: 5,
-  lifetime_maintenance: true
+  warranty_period: 5,      // 质保期限（年）
+  lifetime_maintenance: true  // 终身保修
 })
 
 const basicRules = {
@@ -434,6 +541,16 @@ const totalPercentage = computed(() => {
   return formData.payment_stages.reduce((sum, stage) => sum + (stage.percentage || 0), 0)
 })
 
+// 发票类型文本
+const invoiceTypeText = computed(() => {
+  const typeMap = {
+    'none': '不开票',
+    'normal': '普通发票',
+    'special': '专用发票'
+  }
+  return typeMap[formData.invoice_type] || '-'
+})
+
 // 监听quotationId变化，获取报价单信息
 watch(() => props.quotationId, async (newId) => {
   if (newId && visible.value) {
@@ -444,6 +561,7 @@ watch(() => props.quotationId, async (newId) => {
 watch(visible, async (val) => {
   if (val && props.quotationId) {
     currentStep.value = 0
+    await fetchContractParties()
     await fetchQuotationInfo(props.quotationId)
   }
 })
@@ -481,6 +599,9 @@ const fetchQuotationInfo = async (quotationId) => {
     formData.hotel_name = project.hotel_name || ''
     formData.room_count = project.room_count || null
     formData.project_address = project.address || ''
+    // 发票信息默认值：开票单位默认取甲方名称
+    formData.invoice_company = customer.customer_name || ''
+    formData.invoice_tax_id = customer.tax_id || ''
 
     // 如果有默认付款条款，使用默认值
     if (defaultPaymentTerms.stages) {
@@ -491,12 +612,7 @@ const fetchQuotationInfo = async (quotationId) => {
         amount: s.amount,
         condition: s.condition
       }))
-      // 使用默认银行账户信息
-      if (defaultPaymentTerms.bank_account) {
-        formData.bank_account_name = defaultPaymentTerms.bank_account.name || formData.bank_account_name
-        formData.bank_name = defaultPaymentTerms.bank_account.bank || formData.bank_name
-        formData.bank_account_no = defaultPaymentTerms.bank_account.account || formData.bank_account_no
-      }
+      // 收款账户信息从乙方合同主体获取，不使用后端默认值
       if (defaultPaymentTerms.payment_method) {
         formData.payment_method = defaultPaymentTerms.payment_method
       }
@@ -523,6 +639,52 @@ const calculatePaymentAmounts = () => {
   formData.payment_stages.forEach(stage => {
     stage.amount = Math.round(total * (stage.percentage / 100) * 100) / 100
   })
+}
+
+// 获取合同主体列表
+const fetchContractParties = async () => {
+  try {
+    const res = await getActiveContractParties()
+    contractParties.value = res.data || []
+    // 自动选择默认主体
+    const defaultParty = contractParties.value.find(p => p.is_default === 1)
+    if (defaultParty && !formData.party_b_id) {
+      formData.party_b_id = defaultParty.party_id
+      handlePartyBChange(defaultParty.party_id)
+    }
+  } catch (error) {
+    console.error('获取合同主体列表失败:', error)
+  }
+}
+
+// 乙方选择变化
+const handlePartyBChange = (partyId) => {
+  const party = contractParties.value.find(p => p.party_id === partyId)
+  if (party) {
+    formData.party_b_name = party.party_name || ''
+    formData.party_b_representative = party.representative || ''
+    formData.party_b_phone = party.contact_phone || ''
+    formData.party_b_address = party.address || ''
+    formData.party_b_tax_id = party.tax_id || ''
+    formData.party_b_bank_name = party.bank_name || ''
+    formData.party_b_bank_account = party.bank_account || ''
+    // 同步更新收款账户信息（从乙方合同主体获取）
+    formData.bank_account_name = party.party_name || ''
+    formData.bank_name = party.bank_name || ''
+    formData.bank_account_no = party.bank_account || ''
+  } else {
+    formData.party_b_name = ''
+    formData.party_b_representative = ''
+    formData.party_b_phone = ''
+    formData.party_b_address = ''
+    formData.party_b_tax_id = ''
+    formData.party_b_bank_name = ''
+    formData.party_b_bank_account = ''
+    // 清空收款账户信息
+    formData.bank_account_name = ''
+    formData.bank_name = ''
+    formData.bank_account_no = ''
+  }
 }
 
 // 格式化金额
@@ -574,20 +736,39 @@ const handleSubmit = async () => {
       contract_title: formData.contract_title,
       signed_date: formData.signed_date,
       signing_location: formData.signing_location,
+      // 甲方信息
       party_a_name: formData.party_a_name,
       party_a_address: formData.party_a_address,
       party_a_representative: formData.party_a_representative,
       party_a_phone: formData.party_a_phone,
       party_a_fax: formData.party_a_fax,
+      // 乙方信息
+      party_b_id: formData.party_b_id,
+      party_b_name: formData.party_b_name,
+      party_b_representative: formData.party_b_representative,
+      party_b_phone: formData.party_b_phone,
+      party_b_address: formData.party_b_address,
+      party_b_tax_id: formData.party_b_tax_id,
+      party_b_bank_name: formData.party_b_bank_name,
+      party_b_bank_account: formData.party_b_bank_account,
+      // 项目信息
       hotel_name: formData.hotel_name,
       room_count: formData.room_count,
       project_address: formData.project_address,
+      // 交付信息
       delivery_method: formData.delivery_method,
       delivery_address: formData.delivery_address,
       freight_bearer: formData.freight_bearer,
       delivery_deadline: formData.delivery_deadline,
+      // 发票信息
+      invoice_type: formData.invoice_type,
+      invoice_company: formData.invoice_company,
+      invoice_tax_id: formData.invoice_tax_id,
+      invoice_remark: formData.invoice_remark,
+      // 质保信息
       warranty_period: formData.warranty_period,
       lifetime_maintenance: formData.lifetime_maintenance,
+      // 付款条款
       payment_terms: {
         stages: formData.payment_stages,
         payment_method: formData.payment_method,
@@ -641,23 +822,78 @@ const handleClose = () => {
   color: #e74c3c;
 }
 
-.payment-stage {
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  padding: 16px;
+.payment-stages-row {
   margin-bottom: 16px;
 }
 
-.stage-header {
+.payment-stage-card {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 12px;
+  height: 100%;
+  border: 1px solid #e4e7ed;
+}
+
+.payment-stage-card.stage-1 {
+  border-top: 3px solid #f56c6c;
+}
+
+.payment-stage-card.stage-2 {
+  border-top: 3px solid #e6a23c;
+}
+
+.payment-stage-card.stage-3 {
+  border-top: 3px solid #67c23a;
+}
+
+.payment-stage-card .stage-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4e7ed;
 }
 
-.stage-number {
+.payment-stage-card .stage-title {
   font-weight: 600;
   color: #303133;
+  font-size: 14px;
+}
+
+.payment-stage-card .stage-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payment-stage-card .stage-row {
+  display: flex;
+  gap: 12px;
+}
+
+.payment-stage-card .stage-row .flex-1 {
+  flex: 1;
+}
+
+.payment-stage-card .stage-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.payment-stage-card .stage-field label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.payment-stage-card .stage-amount {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e74c3c;
+  padding: 4px 0;
+  height: 24px;
+  line-height: 24px;
 }
 
 .percentage-warning {

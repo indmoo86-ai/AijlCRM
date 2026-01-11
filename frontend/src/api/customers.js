@@ -74,3 +74,24 @@ export function deleteCustomer(id) {
     method: 'delete'
   })
 }
+
+/**
+ * 添加客户回访记录
+ */
+export function addCustomerVisit(id, data) {
+  return request({
+    url: `/customers/${id}/visit`,
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 获取客户回访记录列表
+ */
+export function getCustomerVisits(id) {
+  return request({
+    url: `/customers/${id}/visits`,
+    method: 'get'
+  })
+}

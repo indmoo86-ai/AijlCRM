@@ -25,6 +25,10 @@ router.post('/:id/contacts', customerController.addCustomerContact);  // 3.5 添
 router.put('/:id/stage', customerController.advanceCustomerStage);    // 3.6 推进客户阶段
 router.put('/:id/owner', customerController.transferCustomerOwner);   // 3.7 转移客户负责人
 
+// 客户回访记录
+router.post('/:id/visit', customerController.addCustomerVisit);       // 添加回访记录
+router.get('/:id/visits', customerController.getCustomerVisits);      // 获取回访记录列表
+
 // 删除客户
 router.delete('/:id', customerController.deleteCustomer);             // 删除客户
 

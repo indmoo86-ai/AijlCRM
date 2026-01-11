@@ -21,6 +21,7 @@ const AuditLog = require('./AuditLog');
 const Quotation = require('./Quotation');
 const QuotationItem = require('./QuotationItem');
 const Contract = require('./Contract');
+const ContractParty = require('./ContractParty');
 const ContractItem = require('./ContractItem');
 const ContractAmendment = require('./ContractAmendment');
 const Task = require('./Task');
@@ -185,6 +186,16 @@ User.hasMany(Customer, {
   as: 'ownedCustomers'
 });
 
+// Customer - User 关联（创建人）
+Customer.belongsTo(User, {
+  foreignKey: 'createdBy',
+  as: 'creator'
+});
+User.hasMany(Customer, {
+  foreignKey: 'createdBy',
+  as: 'createdCustomers'
+});
+
 // FollowUp - User 关联（操作人）
 FollowUp.belongsTo(User, {
   foreignKey: 'operatorId',
@@ -300,6 +311,16 @@ Contract.belongsTo(Lead, {
 });
 Lead.hasMany(Contract, {
   foreignKey: 'lead_id',
+  as: 'contracts'
+});
+
+// Contract - ContractParty 关联（乙方）
+Contract.belongsTo(ContractParty, {
+  foreignKey: 'party_b_id',
+  as: 'partyB'
+});
+ContractParty.hasMany(Contract, {
+  foreignKey: 'party_b_id',
   as: 'contracts'
 });
 
@@ -505,6 +526,7 @@ module.exports = {
   Quotation,
   QuotationItem,
   Contract,
+  ContractParty,
   ContractItem,
   ContractAmendment,
   Task,

@@ -61,6 +61,16 @@ const Customer = sequelize.define('Customer', {
     type: DataTypes.BIGINT,
     field: 'source_lead_id'
   },
+  channelSource: {
+    type: DataTypes.STRING(50),
+    field: 'channel_source',
+    comment: '来源渠道'
+  },
+  createdBy: {
+    type: DataTypes.BIGINT,
+    field: 'created_by',
+    comment: '创建人ID'
+  },
   totalAmount: {
     type: DataTypes.DECIMAL(12, 2),
     defaultValue: 0.00,

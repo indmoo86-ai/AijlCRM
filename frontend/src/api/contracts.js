@@ -157,3 +157,78 @@ export function exportContractWord(id) {
     method: 'get'
   })
 }
+
+/**
+ * 获取合同跟踪记录
+ */
+export function getContractTrackRecords(id) {
+  return request({
+    url: `/contracts/${id}/track-records`,
+    method: 'get'
+  })
+}
+
+/**
+ * 添加合同跟踪记录
+ */
+export function addContractTrackRecord(id, data) {
+  return request({
+    url: `/contracts/${id}/track-records`,
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 确认合同 (draft -> pending)
+ */
+export function confirmContract(id, data) {
+  return request({
+    url: `/contracts/${id}/confirm`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 寄出合同 (pending -> sent)
+ */
+export function sendOutContract(id, data) {
+  return request({
+    url: `/contracts/${id}/send-out`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 收回合同 (sent -> active)
+ */
+export function receiveBackContract(id, data) {
+  return request({
+    url: `/contracts/${id}/receive-back`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 作废合同
+ */
+export function voidContract(id, data) {
+  return request({
+    url: `/contracts/${id}/void`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 恢复合同
+ */
+export function restoreContract(id) {
+  return request({
+    url: `/contracts/${id}/restore`,
+    method: 'put'
+  })
+}

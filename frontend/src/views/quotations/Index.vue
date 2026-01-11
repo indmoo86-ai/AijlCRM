@@ -111,23 +111,14 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">
                 查看
               </el-button>
-              <el-button link type="primary" size="small" @click="handleExportPDF(row)">
-                PDF
-              </el-button>
-              <el-button
-                v-if="row.status === 'draft'"
-                link
-                type="primary"
-                size="small"
-                @click="handleEdit(row)"
-              >
-                编辑
+              <el-button link type="success" size="small" @click="handleExportExcel(row)">
+                下载
               </el-button>
               <el-button
                 v-if="row.status !== 'voided'"
@@ -137,15 +128,6 @@
                 @click="handleRevise(row)"
               >
                 修改
-              </el-button>
-              <el-button
-                v-if="row.status !== 'voided'"
-                link
-                type="danger"
-                size="small"
-                @click="handleVoid(row)"
-              >
-                作废
               </el-button>
             </div>
           </template>
@@ -409,7 +391,12 @@
       width="90%"
       style="max-width: 1200px"
     >
-      <QuotationDetail v-if="viewDialogVisible" :quotation="currentQuotation" @export-pdf="handleExportPDF" />
+      <QuotationDetail
+        v-if="viewDialogVisible"
+        :quotation="currentQuotation"
+        @export-pdf="handleExportPDF"
+        @void="handleVoidFromDetail"
+      />
     </el-dialog>
   </div>
 </template>
@@ -784,6 +771,43 @@ const handleVoid = async (row) => {
     if (error !== 'cancel') {
       console.error('Void failed:', error)
     }
+  }
+}
+
+// 从详情页作废
+const handleVoidFromDetail = async (quotation) => {
+  try {
+    await voidQuotation(quotation.quotation_id)
+    ElMessage.success('报价单已作废')
+    viewDialogVisible.value = false
+    fetchData()
+  } catch (error) {
+    console.error('Void failed:', error)
+    ElMessage.error('作废失败')
+  }
+}
+
+// 导出Excel（使用后端API生成真正的xlsx格式）
+const handleExportExcel = async (row) => {
+  try {
+    const { exportQuotationExcel } = await import('@/api/quotations')
+    const response = await exportQuotationExcel(row.quotation_id)
+
+    // 创建下载链接
+    const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `报价单_${row.quotation_no || row.quotation_id}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('Export Excel failed:', error)
+    ElMessage.error('导出Excel失败')
   }
 }
 

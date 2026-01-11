@@ -81,9 +81,11 @@
         <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag v-if="row.status === 'draft'" type="info">草稿</el-tag>
-            <el-tag v-else-if="row.status === 'pending'" type="warning">待签署</el-tag>
-            <el-tag v-else-if="row.status === 'active'" type="primary">执行中</el-tag>
+            <el-tag v-else-if="row.status === 'pending'" type="warning">已确认</el-tag>
+            <el-tag v-else-if="row.status === 'sent'" type="primary">已寄出</el-tag>
+            <el-tag v-else-if="row.status === 'active'" type="success">已收回</el-tag>
             <el-tag v-else-if="row.status === 'completed'" type="success">已完成</el-tag>
+            <el-tag v-else-if="row.status === 'voided'" type="danger">已作废</el-tag>
             <el-tag v-else-if="row.status === 'cancelled'" type="danger">已取消</el-tag>
             <el-tag v-else>{{ row.status }}</el-tag>
           </template>
@@ -110,35 +112,58 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">
                 查看
               </el-button>
+              <!-- 状态流转按钮 -->
               <el-button
                 v-if="row.status === 'draft'"
                 link
-                type="primary"
+                type="success"
                 size="small"
-                @click="handleEdit(row)"
+                @click="handleConfirm(row)"
               >
-                编辑
+                确认
               </el-button>
               <el-button
                 v-if="row.status === 'pending'"
                 link
+                type="primary"
+                size="small"
+                @click="handleSendOut(row)"
+              >
+                寄出
+              </el-button>
+              <el-button
+                v-if="row.status === 'sent'"
+                link
                 type="success"
                 size="small"
-                @click="handleSign(row)"
+                @click="handleReceiveBack(row)"
               >
-                签署
+                收回
               </el-button>
-              <el-button link type="info" size="small" @click="handleProgress(row)">
-                进度
+              <!-- 作废/恢复按钮 -->
+              <el-button
+                v-if="row.status !== 'voided' && row.status !== 'completed'"
+                link
+                type="danger"
+                size="small"
+                @click="handleVoid(row)"
+              >
+                作废
               </el-button>
-              <el-button link type="danger" size="small" @click="handleDelete(row)">
-                删除
+              <el-button
+                v-if="row.status === 'voided'"
+                link
+                type="warning"
+                size="small"
+                @click="handleRestore(row)"
+              >
+                恢复
               </el-button>
             </div>
           </template>
@@ -312,7 +337,55 @@
       v-model="detailDrawerVisible"
       :contract-id="selectedContractId"
       @refresh="fetchData"
+      @edit="handleEditFromDetail"
     />
+
+    <!-- 确认/收回对话框（只需备注） -->
+    <el-dialog
+      v-model="statusDialogVisible"
+      :title="statusDialogTitle"
+      width="450px"
+    >
+      <el-form :model="statusForm" label-width="80px">
+        <el-form-item label="备注">
+          <el-input
+            v-model="statusForm.notes"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入备注（可选）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="statusDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitStatusChange" :loading="statusSubmitting">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 寄出对话框（快递单号+备注） -->
+    <el-dialog
+      v-model="sendOutDialogVisible"
+      title="寄出合同"
+      width="450px"
+    >
+      <el-form :model="sendOutForm" label-width="80px">
+        <el-form-item label="快递单号">
+          <el-input v-model="sendOutForm.trackingNo" placeholder="请输入快递单号" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input
+            v-model="sendOutForm.notes"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入备注（可选）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="sendOutDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitSendOut" :loading="statusSubmitting">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -321,7 +394,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
-import { getContractList, createContract, updateContract, deleteContract, signContract, getContractProgress } from '@/api/contracts'
+import { getContractList, createContract, updateContract, deleteContract, signContract, getContractProgress, confirmContract, sendOutContract, receiveBackContract, voidContract, restoreContract } from '@/api/contracts'
 import { getCustomerList } from '@/api/customers'
 import ContractDetail from './components/ContractDetail.vue'
 import dayjs from 'dayjs'
@@ -339,6 +412,22 @@ const formRef = ref(null)
 const tableData = ref([])
 const customers = ref([])
 const currentContract = ref({})
+
+// 状态操作相关
+const statusDialogVisible = ref(false)
+const statusDialogTitle = ref('')
+const statusSubmitting = ref(false)
+const statusAction = ref('') // confirm, receiveBack, void
+const statusContractId = ref(null)
+const statusForm = reactive({
+  notes: ''
+})
+
+const sendOutDialogVisible = ref(false)
+const sendOutForm = reactive({
+  trackingNo: '',
+  notes: ''
+})
 
 const searchForm = reactive({
   contractNo: '',
@@ -451,6 +540,11 @@ const handleEdit = (row) => {
     additional_terms: row.additional_terms
   })
   dialogVisible.value = true
+}
+
+// 从详情页编辑
+const handleEditFromDetail = (contract) => {
+  handleEdit(contract)
 }
 
 // 查看详情
@@ -589,6 +683,107 @@ const formatDate = (date) => {
 // 格式化金额
 const formatAmount = (amount) => {
   return amount ? parseFloat(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'
+}
+
+// 确认合同
+const handleConfirm = (row) => {
+  statusDialogTitle.value = '确认合同'
+  statusAction.value = 'confirm'
+  statusContractId.value = row.contract_id
+  statusForm.notes = ''
+  statusDialogVisible.value = true
+}
+
+// 寄出合同
+const handleSendOut = (row) => {
+  statusContractId.value = row.contract_id
+  sendOutForm.trackingNo = ''
+  sendOutForm.notes = ''
+  sendOutDialogVisible.value = true
+}
+
+// 收回合同
+const handleReceiveBack = (row) => {
+  statusDialogTitle.value = '收回合同'
+  statusAction.value = 'receiveBack'
+  statusContractId.value = row.contract_id
+  statusForm.notes = ''
+  statusDialogVisible.value = true
+}
+
+// 作废合同
+const handleVoid = (row) => {
+  statusDialogTitle.value = '作废合同'
+  statusAction.value = 'void'
+  statusContractId.value = row.contract_id
+  statusForm.notes = ''
+  statusDialogVisible.value = true
+}
+
+// 恢复合同
+const handleRestore = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定要恢复此合同吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    await restoreContract(row.contract_id)
+    ElMessage.success('合同已恢复')
+    fetchData()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Restore failed:', error)
+      ElMessage.error('恢复失败')
+    }
+  }
+}
+
+// 提交状态变更（确认/收回/作废）
+const submitStatusChange = async () => {
+  statusSubmitting.value = true
+  try {
+    const data = { notes: statusForm.notes }
+
+    if (statusAction.value === 'confirm') {
+      await confirmContract(statusContractId.value, data)
+      ElMessage.success('合同已确认')
+    } else if (statusAction.value === 'receiveBack') {
+      await receiveBackContract(statusContractId.value, data)
+      ElMessage.success('合同已收回')
+    } else if (statusAction.value === 'void') {
+      await voidContract(statusContractId.value, data)
+      ElMessage.success('合同已作废')
+    }
+
+    statusDialogVisible.value = false
+    fetchData()
+  } catch (error) {
+    console.error('Status change failed:', error)
+    ElMessage.error('操作失败')
+  } finally {
+    statusSubmitting.value = false
+  }
+}
+
+// 提交寄出
+const submitSendOut = async () => {
+  statusSubmitting.value = true
+  try {
+    await sendOutContract(statusContractId.value, {
+      trackingNo: sendOutForm.trackingNo,
+      notes: sendOutForm.notes
+    })
+    ElMessage.success('合同已寄出')
+    sendOutDialogVisible.value = false
+    fetchData()
+  } catch (error) {
+    console.error('Send out failed:', error)
+    ElMessage.error('操作失败')
+  } finally {
+    statusSubmitting.value = false
+  }
 }
 
 // 组件挂载时获取数据

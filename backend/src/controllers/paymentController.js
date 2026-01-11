@@ -72,6 +72,7 @@ exports.createPayment = async (req, res) => {
     const payerName = req.body.payerName || req.body.payer_name;
     const expectedAmount = req.body.expectedAmount || req.body.expected_amount;
     const paymentNote = req.body.paymentNote || req.body.payment_note;
+    const status = req.body.status || 'draft';
 
     // 获取合同信息
     const contract = await Contract.findByPk(contractId);
@@ -82,7 +83,7 @@ exports.createPayment = async (req, res) => {
     // 生成收款编号
     const payment_no = 'PAY-' + Date.now();
 
-    const payment = await Payment.create({
+    const paymentData = {
       payment_no,
       contract_id: contractId,
       customer_id: contract.customer_id,
@@ -95,10 +96,27 @@ exports.createPayment = async (req, res) => {
       payer_name: payerName,
       expected_amount: expectedAmount,
       payment_note: paymentNote,
-      status: 'draft',
+      status: status,
       owner_id: req.user.id,
       created_by: req.user.id
-    });
+    };
+
+    // 如果直接创建已确认的付款，设置确认信息
+    if (status === 'confirmed') {
+      paymentData.confirm_date = new Date();
+      paymentData.confirmed_by = req.user.id;
+    }
+
+    const payment = await Payment.create(paymentData);
+
+    // 如果是已确认的付款，更新合同的已收款金额
+    if (status === 'confirmed') {
+      const newReceivedAmount = parseFloat(contract.received_amount || 0) + parseFloat(paymentAmount || 0);
+      await contract.update({
+        received_amount: newReceivedAmount,
+        updated_by: req.user.id
+      });
+    }
 
     const responseData = {
       paymentId: payment.payment_id,

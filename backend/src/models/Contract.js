@@ -81,6 +81,47 @@ const Contract = sequelize.define('Contract', {
     allowNull: true,
     comment: '甲方传真'
   },
+  // 乙方信息
+  party_b_id: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+    comment: '乙方合同主体ID'
+  },
+  party_b_name: {
+    type: DataTypes.STRING(200),
+    allowNull: true,
+    comment: '乙方名称'
+  },
+  party_b_representative: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: '乙方代表'
+  },
+  party_b_phone: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: '乙方电话'
+  },
+  party_b_address: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: '乙方地址'
+  },
+  party_b_tax_id: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: '乙方税号/身份证号'
+  },
+  party_b_bank_name: {
+    type: DataTypes.STRING(200),
+    allowNull: true,
+    comment: '乙方开户行'
+  },
+  party_b_bank_account: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: '乙方银行账号'
+  },
   // 项目信息
   hotel_name: {
     type: DataTypes.STRING(200),
@@ -143,6 +184,28 @@ const Contract = sequelize.define('Contract', {
     allowNull: true,
     comment: '质保条款（JSON格式）'
   },
+  // 发票信息
+  invoice_type: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: 'normal',
+    comment: '发票类型（none=不开票, normal=普通发票, special=专用发票）'
+  },
+  invoice_company: {
+    type: DataTypes.STRING(200),
+    allowNull: true,
+    comment: '开票单位'
+  },
+  invoice_tax_id: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: '税号'
+  },
+  invoice_remark: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: '开票备注'
+  },
   penalty_terms: {
     type: DataTypes.TEXT,
     allowNull: true,
@@ -163,6 +226,38 @@ const Contract = sequelize.define('Contract', {
     type: DataTypes.DATEONLY,
     allowNull: true,
     comment: '交付期限'
+  },
+  // 合同寄送相关
+  tracking_no: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: '快递单号'
+  },
+  sent_date: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: '寄出日期'
+  },
+  received_date: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: '收回日期'
+  },
+  // 作废相关
+  previous_status: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    comment: '作废前状态（用于恢复）'
+  },
+  voided_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: '作废时间'
+  },
+  voided_by: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+    comment: '作废人'
   },
   actual_delivery_date: {
     type: DataTypes.DATEONLY,

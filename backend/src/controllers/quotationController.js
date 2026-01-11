@@ -8,9 +8,12 @@ const Customer = require('../models/Customer');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
 const FollowUp = require('../models/FollowUp');
+const Task = require('../models/Task');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
+const { QUOTATION_STATUS } = require('../constants/status');
+const StateMachineService = require('../services/stateMachineService');
 
 /**
  * 创建报价单
@@ -59,7 +62,7 @@ exports.createQuotation = async (req, res) => {
       total_sale_price: 0,
       total_amount: 0,
       discount_amount: discount_amount || 0,
-      status: 'draft',
+      status: QUOTATION_STATUS.DRAFT,
       notes,
       owner_id: req.user.id,
       created_by: req.user.id
@@ -153,8 +156,25 @@ exports.createQuotation = async (req, res) => {
         }, {
           where: { id: lead_id }
         });
+
+        // 自动创建报价单跟进任务
+        await Task.create({
+          task_type: 'quotation_follow',
+          task_title: `跟进报价单：${hotel_name || '未命名项目'}`,
+          task_description: `已创建报价单 ${quotation_no}，金额 ¥${total_amount.toFixed(2)}。请在3天内跟进客户反馈。`,
+          priority: total_amount > 50000 ? 'high' : 'medium',
+          status: 'pending',
+          source_type: 'quotation',
+          source_id: quotation.quotation_id,
+          assignee_id: req.user.id,
+          assigner_id: req.user.id,
+          assigned_at: new Date(),
+          due_date: nextFollowDate,
+          created_by: req.user.id
+        });
+
       } catch (followUpErr) {
-        console.error('创建跟踪记录失败:', followUpErr);
+        console.error('创建跟踪记录或任务失败:', followUpErr);
         // 不影响主流程
       }
     }
@@ -263,7 +283,7 @@ exports.updateQuotation = async (req, res) => {
       await t.rollback();
       return error(res, '报价单不存在', 404);
     }
-    if (quotation.status !== 'draft') {
+    if (quotation.status !== QUOTATION_STATUS.DRAFT) {
       await t.rollback();
       return error(res, '只有草稿状态的报价单才能修改', 400);
     }
@@ -379,14 +399,15 @@ exports.reviseQuotation = async (req, res) => {
       return error(res, '报价单不存在', 404);
     }
 
-    if (oldQuotation.status === 'voided') {
+    // 状态机验证：当前状态是否允许作废（生成新版本需要作废旧版本）
+    if (!StateMachineService.validateTransition('quotation', oldQuotation.status, QUOTATION_STATUS.VOIDED)) {
       await t.rollback();
-      return error(res, '已作废的报价单不能修改', 400);
+      return error(res, '当前报价单状态无法修改/作废', 400);
     }
 
     // 将旧报价单作废
     await oldQuotation.update({
-      status: 'voided',
+      status: QUOTATION_STATUS.VOIDED,
       updated_by: req.user.id
     }, { transaction: t });
 
@@ -413,7 +434,7 @@ exports.reviseQuotation = async (req, res) => {
       total_sale_price: 0,
       total_amount: 0,
       discount_amount: 0,
-      status: 'draft',
+      status: QUOTATION_STATUS.DRAFT,
       notes: req.body.notes || oldQuotation.notes,
       version: newVersion,
       previous_version_id: oldQuotation.quotation_id,
@@ -525,18 +546,19 @@ exports.voidQuotation = async (req, res) => {
       return error(res, '报价单不存在', 404);
     }
 
-    if (quotation.status === 'voided') {
-      return error(res, '报价单已经是作废状态', 400);
+    // 状态机验证
+    if (!StateMachineService.validateTransition('quotation', quotation.status, QUOTATION_STATUS.VOIDED)) {
+      return error(res, '当前报价单状态无法作废', 400);
     }
 
     await quotation.update({
-      status: 'voided',
+      status: QUOTATION_STATUS.VOIDED,
       updated_by: req.user.id
     });
 
     return success(res, {
       quotationId: quotation.quotation_id,
-      status: 'voided'
+      status: QUOTATION_STATUS.VOIDED
     }, '报价单已作废');
   } catch (err) {
     console.error('作废报价单失败:', err);
@@ -555,7 +577,7 @@ exports.getLatestQuotationByLead = async (req, res) => {
     const quotation = await Quotation.findOne({
       where: {
         lead_id: leadId,
-        status: { [Op.ne]: 'voided' }
+        status: { [Op.ne]: QUOTATION_STATUS.VOIDED }
       },
       include: [
         { model: QuotationItem, as: 'items' },
@@ -609,7 +631,7 @@ exports.addQuotationItem = async (req, res) => {
     const quotation = await Quotation.findByPk(id);
 
     if (!quotation) return error(res, '报价单不存在', 404);
-    if (quotation.status !== 'draft') return error(res, '只有草稿状态可以添加产品', 400);
+    if (quotation.status !== QUOTATION_STATUS.DRAFT) return error(res, '只有草稿状态可以添加产品', 400);
 
     const product_id = req.body.product_id || req.body.productId;
     const quantity = req.body.quantity || 1;
@@ -682,7 +704,7 @@ exports.deleteQuotationItem = async (req, res) => {
     if (!item || item.quotation_id != id) return error(res, '产品明细不存在', 404);
 
     const quotation = await Quotation.findByPk(id);
-    if (quotation.status !== 'draft') return error(res, '只有草稿状态可以删除产品', 400);
+    if (quotation.status !== QUOTATION_STATUS.DRAFT) return error(res, '只有草稿状态可以删除产品', 400);
 
     await item.destroy();
 
@@ -786,16 +808,44 @@ exports.sendQuotation = async (req, res) => {
     const quotation = await Quotation.findByPk(id);
 
     if (!quotation) return error(res, '报价单不存在', 404);
-    if (quotation.status === 'voided') return error(res, '已作废的报价单不能发送', 400);
+
+    // 状态机验证
+    if (!StateMachineService.validateTransition('quotation', quotation.status, QUOTATION_STATUS.SENT)) {
+      return error(res, '当前报价单状态无法发送（需为草稿或已通过）', 400);
+    }
 
     await quotation.update({
-      status: 'sent',
+      status: QUOTATION_STATUS.SENT,
       updated_by: req.user.id
     });
 
+    // 自动创建过期提醒任务
+    try {
+      const validUntil = new Date(quotation.valid_until);
+      const reminderDate = new Date(validUntil);
+      reminderDate.setDate(reminderDate.getDate() - 1); // 提前1天
+
+      await Task.create({
+        task_type: 'quotation_expiry',
+        task_title: `报价单即将到期：${quotation.quotation_no}`,
+        task_description: `报价单 ${quotation.quotation_no} 将于 ${validUntil.toISOString().slice(0, 10)} 到期，请及时跟进。`,
+        priority: 'medium',
+        status: 'pending',
+        source_type: 'quotation',
+        source_id: quotation.quotation_id,
+        assignee_id: req.user.id,
+        assigner_id: req.user.id,
+        assigned_at: new Date(),
+        due_date: reminderDate,
+        created_by: req.user.id
+      });
+    } catch (taskErr) {
+      console.error('创建过期提醒任务失败:', taskErr);
+    }
+
     return success(res, {
       quotationId: quotation.quotation_id,
-      status: 'sent'
+      status: QUOTATION_STATUS.SENT
     }, '报价单已发送');
   } catch (err) {
     console.error('发送报价单失败:', err);
@@ -811,8 +861,8 @@ exports.convertToContract = async (req, res) => {
     const { id } = req.params;
     const quotation = await Quotation.findByPk(id);
     if (!quotation) return error(res, '报价单不存在', 404);
-    if (quotation.status !== 'sent' && quotation.status !== 'accepted') {
-      return error(res, '只有已发送或已接受的报价单才能转合同', 400);
+    if (quotation.status !== QUOTATION_STATUS.SENT && quotation.status !== QUOTATION_STATUS.ACCEPTED && quotation.status !== QUOTATION_STATUS.APPROVED) {
+      return error(res, '只有已发送、已通过或已接受的报价单才能转合同', 400);
     }
 
     // TODO: 实现转合同逻辑
@@ -832,16 +882,20 @@ exports.submitQuotation = async (req, res) => {
     const quotation = await Quotation.findByPk(id);
 
     if (!quotation) return error(res, '报价单不存在', 404);
-    if (quotation.status !== 'draft') return error(res, '只有草稿状态的报价单才能提交', 400);
+
+    // 状态机验证
+    if (!StateMachineService.validateTransition('quotation', quotation.status, QUOTATION_STATUS.PENDING)) {
+      return error(res, '只有草稿状态的报价单才能提交审批', 400);
+    }
 
     await quotation.update({
-      status: 'pending',
+      status: QUOTATION_STATUS.PENDING,
       updated_by: req.user.id
     });
 
     return success(res, {
       quotationId: quotation.quotation_id,
-      status: 'pending'
+      status: QUOTATION_STATUS.PENDING
     }, '报价单已提交');
   } catch (err) {
     console.error('提交报价单失败:', err);
@@ -860,14 +914,38 @@ exports.approveQuotation = async (req, res) => {
     const quotation = await Quotation.findByPk(id);
 
     if (!quotation) return error(res, '报价单不存在', 404);
-    if (quotation.status !== 'pending') return error(res, '只有待审批状态的报价单才能审批', 400);
 
-    const newStatus = approved ? 'approved' : 'rejected';
+    // 检查是否待审批
+    if (quotation.status !== QUOTATION_STATUS.PENDING) {
+      return error(res, '只有待审批状态的报价单才能审批', 400);
+    }
+
+    const newStatus = approved ? QUOTATION_STATUS.APPROVED : QUOTATION_STATUS.REJECTED;
 
     await quotation.update({
       status: newStatus,
       updated_by: req.user.id
     });
+
+    // 创建审批结果通知任务
+    try {
+      await Task.create({
+        task_type: 'quotation_approval',
+        task_title: `报价单审批${approved ? '通过' : '拒绝'}：${quotation.quotation_no}`,
+        task_description: `您的报价单 ${quotation.quotation_no} 已${approved ? '通过审批' : '被拒绝'}。\n批注：${comment || '无'}`,
+        priority: 'high',
+        status: 'pending',
+        source_type: 'quotation',
+        source_id: quotation.quotation_id,
+        assignee_id: quotation.owner_id, // 通知报价单负责人
+        assigner_id: req.user.id,
+        assigned_at: new Date(),
+        due_date: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        created_by: req.user.id
+      });
+    } catch (taskErr) {
+      console.error('创建审批通知任务失败:', taskErr);
+    }
 
     return success(res, {
       quotationId: quotation.quotation_id,
@@ -889,7 +967,7 @@ exports.deleteQuotation = async (req, res) => {
     const quotation = await Quotation.findByPk(id);
 
     if (!quotation) return error(res, '报价单不存在', 404);
-    if (quotation.status !== 'draft' && quotation.status !== 'voided') {
+    if (quotation.status !== QUOTATION_STATUS.DRAFT && quotation.status !== QUOTATION_STATUS.VOIDED) {
       return error(res, '只有草稿或已作废状态的报价单才能删除', 400);
     }
 

@@ -11,7 +11,7 @@ const FollowUp = sequelize.define('FollowUp', {
     type: DataTypes.TINYINT,
     allowNull: false,
     field: 'biz_type',
-    comment: '1线索/2客户/3商机'
+    comment: '1线索/2客户/3商机/4合同'
   },
   bizId: {
     type: DataTypes.BIGINT,

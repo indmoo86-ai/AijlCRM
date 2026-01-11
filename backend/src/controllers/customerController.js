@@ -3,6 +3,11 @@
  */
 const Customer = require('../models/Customer');
 const CustomerContact = require('../models/CustomerContact');
+const Lead = require('../models/Lead');
+const FollowUp = require('../models/FollowUp');
+const Contract = require('../models/Contract');
+const Quotation = require('../models/Quotation');
+const User = require('../models/User');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -123,13 +128,23 @@ exports.createCustomer = async (req, res) => {
 exports.getCustomerDetail = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const customer = await Customer.findByPk(id, {
       include: [
-        { 
-          model: CustomerContact, 
+        {
+          model: CustomerContact,
           as: 'contacts',
           order: [['is_primary', 'DESC'], ['created_at', 'ASC']]
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name']
+        },
+        {
+          model: User,
+          as: 'salesOwner',
+          attributes: ['id', 'name']
         }
       ]
     });
@@ -138,15 +153,94 @@ exports.getCustomerDetail = async (req, res) => {
       return error(res, '客户不存在', 404);
     }
 
-    // TODO: 关联查询报价单、合同、跟进记录等
+    // 查询关联的线索
+    const leads = await Lead.findAll({
+      where: { customer_id: id },
+      order: [['created_at', 'DESC']]
+    });
+
+    // 获取最近一次沟通时间（从线索跟踪记录和客户回访记录中获取最新的）
+    let lastCommunicationTime = null;
+    let lastCommunicationContent = null;
+    let lastCommunicationOperator = null;
+    let lastCommunicationType = null;
+
+    // 1. 查询客户回访记录（bizType=2）
+    const customerFollowUp = await FollowUp.findOne({
+      where: {
+        bizType: 2, // 2 = 客户
+        bizId: id
+      },
+      order: [['created_at', 'DESC']],
+      include: [{ model: User, as: 'operator', attributes: ['id', 'name'] }]
+    });
+
+    // 2. 查询线索跟进记录（bizType=1）
+    let leadFollowUp = null;
+    if (leads.length > 0) {
+      const leadIds = leads.map(l => l.id);
+      leadFollowUp = await FollowUp.findOne({
+        where: {
+          bizType: 1, // 1 = 线索
+          bizId: { [Op.in]: leadIds }
+        },
+        order: [['created_at', 'DESC']],
+        include: [{ model: User, as: 'operator', attributes: ['id', 'name'] }]
+      });
+    }
+
+    // 3. 比较两者，取最新的
+    if (customerFollowUp && leadFollowUp) {
+      if (new Date(customerFollowUp.created_at) >= new Date(leadFollowUp.created_at)) {
+        lastCommunicationTime = customerFollowUp.created_at;
+        lastCommunicationContent = customerFollowUp.content;
+        lastCommunicationOperator = customerFollowUp.operator?.name;
+        lastCommunicationType = 'visit';
+      } else {
+        lastCommunicationTime = leadFollowUp.created_at;
+        lastCommunicationContent = leadFollowUp.content;
+        lastCommunicationOperator = leadFollowUp.operator?.name;
+        lastCommunicationType = 'lead';
+      }
+    } else if (customerFollowUp) {
+      lastCommunicationTime = customerFollowUp.created_at;
+      lastCommunicationContent = customerFollowUp.content;
+      lastCommunicationOperator = customerFollowUp.operator?.name;
+      lastCommunicationType = 'visit';
+    } else if (leadFollowUp) {
+      lastCommunicationTime = leadFollowUp.created_at;
+      lastCommunicationContent = leadFollowUp.content;
+      lastCommunicationOperator = leadFollowUp.operator?.name;
+      lastCommunicationType = 'lead';
+    }
+
+    // 查询关联的报价单
+    const quotations = await Quotation.findAll({
+      where: { customer_id: id },
+      order: [['created_at', 'DESC']],
+      limit: 10
+    });
+
+    // 查询关联的合同
+    const contracts = await Contract.findAll({
+      where: { customer_id: id },
+      order: [['created_at', 'DESC']],
+      limit: 10
+    });
+
     return success(res, {
       customer,
-      quotations: [],
-      contracts: [],
-      followUps: []
+      leads,
+      quotations,
+      contracts,
+      lastCommunicationTime,
+      lastCommunicationContent,
+      lastCommunicationOperator,
+      lastCommunicationType
     }, '查询成功');
   } catch (err) {
     console.error('查询客户详情失败:', err);
+    console.error('错误详情:', err.message);
     return error(res, '查询客户详情失败', 500);
   }
 };
@@ -334,6 +428,78 @@ exports.exportCustomers = async (req, res) => {
   } catch (err) {
     console.error('导出客户数据失败:', err);
     return error(res, '导出客户数据失败', 500);
+  }
+};
+
+/**
+ * 添加客户回访记录
+ * POST /api/customers/:id/visit
+ */
+exports.addCustomerVisit = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content, followType, nextPlan, nextFollowDate } = req.body;
+
+    const customer = await Customer.findByPk(id);
+    if (!customer) {
+      return error(res, '客户不存在', 404);
+    }
+
+    // 创建跟进记录（bizType=2 表示客户）
+    const followUp = await FollowUp.create({
+      bizType: 2, // 客户
+      bizId: id,
+      followType: followType || 'visit',
+      content: content || '回访记录',
+      nextPlan,
+      nextFollowDate,
+      operatorId: req.user?.id || 1
+    });
+
+    // 更新客户最后联系时间
+    await customer.update({
+      lastContactTime: new Date()
+    });
+
+    const responseData = {
+      followUpId: followUp.id,
+      ...followUp.toJSON()
+    };
+
+    return success(res, responseData, '回访记录添加成功', 201);
+  } catch (err) {
+    console.error('添加客户回访记录失败:', err);
+    console.error('错误详情:', err.message);
+    return error(res, '添加客户回访记录失败', 500);
+  }
+};
+
+/**
+ * 获取客户回访记录列表
+ * GET /api/customers/:id/visits
+ */
+exports.getCustomerVisits = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const customer = await Customer.findByPk(id);
+    if (!customer) {
+      return error(res, '客户不存在', 404);
+    }
+
+    const visits = await FollowUp.findAll({
+      where: {
+        bizType: 2, // 客户
+        bizId: id
+      },
+      order: [['created_at', 'DESC']],
+      include: [{ model: User, as: 'operator', attributes: ['id', 'name'] }]
+    });
+
+    return success(res, { list: visits }, '查询成功');
+  } catch (err) {
+    console.error('查询客户回访记录失败:', err);
+    return error(res, '查询客户回访记录失败', 500);
   }
 };
 

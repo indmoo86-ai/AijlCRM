@@ -168,6 +168,11 @@ async function test_1_2_wrong_password(page) {
   log('='.repeat(60));
 
   try {
+    // 确保已退出登录
+    log('步骤0: 清理登录状态', 'step');
+    await page.context().clearCookies();
+    await page.evaluate(() => localStorage.clear());
+
     await page.goto(`${CONFIG.baseUrl}/login`);
     await page.waitForLoadState('networkidle');
 
@@ -635,6 +640,8 @@ async function runAllTests() {
     // 第1类：用户认证（2个场景）
     { id: '1.1', name: '用户登录', test: test_1_1_login },
     { id: '1.2', name: '错误密码登录', test: test_1_2_wrong_password },
+    // 1.2测试会清理登录状态，需要重新登录以便后续测试
+    { id: '1.3', name: '恢复登录状态', test: test_1_1_login },
 
     // 第2类：产品管理（6个场景）
     { id: '4.1', name: '创建产品分类和产品', test: test_4_1_create_product },

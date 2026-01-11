@@ -13,9 +13,12 @@ const QuotationItem = require('../models/QuotationItem');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
 const FollowUp = require('../models/FollowUp');
+const Task = require('../models/Task');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
+const { CONTRACT_STATUS } = require('../constants/status');
+const StateMachineService = require('../services/stateMachineService');
 
 /**
  * 数字金额转大写
@@ -157,7 +160,7 @@ exports.createContract = async (req, res) => {
       payment_terms: paymentTerms,
       delivery_terms: deliveryTerms,
       warranty_terms: warrantyTerms,
-      status: 'draft',
+      status: CONTRACT_STATUS.DRAFT,
       owner_id: req.user.id,
       created_by: req.user.id
     });
@@ -224,7 +227,12 @@ exports.getContractDetail = async (req, res) => {
         { model: ContractItem, as: 'items', include: [{ model: Product, as: 'product' }] },
         { model: ContractAmendment, as: 'amendments' },
         { model: Quotation, as: 'sourceQuotation', attributes: ['quotation_id', 'quotation_no'] },
-        { model: Lead, as: 'lead', attributes: ['id', 'leadNo', 'customerName', 'hotelName'] }
+        {
+          model: Lead,
+          as: 'lead',
+          attributes: ['id', 'leadNo', 'customerName', 'hotelName', 'channelSource', 'created_at'],
+          include: [{ model: User, as: 'createdByUser', attributes: ['id', 'name', 'username'] }]
+        }
       ]
     });
 
@@ -250,6 +258,18 @@ exports.getContractDetail = async (req, res) => {
     const invoices = await Invoice.findAll({
       where: { contract_id: id },
       include: [{ model: User, as: 'owner', attributes: ['id', 'name'] }],
+      order: [['created_at', 'DESC']]
+    });
+
+    // 获取跟踪记录
+    const trackRecords = await FollowUp.findAll({
+      where: {
+        bizType: 4, // 合同
+        bizId: id
+      },
+      include: [
+        { model: User, as: 'operator', attributes: ['id', 'name', 'username'] }
+      ],
       order: [['created_at', 'DESC']]
     });
 
@@ -292,6 +312,8 @@ exports.getContractDetail = async (req, res) => {
       shipments: shipments,
       payments: payments,
       invoices: invoices,
+      // 跟踪记录
+      trackRecords: trackRecords,
       // 进度统计
       progress: {
         contractAmount: contractAmount,
@@ -326,7 +348,7 @@ exports.updateContract = async (req, res) => {
       return error(res, '合同不存在', 404);
     }
 
-    if (contract.status !== 'draft') {
+    if (contract.status !== CONTRACT_STATUS.DRAFT) {
       return error(res, '只有草稿状态的合同才能修改', 400);
     }
 
@@ -356,12 +378,13 @@ exports.signContract = async (req, res) => {
       return error(res, '合同不存在', 404);
     }
 
-    if (contract.status === 'signed') {
-      return error(res, '合同已签订', 400);
+    // 状态机验证
+    if (!StateMachineService.validateTransition('contract', contract.status, CONTRACT_STATUS.SIGNED)) {
+      return error(res, '当前合同状态无法签订（需为待确认或已寄出）', 400);
     }
 
     await contract.update({
-      status: 'signed',
+      status: CONTRACT_STATUS.SIGNED,
       signed_date: signedDate,
       contract_file_url: contractFileUrl,
       contract_file_uploaded_at: new Date(),
@@ -369,9 +392,49 @@ exports.signContract = async (req, res) => {
       updated_by: req.user.id
     });
 
+    // 自动创建任务：准备发货
+    try {
+      await Task.create({
+        task_type: 'contract_shipment',
+        task_title: `准备发货：${contract.contract_title}`,
+        task_description: `合同 ${contract.contract_no} 已签订，请安排备货和发货。\n交付截止：${contract.delivery_deadline || '未指定'}\n交付方式：${contract.delivery_method || '默认'}`,
+        priority: 'high',
+        status: 'pending',
+        source_type: 'contract',
+        source_id: contract.contract_id,
+        assignee_id: req.user.id, // 分配给合同负责人
+        assigner_id: req.user.id,
+        assigned_at: new Date(),
+        due_date: contract.delivery_deadline ? new Date(contract.delivery_deadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        created_by: req.user.id
+      });
+    } catch (taskErr) {
+      console.error('创建发货任务失败:', taskErr);
+    }
+
+    // 自动创建任务：跟进首付款
+    try {
+      await Task.create({
+        task_type: 'contract_payment',
+        task_title: `跟进首付款：${contract.contract_title}`,
+        task_description: `合同 ${contract.contract_no} 已签订，请及时跟进预付款/首付款。\n合同金额：¥${contract.contract_amount}`,
+        priority: 'high',
+        status: 'pending',
+        source_type: 'contract',
+        source_id: contract.contract_id,
+        assignee_id: req.user.id,
+        assigner_id: req.user.id,
+        assigned_at: new Date(),
+        due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3天内跟进付款
+        created_by: req.user.id
+      });
+    } catch (taskErr) {
+      console.error('创建收款任务失败:', taskErr);
+    }
+
     return success(res, {
       contractId: contract.contract_id,
-      status: contract.status,
+      status: CONTRACT_STATUS.SIGNED,
       signedDate: contract.signed_date,
       signedAt: contract.updated_at
     }, '合同签订成功');
@@ -602,12 +665,13 @@ exports.activateContract = async (req, res) => {
       return error(res, '合同不存在', 404);
     }
 
-    if (contract.status !== 'signed') {
+    // 状态机验证
+    if (!StateMachineService.validateTransition('contract', contract.status, CONTRACT_STATUS.ACTIVE)) {
       return error(res, '只有已签订的合同才能激活', 400);
     }
 
     await contract.update({
-      status: 'active',
+      status: CONTRACT_STATUS.ACTIVE,
       activate_date: activateDate || new Date(),
       activate_note: activateNote,
       activated_by: req.user.id,
@@ -642,12 +706,13 @@ exports.terminateContract = async (req, res) => {
       return error(res, '合同不存在', 404);
     }
 
-    if (contract.status === 'terminated' || contract.status === 'completed') {
-      return error(res, '合同已终止或已完成，无法再次操作', 400);
+    // 状态机验证
+    if (!StateMachineService.validateTransition('contract', contract.status, CONTRACT_STATUS.TERMINATED)) {
+      return error(res, '当前状态无法终止', 400);
     }
 
     await contract.update({
-      status: 'terminated',
+      status: CONTRACT_STATUS.TERMINATED,
       terminate_date: terminateDate || new Date(),
       terminate_reason: terminateReason,
       terminated_by: req.user.id,
@@ -830,6 +895,15 @@ exports.createContractFromQuotation = async (req, res) => {
       party_a_representative,
       party_a_phone,
       party_a_fax,
+      // 乙方信息
+      party_b_id,
+      party_b_name,
+      party_b_representative,
+      party_b_phone,
+      party_b_address,
+      party_b_tax_id,
+      party_b_bank_name,
+      party_b_bank_account,
       // 项目信息
       hotel_name,
       room_count,
@@ -841,6 +915,11 @@ exports.createContractFromQuotation = async (req, res) => {
       freight_bearer,
       // 付款条款
       payment_terms,
+      // 发票信息
+      invoice_type,
+      invoice_company,
+      invoice_tax_id,
+      invoice_remark,
       // 质保信息
       warranty_period,
       lifetime_maintenance,
@@ -892,7 +971,7 @@ exports.createContractFromQuotation = async (req, res) => {
       contract_no,
       contract_title: contract_title || '客房智能化系统购销合同',
       customer_id: quotation.customer_id,
-      status: 'draft',
+      status: CONTRACT_STATUS.DRAFT,
       contract_amount: contractAmount,
       amount_in_words: amountInWords,
       // 签署信息
@@ -904,6 +983,15 @@ exports.createContractFromQuotation = async (req, res) => {
       party_a_representative,
       party_a_phone,
       party_a_fax,
+      // 乙方信息
+      party_b_id,
+      party_b_name,
+      party_b_representative,
+      party_b_phone,
+      party_b_address,
+      party_b_tax_id,
+      party_b_bank_name,
+      party_b_bank_account,
       // 项目信息
       hotel_name: hotel_name || quotation.hotel_name,
       room_count: room_count || quotation.room_count,
@@ -915,6 +1003,11 @@ exports.createContractFromQuotation = async (req, res) => {
       freight_bearer: freight_bearer || 'party_a',
       // 付款条款
       payment_terms: payment_terms ? JSON.stringify(payment_terms) : null,
+      // 发票信息
+      invoice_type: invoice_type || 'normal',
+      invoice_company,
+      invoice_tax_id,
+      invoice_remark,
       // 质保信息
       warranty_period: warranty_period || 5,
       lifetime_maintenance: lifetime_maintenance !== false,
@@ -1184,5 +1277,304 @@ exports.exportContractWord = async (req, res) => {
     console.error('导出合同失败:', err);
     console.error('错误详情:', err.message);
     return error(res, '导出合同失败: ' + err.message, 500);
+  }
+};
+
+/**
+ * 获取合同跟踪记录
+ * GET /api/contracts/:id/track-records
+ */
+exports.getContractTrackRecords = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const contract = await Contract.findByPk(id);
+    if (!contract) {
+      return error(res, '合同不存在', 404);
+    }
+
+    const records = await FollowUp.findAll({
+      where: {
+        bizType: 4, // 合同
+        bizId: id
+      },
+      include: [
+        { model: User, as: 'operator', attributes: ['id', 'name', 'username'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    return success(res, records, '查询成功');
+  } catch (err) {
+    console.error('获取合同跟踪记录失败:', err);
+    return error(res, '获取合同跟踪记录失败', 500);
+  }
+};
+
+/**
+ * 添加合同跟踪记录
+ * POST /api/contracts/:id/track-records
+ */
+exports.addContractTrackRecord = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { followType, content, attachments } = req.body;
+
+    const contract = await Contract.findByPk(id);
+    if (!contract) {
+      return error(res, '合同不存在', 404);
+    }
+
+    if (!followType || !content) {
+      return error(res, '操作类型和内容不能为空', 400);
+    }
+
+    const record = await FollowUp.create({
+      bizType: 4, // 合同
+      bizId: id,
+      followType,
+      content,
+      attachments: attachments || null,
+      operatorId: req.user.id
+    });
+
+    // 重新查询以获取操作人信息
+    const recordWithOperator = await FollowUp.findByPk(record.id, {
+      include: [
+        { model: User, as: 'operator', attributes: ['id', 'name', 'username'] }
+      ]
+    });
+
+    return success(res, recordWithOperator, '添加成功', 201);
+  } catch (err) {
+    console.error('添加合同跟踪记录失败:', err);
+    return error(res, '添加合同跟踪记录失败', 500);
+  }
+};
+
+/**
+ * 确认合同 (draft -> pending)
+ * PUT /api/contracts/:id/confirm
+ */
+exports.confirmContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+
+    const contract = await Contract.findByPk(id);
+    if (!contract) {
+      return error(res, '合同不存在', 404);
+    }
+
+    // 状态机验证
+    if (!StateMachineService.validateTransition('contract', contract.status, CONTRACT_STATUS.PENDING)) {
+      return error(res, '只有草稿状态的合同才能确认', 400);
+    }
+
+    await contract.update({
+      status: CONTRACT_STATUS.PENDING,
+      updated_by: req.user.id
+    });
+
+    // 添加跟踪记录
+    await FollowUp.create({
+      bizType: 4,
+      bizId: id,
+      followType: 'status_change',
+      content: `合同已确认${notes ? '，备注：' + notes : ''}`,
+      operatorId: req.user.id
+    });
+
+    return success(res, { status: CONTRACT_STATUS.PENDING }, '合同已确认');
+  } catch (err) {
+    console.error('确认合同失败:', err);
+    return error(res, '确认合同失败', 500);
+  }
+};
+
+/**
+ * 寄出合同 (pending -> sent)
+ * PUT /api/contracts/:id/send-out
+ */
+exports.sendOutContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { trackingNo, notes } = req.body;
+
+    const contract = await Contract.findByPk(id);
+    if (!contract) {
+      return error(res, '合同不存在', 404);
+    }
+
+    // 状态机验证
+    if (!StateMachineService.validateTransition('contract', contract.status, CONTRACT_STATUS.SENT)) {
+      return error(res, '只有已确认的合同才能寄出', 400);
+    }
+
+    await contract.update({
+      status: CONTRACT_STATUS.SENT,
+      tracking_no: trackingNo,
+      sent_date: new Date(),
+      updated_by: req.user.id
+    });
+
+    // 添加跟踪记录
+    let content = '合同已寄出';
+    if (trackingNo) content += `，快递单号：${trackingNo}`;
+    if (notes) content += `，备注：${notes}`;
+
+    await FollowUp.create({
+      bizType: 4,
+      bizId: id,
+      followType: 'sent_out',
+      content,
+      operatorId: req.user.id
+    });
+
+    return success(res, { status: CONTRACT_STATUS.SENT }, '合同已寄出');
+  } catch (err) {
+    console.error('寄出合同失败:', err);
+    return error(res, '寄出合同失败', 500);
+  }
+};
+
+/**
+ * 收回合同 (sent -> active)
+ * PUT /api/contracts/:id/receive-back
+ */
+exports.receiveBackContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+
+    const contract = await Contract.findByPk(id);
+    if (!contract) {
+      return error(res, '合同不存在', 404);
+    }
+
+    // 状态机验证
+    if (!StateMachineService.validateTransition('contract', contract.status, CONTRACT_STATUS.ACTIVE)) {
+      return error(res, '当前状态无法变更为执行中', 400);
+    }
+
+    await contract.update({
+      status: CONTRACT_STATUS.ACTIVE,
+      received_date: new Date(),
+      updated_by: req.user.id
+    });
+
+    // 添加跟踪记录
+    await FollowUp.create({
+      bizType: 4,
+      bizId: id,
+      followType: 'received_back',
+      content: `合同已收回${notes ? '，备注：' + notes : ''}`,
+      operatorId: req.user.id
+    });
+
+    return success(res, { status: CONTRACT_STATUS.ACTIVE }, '合同已收回');
+  } catch (err) {
+    console.error('收回合同失败:', err);
+    return error(res, '收回合同失败', 500);
+  }
+};
+
+/**
+ * 作废合同
+ * PUT /api/contracts/:id/void
+ */
+exports.voidContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+
+    const contract = await Contract.findByPk(id);
+    if (!contract) {
+      return error(res, '合同不存在', 404);
+    }
+
+    // 状态机验证
+    if (!StateMachineService.validateTransition('contract', contract.status, CONTRACT_STATUS.VOIDED)) {
+      return error(res, '当前合同状态无法作废', 400);
+    }
+
+    // 保存原状态用于恢复
+    const previousStatus = contract.status;
+
+    await contract.update({
+      status: CONTRACT_STATUS.VOIDED,
+      previous_status: previousStatus,
+      voided_at: new Date(),
+      voided_by: req.user.id,
+      updated_by: req.user.id
+    });
+
+    // 添加跟踪记录
+    await FollowUp.create({
+      bizType: 4,
+      bizId: id,
+      followType: 'status_change',
+      content: `合同已作废${notes ? '，原因：' + notes : ''}`,
+      operatorId: req.user.id
+    });
+
+    return success(res, { status: CONTRACT_STATUS.VOIDED }, '合同已作废');
+  } catch (err) {
+    console.error('作废合同失败:', err);
+    return error(res, '作废合同失败', 500);
+  }
+};
+
+/**
+ * 恢复合同
+ * PUT /api/contracts/:id/restore
+ */
+exports.restoreContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const contract = await Contract.findByPk(id);
+    if (!contract) {
+      return error(res, '合同不存在', 404);
+    }
+
+    if (contract.status !== CONTRACT_STATUS.VOIDED) {
+      return error(res, '只有已作废的合同才能恢复', 400);
+    }
+
+    // 恢复到之前的状态，如果没有记录则恢复为草稿
+    const restoreStatus = contract.previous_status || CONTRACT_STATUS.DRAFT;
+
+    // 再次验证状态流转是否合法
+    if (!StateMachineService.validateTransition('contract', contract.status, restoreStatus)) {
+        // 如果无法直接恢复到原状态，尝试恢复到草稿
+        if (StateMachineService.validateTransition('contract', contract.status, CONTRACT_STATUS.DRAFT)) {
+             restoreStatus = CONTRACT_STATUS.DRAFT;
+        } else {
+             return error(res, '无法恢复合同状态', 400);
+        }
+    }
+
+    await contract.update({
+      status: restoreStatus,
+      previous_status: null,
+      voided_at: null,
+      voided_by: null,
+      updated_by: req.user.id
+    });
+
+    // 添加跟踪记录
+    await FollowUp.create({
+      bizType: 4,
+      bizId: id,
+      followType: 'status_change',
+      content: `合同已恢复`,
+      operatorId: req.user.id
+    });
+
+    return success(res, { status: restoreStatus }, '合同已恢复');
+  } catch (err) {
+    console.error('恢复合同失败:', err);
+    return error(res, '恢复合同失败', 500);
   }
 };

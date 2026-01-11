@@ -25,7 +25,7 @@ echo ""
 echo -e "${YELLOW}[1/12] 测试用户登录...${NC}"
 curl -s -X POST "${BASE_URL}/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' > $TEST_DIR/01-login.json
+  -d '{"username":"admin","password":"123456"}' > $TEST_DIR/01-login.json
 
 TOKEN=$(cat $TEST_DIR/01-login.json | python3 -c "import sys, json; print(json.load(sys.stdin).get('data', {}).get('token', ''))" 2>/dev/null)
 

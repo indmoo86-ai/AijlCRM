@@ -57,6 +57,12 @@ const routes = [
         meta: { title: '产品详情', hidden: true }
       },
       {
+        path: 'contract-parties',
+        name: 'ContractParties',
+        component: () => import('@/views/contract-parties/Index.vue'),
+        meta: { title: '合同主体管理', icon: 'OfficeBuilding' }
+      },
+      {
         path: 'quotations',
         name: 'Quotations',
         component: () => import('@/views/quotations/Index.vue'),

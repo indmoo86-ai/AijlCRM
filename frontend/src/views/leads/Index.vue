@@ -63,10 +63,6 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="显示全部">
-          <el-switch v-model="searchForm.showAll" @change="handleSearch" />
-        </el-form-item>
-
         <el-form-item label="需求分类">
           <el-select
             v-model="searchForm.demandCategory"
@@ -120,6 +116,10 @@
           <el-button :icon="Refresh" @click="handleReset">
             重置
           </el-button>
+        </el-form-item>
+
+        <el-form-item label="显示全部">
+          <el-switch v-model="searchForm.showAll" @change="handleSearch" />
         </el-form-item>
       </el-form>
 
@@ -622,28 +622,6 @@
               <el-empty v-else description="暂无关联客户" :image-size="60" />
             </div>
 
-            <!-- 关联合同 -->
-            <div class="detail-section">
-              <div class="section-title">关联合同</div>
-              <template v-if="detailData.contracts && detailData.contracts.length > 0">
-                <el-table :data="detailData.contracts" size="small" border max-height="200">
-                  <el-table-column prop="contract_no" label="合同编号" width="140" />
-                  <el-table-column prop="contract_name" label="合同名称" min-width="120" show-overflow-tooltip />
-                  <el-table-column prop="total_amount" label="金额" width="100">
-                    <template #default="{ row }">¥{{ row.total_amount || 0 }}</template>
-                  </el-table-column>
-                  <el-table-column prop="status" label="状态" width="80">
-                    <template #default="{ row }">
-                      <el-tag :type="getContractStatusType(row.status)" size="small">
-                        {{ getContractStatusLabel(row.status) }}
-                      </el-tag>
-                    </template>
-                  </el-table-column>
-                </el-table>
-              </template>
-              <el-empty v-else description="暂无关联合同" :image-size="60" />
-            </div>
-
             <!-- 时间信息 -->
             <div class="detail-section">
               <div class="section-title">时间信息</div>
@@ -736,24 +714,31 @@
                 <div v-if="latestQuotation.items && latestQuotation.items.length > 0" class="quotation-items">
                   <div class="items-title">产品明细</div>
                   <el-table :data="latestQuotation.items" size="small" border max-height="200">
-                    <el-table-column prop="product_name" label="产品名称" min-width="120" show-overflow-tooltip />
-                    <el-table-column prop="quantity" label="数量" width="70" align="center" />
-                    <el-table-column prop="sale_price" label="销售价" width="90" align="right">
+                    <el-table-column prop="product_name" label="产品名称" min-width="100" show-overflow-tooltip />
+                    <el-table-column prop="quantity" label="数量" width="60" align="center" />
+                    <el-table-column prop="sale_price" label="销售价" width="80" align="right">
                       <template #default="{ row }">¥{{ formatPrice(row.sale_price) }}</template>
                     </el-table-column>
-                    <el-table-column prop="unit_price" label="优惠价" width="90" align="right">
+                    <el-table-column prop="unit_price" label="优惠价" width="80" align="right">
                       <template #default="{ row }">¥{{ formatPrice(row.unit_price) }}</template>
                     </el-table-column>
-                    <el-table-column prop="subtotal" label="小计" width="100" align="right">
+                    <el-table-column prop="cost_price" label="成本价" width="80" align="right">
+                      <template #default="{ row }">¥{{ formatPrice(row.cost_price) }}</template>
+                    </el-table-column>
+                    <el-table-column prop="subtotal" label="小计" width="90" align="right">
                       <template #default="{ row }">
                         <span class="price-actual">¥{{ formatPrice(row.subtotal) }}</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="利润率" width="70" align="center">
+                      <template #default="{ row }">
+                        <span :class="getProfitRateClass(row)">{{ calculateProfitRate(row) }}</span>
                       </template>
                     </el-table-column>
                   </el-table>
                 </div>
 
                 <div class="quotation-actions">
-                  <el-button size="small" @click="handleViewQuotation(latestQuotation)">查看详情</el-button>
                   <el-button type="primary" size="small" @click="handleExportQuotationPDF(latestQuotation)">导出PDF</el-button>
                   <el-button type="success" size="small" @click="handleExportQuotationExcel(latestQuotation)">导出Excel</el-button>
                   <el-button v-if="latestQuotation.status !== 'voided'" type="warning" size="small" @click="handleReviseQuotation(latestQuotation)">修改</el-button>
@@ -897,17 +882,238 @@
       :quotation-id="selectedQuotationId"
       @success="handleContractCreated"
     />
+
+    <!-- 报价单修改弹窗 -->
+    <el-dialog
+      v-model="quotationEditDialogVisible"
+      title="修改报价单"
+      width="95%"
+      style="max-width: 1400px"
+      :close-on-click-modal="false"
+      @close="resetQuotationForm"
+    >
+      <!-- 客户/酒店信息 -->
+      <div class="lead-info-bar">
+        <span class="info-item"><label>客户：</label>{{ quotationForm.customerName || '-' }}</span>
+        <span class="info-item"><label>酒店：</label>{{ quotationForm.hotel_name || '-' }}</span>
+        <span class="info-item"><label>地区：</label>{{ [quotationForm.province, quotationForm.city, quotationForm.district].filter(Boolean).join('/') || '-' }}</span>
+        <span class="info-item"><label>房间数：</label><strong>{{ quotationForm.room_count || 0 }}</strong> 间</span>
+        <span class="info-item">
+          <label>报价日期：</label>
+          <el-date-picker
+            v-model="quotationForm.quotation_date"
+            type="date"
+            placeholder="选择"
+            size="small"
+            style="width: 130px"
+            value-format="YYYY-MM-DD"
+          />
+        </span>
+        <span class="info-item">
+          <label>有效期至：</label>
+          <el-date-picker
+            v-model="quotationForm.valid_until"
+            type="date"
+            placeholder="选择"
+            size="small"
+            style="width: 130px"
+            value-format="YYYY-MM-DD"
+          />
+        </span>
+      </div>
+
+      <!-- 产品选择区域 -->
+      <el-card class="products-card" shadow="never">
+        <template #header>
+          <div class="products-header">
+            <span class="info-title">添加产品</span>
+          </div>
+        </template>
+
+        <div class="product-search">
+          <el-form :inline="true" :model="productSearch">
+            <el-form-item label="分类">
+              <el-select v-model="productSearch.category_id" placeholder="全部" clearable style="width: 120px" @change="fetchProducts">
+                <el-option
+                  v-for="cat in productCategories"
+                  :key="cat.category_id"
+                  :label="cat.category_name"
+                  :value="cat.category_id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="品牌">
+              <el-select v-model="productSearch.brand" placeholder="全部" clearable style="width: 120px" @change="fetchProducts">
+                <el-option
+                  v-for="brand in brandList"
+                  :key="brand"
+                  :label="brand"
+                  :value="brand"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="关键词">
+              <el-input
+                v-model="productSearch.keyword"
+                placeholder="名称/编码"
+                clearable
+                style="width: 150px"
+                @keyup.enter="fetchProducts"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" size="small" @click="fetchProducts">搜索</el-button>
+            </el-form-item>
+          </el-form>
+
+          <div class="product-list">
+            <el-table :data="productList" size="small" max-height="200" border>
+              <el-table-column prop="product_code" label="编码" width="120" />
+              <el-table-column prop="product_name" label="产品名称" min-width="150" />
+              <el-table-column prop="brand" label="品牌" width="100" />
+              <el-table-column prop="cost_price" label="成本价" width="90" align="right">
+                <template #default="{ row }">
+                  ¥{{ formatPrice(row.cost_price) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="sale_price" label="销售价" width="90" align="right">
+                <template #default="{ row }">
+                  ¥{{ formatPrice(row.sale_price) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="70" align="center">
+                <template #default="{ row }">
+                  <el-button type="primary" size="small" @click="handleAddProduct(row)">
+                    添加
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-card>
+
+      <!-- 已选产品明细 -->
+      <el-card class="items-card" shadow="never">
+        <template #header>
+          <div class="items-header">
+            <span class="info-title">报价明细</span>
+            <span class="items-count">共 {{ quotationForm.items.length }} 项产品</span>
+          </div>
+        </template>
+
+        <el-table :data="quotationForm.items" border size="small">
+          <el-table-column type="index" label="#" width="45" align="center" />
+          <el-table-column prop="product_code" label="编码" width="120" />
+          <el-table-column prop="product_name" label="产品名称" min-width="150" />
+          <el-table-column prop="brand" label="品牌" width="90" />
+          <el-table-column label="数量" width="110" align="center">
+            <template #default="{ row, $index }">
+              <el-input-number
+                v-model="row.quantity"
+                :min="1"
+                :max="99999"
+                size="small"
+                style="width: 90px"
+                @change="recalculateItem($index)"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column prop="sale_price" label="销售价" width="90" align="right">
+            <template #default="{ row }">
+              ¥{{ formatPrice(row.sale_price) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="优惠价" width="110" align="center">
+            <template #default="{ row, $index }">
+              <el-input-number
+                v-model="row.unit_price"
+                :min="0"
+                :precision="2"
+                :controls="false"
+                size="small"
+                style="width: 90px"
+                @change="recalculateItem($index)"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column prop="subtotal" label="小计" width="100" align="right">
+            <template #default="{ row }">
+              <span class="price-actual">¥{{ formatPrice(row.subtotal) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="60" align="center">
+            <template #default="{ $index }">
+              <el-button link type="danger" size="small" @click="handleRemoveItem($index)">
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 汇总信息 -->
+        <div class="summary-section">
+          <div class="summary-row">
+            <span class="summary-item">产品总数：<strong>{{ quotationSummary.totalQuantity }}</strong> 件</span>
+            <span class="summary-item">成本总计：<strong>¥{{ formatPrice(quotationSummary.totalCost) }}</strong></span>
+            <span class="summary-item">名义总价：<strong>¥{{ formatPrice(quotationSummary.totalSalePrice) }}</strong></span>
+            <span class="summary-item">
+              折扣率：
+              <el-tag :type="discountRatioType" size="small">{{ discountRatioText }}</el-tag>
+            </span>
+            <span class="summary-item summary-total">
+              实际总价：
+              <el-input-number
+                v-model="quotationForm.final_amount"
+                :min="0"
+                :precision="2"
+                :controls="false"
+                size="small"
+                style="width: 120px"
+                @change="handleFinalAmountChange"
+              />
+              <el-tooltip content="修改总价后，各产品价格将按比例自动调整" placement="top">
+                <el-icon style="margin-left: 5px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+              </el-tooltip>
+            </span>
+          </div>
+        </div>
+      </el-card>
+
+      <!-- 备注 -->
+      <el-card class="notes-card" shadow="never">
+        <template #header>
+          <span class="info-title">备注信息</span>
+        </template>
+        <el-input
+          v-model="quotationForm.notes"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入备注信息"
+        />
+      </el-card>
+
+      <template #footer>
+        <el-button @click="quotationEditDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="quotationSubmitLoading" @click="handleQuotationSubmit">
+          保存修改
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Upload, View, Download, Link } from '@element-plus/icons-vue'
 import { getLeadList, createLead, updateLead, addFollowUp, getLeadDetail } from '@/api/leads'
 import { getUserList } from '@/api/users'
 import { exportContractWord } from '@/api/contracts'
+import { getQuotationDetail, reviseQuotation } from '@/api/quotations'
+import { getProductList, getProductCategories } from '@/api/products'
+import { QuestionFilled } from '@element-plus/icons-vue'
 import ContractCreateWizard from '@/views/quotations/components/ContractCreateWizard.vue'
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, BorderStyle } from 'docx'
 import { saveAs } from 'file-saver'
@@ -957,6 +1163,40 @@ const detailData = reactive({
 // 合同创建向导相关
 const contractWizardVisible = ref(false)
 const selectedQuotationId = ref(null)
+
+// 报价单修改弹窗相关
+const quotationEditDialogVisible = ref(false)
+const quotationEditLoading = ref(false)
+const quotationSubmitLoading = ref(false)
+const productList = ref([])
+const productCategories = ref([])
+const brandList = ref([])
+
+const productSearch = reactive({
+  category_id: null,
+  brand: '',
+  minPrice: null,
+  maxPrice: null,
+  keyword: ''
+})
+
+const quotationForm = reactive({
+  quotation_id: null,
+  _revise_from: null,
+  customer_id: null,
+  customerName: '',
+  lead_id: null,
+  hotel_name: '',
+  province: '',
+  city: '',
+  district: '',
+  room_count: null,
+  quotation_date: '',
+  valid_until: '',
+  notes: '',
+  items: [],
+  final_amount: 0
+})
 
 // 中国省市区数据（element-china-area-data）
 const chinaRegionOptions = regionData
@@ -1653,6 +1893,27 @@ const formatPrice = (price) => {
   return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// 计算利润率
+const calculateProfitRate = (row) => {
+  const unitPrice = parseFloat(row.unit_price) || 0
+  const costPrice = parseFloat(row.cost_price) || 0
+  if (unitPrice === 0) return '-'
+  const rate = ((unitPrice - costPrice) / unitPrice * 100).toFixed(1)
+  return `${rate}%`
+}
+
+// 获取利润率样式类
+const getProfitRateClass = (row) => {
+  const unitPrice = parseFloat(row.unit_price) || 0
+  const costPrice = parseFloat(row.cost_price) || 0
+  if (unitPrice === 0) return ''
+  const rate = (unitPrice - costPrice) / unitPrice * 100
+  if (rate >= 30) return 'profit-high'
+  if (rate >= 15) return 'profit-normal'
+  if (rate >= 0) return 'profit-low'
+  return 'profit-negative'
+}
+
 // 最新报价单（非作废状态的第一条）
 const latestQuotation = computed(() => {
   if (!detailData.quotations || detailData.quotations.length === 0) return null
@@ -1974,12 +2235,320 @@ const handleExportQuotationExcel = async (quotation) => {
   }
 }
 
-// 修改报价单
-const handleReviseQuotation = (quotation) => {
-  router.push({
-    path: '/quotations',
-    query: { revise: quotation.quotation_id }
+// 报价单汇总信息计算
+const quotationSummary = computed(() => {
+  let totalQuantity = 0
+  let totalCost = 0
+  let totalSalePrice = 0
+  let totalAmount = 0
+
+  quotationForm.items.forEach(item => {
+    totalQuantity += item.quantity || 0
+    totalCost += item.cost_subtotal || 0
+    totalSalePrice += item.sale_subtotal || 0
+    totalAmount += item.subtotal || 0
   })
+
+  return {
+    totalQuantity,
+    totalCost,
+    totalSalePrice,
+    totalAmount,
+    discountAmount: totalSalePrice - totalAmount
+  }
+})
+
+// 折扣率显示文本
+const discountRatioText = computed(() => {
+  if (quotationSummary.value.totalSalePrice <= 0) return '0%'
+  const ratio = (quotationForm.final_amount / quotationSummary.value.totalSalePrice) * 100
+  if (ratio === 100) return '原价'
+  if (ratio > 100) return `+${(ratio - 100).toFixed(1)}%`
+  return `${(100 - ratio).toFixed(1)}% OFF`
+})
+
+// 折扣率标签类型
+const discountRatioType = computed(() => {
+  if (quotationSummary.value.totalSalePrice <= 0) return 'info'
+  const ratio = quotationForm.final_amount / quotationSummary.value.totalSalePrice
+  if (ratio === 1) return 'info'
+  if (ratio > 1) return 'warning'
+  if (ratio >= 0.9) return 'success'
+  if (ratio >= 0.7) return 'primary'
+  return 'danger'
+})
+
+// 获取产品分类列表
+const fetchCategories = async () => {
+  try {
+    const res = await getProductCategories()
+    productCategories.value = res.data || []
+  } catch (error) {
+    console.error('Failed to fetch categories:', error)
+  }
+}
+
+// 获取产品列表
+const fetchProducts = async () => {
+  try {
+    const params = {
+      pageSize: 100,
+      status: 'active'
+    }
+    if (productSearch.category_id) params.category_id = productSearch.category_id
+    if (productSearch.keyword) params.keyword = productSearch.keyword
+    if (productSearch.brand) params.brand = productSearch.brand
+
+    const res = await getProductList(params)
+    let products = res.data.list || res.data.rows || []
+
+    // 前端品牌过滤（如果后端不支持）
+    if (productSearch.brand) {
+      products = products.filter(p => p.brand === productSearch.brand)
+    }
+
+    productList.value = products
+
+    // 提取品牌列表（首次加载时）
+    if (brandList.value.length === 0) {
+      const allProducts = res.data.list || res.data.rows || []
+      const brands = [...new Set(allProducts.map(p => p.brand).filter(Boolean))]
+      brandList.value = brands.sort()
+    }
+  } catch (error) {
+    console.error('Failed to fetch products:', error)
+  }
+}
+
+// 添加产品到报价单
+const handleAddProduct = (product) => {
+  const existing = quotationForm.items.find(item => item.product_id === product.product_id)
+  if (existing) {
+    existing.quantity += (quotationForm.room_count || 1)
+    recalculateItem(quotationForm.items.indexOf(existing))
+    ElMessage.success('产品数量已增加')
+    return
+  }
+
+  const costPrice = parseFloat(product.cost_price) || 0
+  const salePrice = parseFloat(product.sale_price) || 0
+  const defaultQuantity = quotationForm.room_count || 1
+
+  quotationForm.items.push({
+    product_id: product.product_id,
+    product_code: product.product_code,
+    product_name: product.product_name,
+    brand: product.brand || '',
+    quantity: defaultQuantity,
+    cost_price: costPrice,
+    sale_price: salePrice,
+    unit_price: salePrice,
+    cost_subtotal: costPrice * defaultQuantity,
+    sale_subtotal: salePrice * defaultQuantity,
+    subtotal: salePrice * defaultQuantity
+  })
+
+  updateFinalAmount()
+  ElMessage.success('产品已添加')
+}
+
+// 删除产品
+const handleRemoveItem = (index) => {
+  quotationForm.items.splice(index, 1)
+  updateFinalAmount()
+}
+
+// 重新计算明细
+const recalculateItem = (index) => {
+  const item = quotationForm.items[index]
+  if (!item) return
+
+  item.cost_subtotal = item.quantity * item.cost_price
+  item.sale_subtotal = item.quantity * item.sale_price
+  item.subtotal = item.quantity * item.unit_price
+  updateFinalAmount()
+}
+
+// 更新实际总价
+const updateFinalAmount = () => {
+  let total = 0
+  quotationForm.items.forEach(item => {
+    total += item.subtotal || 0
+  })
+  quotationForm.final_amount = total
+}
+
+// 手动修改实际总价时的处理
+const handleFinalAmountChange = () => {
+  if (quotationForm.items.length === 0) return
+
+  const currentSaleTotal = quotationForm.items.reduce((sum, item) => {
+    return sum + (item.quantity * item.sale_price)
+  }, 0)
+
+  if (currentSaleTotal <= 0) return
+
+  const ratio = quotationForm.final_amount / currentSaleTotal
+
+  quotationForm.items.forEach(item => {
+    item.unit_price = Math.round(item.sale_price * ratio * 100) / 100
+    item.subtotal = Math.round(item.quantity * item.unit_price * 100) / 100
+    item.sale_subtotal = item.quantity * item.sale_price
+    item.cost_subtotal = item.quantity * item.cost_price
+  })
+
+  // 调整误差
+  const adjustedTotal = quotationForm.items.reduce((sum, item) => sum + item.subtotal, 0)
+  const diff = quotationForm.final_amount - adjustedTotal
+  if (Math.abs(diff) > 0.001 && quotationForm.items.length > 0) {
+    const lastItem = quotationForm.items[quotationForm.items.length - 1]
+    lastItem.subtotal = Math.round((lastItem.subtotal + diff) * 100) / 100
+    if (lastItem.quantity > 0) {
+      lastItem.unit_price = Math.round(lastItem.subtotal / lastItem.quantity * 100) / 100
+    }
+  }
+}
+
+// 重置报价单表单
+const resetQuotationForm = () => {
+  quotationForm.quotation_id = null
+  quotationForm._revise_from = null
+  quotationForm.customer_id = null
+  quotationForm.lead_id = null
+  quotationForm.customerName = ''
+  quotationForm.hotel_name = ''
+  quotationForm.province = ''
+  quotationForm.city = ''
+  quotationForm.district = ''
+  quotationForm.room_count = null
+  quotationForm.quotation_date = ''
+  quotationForm.valid_until = ''
+  quotationForm.notes = ''
+  quotationForm.items = []
+  quotationForm.final_amount = 0
+}
+
+// 修改报价单 - 打开弹窗
+const handleReviseQuotation = async (quotation) => {
+  try {
+    await ElMessageBox.confirm(
+      '修改将作废当前报价单并生成新版本，确定要继续吗？',
+      '提示',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+
+    quotationEditLoading.value = true
+
+    // 加载产品数据
+    if (productCategories.value.length === 0) {
+      await fetchCategories()
+    }
+    if (productList.value.length === 0) {
+      await fetchProducts()
+    }
+
+    // 获取报价单详情
+    const res = await getQuotationDetail(quotation.quotation_id)
+    const data = res.data
+
+    // 填充表单
+    Object.assign(quotationForm, {
+      quotation_id: null,
+      _revise_from: data.quotation_id,
+      customer_id: data.customer_id,
+      customerName: data.customer?.customerName || data.hotel_name || '',
+      lead_id: data.lead_id,
+      hotel_name: data.hotel_name,
+      province: data.province,
+      city: data.city,
+      district: data.district,
+      room_count: data.room_count,
+      quotation_date: dayjs().format('YYYY-MM-DD'),
+      valid_until: data.valid_until,
+      notes: data.notes,
+      items: (data.items || []).map(item => ({
+        product_id: item.product_id,
+        product_code: item.product_code,
+        product_name: item.product_name,
+        brand: item.brand || '',
+        quantity: item.quantity,
+        cost_price: parseFloat(item.cost_price) || 0,
+        sale_price: parseFloat(item.sale_price) || 0,
+        unit_price: parseFloat(item.unit_price) || 0,
+        cost_subtotal: parseFloat(item.cost_subtotal) || 0,
+        sale_subtotal: parseFloat(item.sale_subtotal) || 0,
+        subtotal: parseFloat(item.subtotal) || 0
+      })),
+      final_amount: parseFloat(data.total_amount) || 0
+    })
+
+    quotationEditDialogVisible.value = true
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to load quotation detail:', error)
+      ElMessage.error('加载报价单详情失败')
+    }
+  } finally {
+    quotationEditLoading.value = false
+  }
+}
+
+// 提交报价单修改
+const handleQuotationSubmit = async () => {
+  if (!quotationForm.quotation_date) {
+    ElMessage.warning('请选择报价日期')
+    return
+  }
+  if (!quotationForm.valid_until) {
+    ElMessage.warning('请选择有效期')
+    return
+  }
+  if (quotationForm.items.length === 0) {
+    ElMessage.warning('请至少添加一个产品')
+    return
+  }
+
+  quotationSubmitLoading.value = true
+  try {
+    const submitData = {
+      customer_id: quotationForm.customer_id,
+      lead_id: quotationForm.lead_id,
+      hotel_name: quotationForm.hotel_name,
+      province: quotationForm.province,
+      city: quotationForm.city,
+      district: quotationForm.district,
+      room_count: quotationForm.room_count,
+      quotation_date: quotationForm.quotation_date,
+      valid_until: quotationForm.valid_until,
+      notes: quotationForm.notes,
+      total_amount: quotationForm.final_amount,
+      items: quotationForm.items.map(item => ({
+        product_id: item.product_id,
+        product_code: item.product_code,
+        product_name: item.product_name,
+        brand: item.brand,
+        quantity: item.quantity,
+        cost_price: item.cost_price,
+        sale_price: item.sale_price,
+        unit_price: item.unit_price
+      }))
+    }
+
+    await reviseQuotation(quotationForm._revise_from, submitData)
+    ElMessage.success('报价单已修改，已生成新版本')
+
+    quotationEditDialogVisible.value = false
+
+    // 刷新详情数据
+    if (detailData.lead) {
+      handleView(detailData.lead)
+    }
+  } catch (error) {
+    console.error('Submit failed:', error)
+    ElMessage.error('操作失败')
+  } finally {
+    quotationSubmitLoading.value = false
+  }
 }
 
 // 从报价单创建合同
@@ -2225,6 +2794,27 @@ onMounted(() => {
   font-weight: 500;
 }
 
+/* 利润率样式 */
+.profit-high {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+.profit-normal {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.profit-low {
+  color: #e6a23c;
+  font-weight: 500;
+}
+
+.profit-negative {
+  color: #f56c6c;
+  font-weight: 600;
+}
+
 /* 预警状态筛选下拉框样式 */
 .warning-option {
   display: flex;
@@ -2269,5 +2859,105 @@ onMounted(() => {
 .no-followup {
   color: #c0c4cc;
   font-size: 13px;
+}
+
+/* 报价单修改弹窗样式 */
+.lead-info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 12px 15px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  align-items: center;
+}
+
+.lead-info-bar .info-item {
+  font-size: 13px;
+  color: #606266;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lead-info-bar .info-item label {
+  color: #909399;
+}
+
+.lead-info-bar .info-item strong {
+  color: #303133;
+  font-size: 15px;
+}
+
+.products-card,
+.items-card,
+.notes-card {
+  margin-bottom: 15px;
+}
+
+.products-card :deep(.el-card__header),
+.items-card :deep(.el-card__header),
+.notes-card :deep(.el-card__header) {
+  padding: 10px 15px;
+  background-color: #f5f7fa;
+}
+
+.info-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.products-header,
+.items-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.items-count {
+  font-size: 12px;
+  color: #909399;
+}
+
+.product-search {
+  padding: 0;
+}
+
+.product-list {
+  margin-top: 15px;
+}
+
+.summary-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #fafafa;
+  border-radius: 4px;
+}
+
+.summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 25px;
+  align-items: center;
+}
+
+.summary-item {
+  font-size: 13px;
+  color: #606266;
+}
+
+.summary-item strong {
+  color: #303133;
+}
+
+.summary-total {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>
