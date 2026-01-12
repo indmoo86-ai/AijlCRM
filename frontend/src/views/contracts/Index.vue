@@ -36,15 +36,59 @@
             placeholder="请选择"
             clearable
             @clear="handleSearch"
+            style="width: 120px"
           >
             <el-option label="草稿" value="draft" />
-            <el-option label="待签署" value="pending" />
-            <el-option label="执行中" value="active" />
+            <el-option label="已确认" value="pending" />
+            <el-option label="已寄出" value="sent" />
+            <el-option label="已收回" value="active" />
             <el-option label="已完成" value="completed" />
-            <el-option label="已取消" value="cancelled" />
+            <el-option label="已作废" value="voided" />
           </el-select>
         </el-form-item>
-        
+
+        <el-form-item label="发货状态">
+          <el-select
+            v-model="searchForm.shipmentStatus"
+            placeholder="请选择"
+            clearable
+            @clear="handleSearch"
+            style="width: 120px"
+          >
+            <el-option label="待发货" value="pending" />
+            <el-option label="部分发货" value="partial" />
+            <el-option label="已发完" value="completed" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="收款状态">
+          <el-select
+            v-model="searchForm.paymentStatus"
+            placeholder="请选择"
+            clearable
+            @clear="handleSearch"
+            style="width: 120px"
+          >
+            <el-option label="待收款" value="pending" />
+            <el-option label="部分收款" value="partial" />
+            <el-option label="已收齐" value="completed" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="开票状态">
+          <el-select
+            v-model="searchForm.invoiceStatus"
+            placeholder="请选择"
+            clearable
+            @clear="handleSearch"
+            style="width: 120px"
+          >
+            <el-option label="待开票" value="pending" />
+            <el-option label="部分开票" value="partial" />
+            <el-option label="已开完" value="completed" />
+          </el-select>
+        </el-form-item>
+
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="handleSearch">
             搜索
@@ -94,15 +138,28 @@
         <el-table-column prop="signed_date" label="签订日期" width="100" />
         <el-table-column prop="delivery_deadline" label="交付期限" width="100" />
 
-        <el-table-column prop="shipped_amount" label="已发货" width="100" align="right">
+        <el-table-column label="发货状态" width="90" align="center">
           <template #default="{ row }">
-            ¥{{ formatAmount(row.shipped_amount) }}
+            <el-tag v-if="getShipmentStatus(row) === 'completed'" type="success" size="small">已发完</el-tag>
+            <el-tag v-else-if="getShipmentStatus(row) === 'partial'" type="warning" size="small">部分发货</el-tag>
+            <el-tag v-else type="info" size="small">待发货</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="received_amount" label="已收款" width="100" align="right">
+        <el-table-column label="收款状态" width="90" align="center">
           <template #default="{ row }">
-            ¥{{ formatAmount(row.received_amount) }}
+            <el-tag v-if="getPaymentStatus(row) === 'completed'" type="success" size="small">已收齐</el-tag>
+            <el-tag v-else-if="getPaymentStatus(row) === 'partial'" type="warning" size="small">部分收款</el-tag>
+            <el-tag v-else type="info" size="small">待收款</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="开票状态" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="getInvoiceStatus(row) === 'completed'" type="success" size="small">已开完</el-tag>
+            <el-tag v-else-if="getInvoiceStatus(row) === 'partial'" type="warning" size="small">部分开票</el-tag>
+            <el-tag v-else-if="row.invoice_type === 'none'" type="info" size="small">无需开票</el-tag>
+            <el-tag v-else type="info" size="small">待开票</el-tag>
           </template>
         </el-table-column>
 
@@ -432,7 +489,10 @@ const sendOutForm = reactive({
 const searchForm = reactive({
   contractNo: '',
   customerName: '',
-  status: ''
+  status: '',
+  shipmentStatus: '',
+  paymentStatus: '',
+  invoiceStatus: ''
 })
 
 const pagination = reactive({
@@ -504,6 +564,9 @@ const handleReset = () => {
   searchForm.contractNo = ''
   searchForm.customerName = ''
   searchForm.status = ''
+  searchForm.shipmentStatus = ''
+  searchForm.paymentStatus = ''
+  searchForm.invoiceStatus = ''
   handleSearch()
 }
 
@@ -602,6 +665,37 @@ const getPaymentProgress = (contract) => {
   const received = parseFloat(contract.received_amount || 0)
   const total = parseFloat(contract.contract_amount)
   return Math.min(Math.round((received / total) * 100), 100)
+}
+
+// 获取发货状态
+const getShipmentStatus = (contract) => {
+  const shipped = parseFloat(contract.shipped_amount || 0)
+  const total = parseFloat(contract.contract_amount || 0)
+  if (total <= 0) return 'pending'
+  if (shipped >= total) return 'completed'
+  if (shipped > 0) return 'partial'
+  return 'pending'
+}
+
+// 获取收款状态
+const getPaymentStatus = (contract) => {
+  const received = parseFloat(contract.received_amount || 0)
+  const total = parseFloat(contract.contract_amount || 0)
+  if (total <= 0) return 'pending'
+  if (received >= total) return 'completed'
+  if (received > 0) return 'partial'
+  return 'pending'
+}
+
+// 获取开票状态
+const getInvoiceStatus = (contract) => {
+  if (contract.invoice_type === 'none') return 'none'
+  const invoiced = parseFloat(contract.invoiced_amount || 0)
+  const total = parseFloat(contract.contract_amount || 0)
+  if (total <= 0) return 'pending'
+  if (invoiced >= total) return 'completed'
+  if (invoiced > 0) return 'partial'
+  return 'pending'
 }
 
 // 获取进度条颜色

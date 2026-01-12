@@ -74,6 +74,7 @@ exports.createInvoice = async (req, res) => {
     const bankName = req.body.bankName || req.body.bank_name;
     const bankAccount = req.body.bankAccount || req.body.bank_account;
     const invoiceNote = req.body.invoiceNote || req.body.invoice_note;
+    const invoiceStatus = req.body.status || 'draft'; // 支持直接创建已确认的发票
 
     // 获取合同信息
     const contract = await Contract.findByPk(contractId);
@@ -99,10 +100,21 @@ exports.createInvoice = async (req, res) => {
       bank_name: bankName,
       bank_account: bankAccount,
       invoice_note: invoiceNote,
-      status: 'draft',
+      status: invoiceStatus,
+      confirm_date: invoiceStatus === 'confirmed' ? new Date() : null,
+      confirmed_by: invoiceStatus === 'confirmed' ? req.user.id : null,
       owner_id: req.user.id,
       created_by: req.user.id
     });
+
+    // 如果直接创建为已确认状态，更新合同的invoiced_amount
+    if (invoiceStatus === 'confirmed') {
+      const newInvoicedAmount = parseFloat(contract.invoiced_amount || 0) + parseFloat(invoiceAmount || 0);
+      await contract.update({
+        invoiced_amount: newInvoicedAmount,
+        updated_by: req.user.id
+      });
+    }
 
     const responseData = {
       invoiceId: invoice.invoice_id,

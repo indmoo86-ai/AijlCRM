@@ -41,6 +41,14 @@ export function deleteInvoice(id) {
 export function confirmInvoice(id) {
   return request({
     url: `/invoices/${id}/confirm`,
-    method: 'post'
+    method: 'put'
+  })
+}
+
+export function voidInvoice(id, data) {
+  return request({
+    url: `/invoices/${id}/void`,
+    method: 'put',
+    data
   })
 }

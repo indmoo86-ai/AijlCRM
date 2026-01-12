@@ -59,17 +59,29 @@ export function deleteShipment(id) {
 export function confirmShipment(id, data) {
   return request({
     url: `/shipments/${id}/confirm`,
-    method: 'post',
+    method: 'put',
     data
   })
 }
 
 /**
- * 完成发货
+ * 签收确认
  */
-export function completeShipment(id) {
+export function signShipment(id, data) {
   return request({
-    url: `/shipments/${id}/complete`,
-    method: 'post'
+    url: `/shipments/${id}/sign`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 取消发货
+ */
+export function cancelShipment(id, data) {
+  return request({
+    url: `/shipments/${id}/cancel`,
+    method: 'put',
+    data
   })
 }

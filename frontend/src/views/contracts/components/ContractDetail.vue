@@ -170,7 +170,7 @@
                     size="small"
                     @click="handleStagePayment(row, $index)"
                   >
-                    付款
+                    收款
                   </el-button>
                   <span v-else class="text-success">-</span>
                 </template>
@@ -182,21 +182,15 @@
           <div class="payment-records">
             <div class="section-title">收款记录</div>
             <el-table v-if="payments && payments.length > 0" :data="payments" size="small" border>
-              <el-table-column prop="payment_no" label="收款编号" width="160" />
-              <el-table-column prop="payment_stage" label="收款阶段" width="120" />
-              <el-table-column prop="payment_amount" label="金额" width="120" align="right">
+              <el-table-column prop="payment_no" label="收款编号" width="150" />
+              <el-table-column prop="payment_stage" label="收款阶段" width="100" />
+              <el-table-column prop="payment_amount" label="金额" width="110" align="right">
                 <template #default="{ row }">¥{{ formatMoney(row.payment_amount) }}</template>
               </el-table-column>
               <el-table-column prop="payment_date" label="收款日期" width="100" />
               <el-table-column prop="payment_method" label="方式" width="80" />
-              <el-table-column prop="status" label="状态" width="80">
-                <template #default="{ row }">
-                  <el-tag v-if="row.status === 'confirmed'" type="success" size="small">已确认</el-tag>
-                  <el-tag v-else-if="row.status === 'pending'" type="warning" size="small">待确认</el-tag>
-                  <el-tag v-else type="info" size="small">{{ row.status }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="payment_note" label="备注" min-width="150" show-overflow-tooltip />
+              <el-table-column prop="bank_account" label="收款账户" min-width="150" show-overflow-tooltip />
+              <el-table-column prop="payment_note" label="备注" min-width="120" show-overflow-tooltip />
             </el-table>
             <el-empty v-else description="暂无收款记录" />
           </div>
@@ -204,62 +198,163 @@
 
         <!-- 发货 Tab -->
         <el-tab-pane label="发货" name="shipments">
-          <div class="tab-header">
-            <span class="tab-title">发货记录</span>
-            <el-button type="primary" size="small" @click="handleAddShipment">添加发货</el-button>
+          <!-- 发货明细 -->
+          <div class="shipment-items-section">
+            <div class="section-title">
+              发货明细
+              <el-button type="primary" size="small" style="margin-left: 15px" @click="handleAddShipment" :disabled="!hasUnshippedItems">
+                添加发货
+              </el-button>
+            </div>
+            <el-table v-if="contract.items && contract.items.length > 0" :data="contract.items" size="small" border>
+              <el-table-column prop="product_name" label="产品名称" min-width="150" show-overflow-tooltip />
+              <el-table-column prop="product_code" label="产品编码" width="120" />
+              <el-table-column prop="quantity" label="合同数量" width="90" align="center" />
+              <el-table-column prop="product_unit" label="单位" width="60" align="center" />
+              <el-table-column label="已发货" width="90" align="center">
+                <template #default="{ row }">
+                  <span :class="{ 'text-success': row.shipped_quantity >= row.quantity }">
+                    {{ row.shipped_quantity || 0 }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="未发货" width="90" align="center">
+                <template #default="{ row }">
+                  <span :class="{ 'amount-highlight': (row.quantity - (row.shipped_quantity || 0)) > 0 }">
+                    {{ row.quantity - (row.shipped_quantity || 0) }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="发货状态" width="90" align="center">
+                <template #default="{ row }">
+                  <el-tag v-if="row.shipped_quantity >= row.quantity" type="success" size="small">已完成</el-tag>
+                  <el-tag v-else-if="row.shipped_quantity > 0" type="warning" size="small">部分</el-tag>
+                  <el-tag v-else type="info" size="small">待发货</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else description="暂无产品明细" />
           </div>
 
-          <el-table v-if="shipments && shipments.length > 0" :data="shipments" size="small" border>
-            <el-table-column prop="shipment_no" label="发货编号" width="160" />
-            <el-table-column prop="shipment_amount" label="发货金额" width="120" align="right">
-              <template #default="{ row }">¥{{ formatMoney(row.shipment_amount) }}</template>
-            </el-table-column>
-            <el-table-column prop="shipment_date" label="发货日期" width="100" />
-            <el-table-column prop="logistics_company" label="物流公司" width="120" />
-            <el-table-column prop="tracking_no" label="物流单号" width="150" />
-            <el-table-column prop="status" label="状态" width="80">
-              <template #default="{ row }">
-                <el-tag v-if="row.status === 'delivered'" type="success" size="small">已送达</el-tag>
-                <el-tag v-else-if="row.status === 'shipped'" type="primary" size="small">运输中</el-tag>
-                <el-tag v-else-if="row.status === 'pending'" type="warning" size="small">待发货</el-tag>
-                <el-tag v-else type="info" size="small">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="owner.name" label="负责人" width="80" />
-          </el-table>
-          <el-empty v-else description="暂无发货记录" />
+          <!-- 发货记录 -->
+          <div class="shipment-records-section">
+            <div class="section-title">发货记录</div>
+            <el-table v-if="shipments && shipments.length > 0" :data="shipments" size="small" border>
+              <el-table-column prop="shipment_no" label="发货编号" width="160" />
+              <el-table-column prop="shipment_amount" label="发货金额" width="110" align="right">
+                <template #default="{ row }">¥{{ formatMoney(row.shipment_amount) }}</template>
+              </el-table-column>
+              <el-table-column prop="actual_ship_date" label="发货日期" width="100">
+                <template #default="{ row }">{{ formatDate(row.actual_ship_date) }}</template>
+              </el-table-column>
+              <el-table-column prop="logistics_company" label="物流公司" width="100" />
+              <el-table-column prop="tracking_no" label="快递单号" width="140" show-overflow-tooltip />
+              <el-table-column prop="status" label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag v-if="row.status === 'delivered'" type="success" size="small">已送达</el-tag>
+                  <el-tag v-else-if="row.status === 'shipped'" type="primary" size="small">已发货</el-tag>
+                  <el-tag v-else-if="row.status === 'cancelled'" type="danger" size="small">已取消</el-tag>
+                  <el-tag v-else type="info" size="small">{{ row.status }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="notes" label="备注" min-width="120" show-overflow-tooltip />
+            </el-table>
+            <el-empty v-else description="暂无发货记录" />
+          </div>
         </el-tab-pane>
 
         <!-- 发票 Tab -->
         <el-tab-pane label="发票" name="invoices">
-          <div class="tab-header">
-            <span class="tab-title">开票记录</span>
-            <el-button type="primary" size="small" @click="handleAddInvoice">申请开票</el-button>
+          <!-- 发票要求信息 -->
+          <div class="invoice-requirements">
+            <div class="section-title">
+              发票要求
+              <el-button
+                v-if="contract.invoice_type !== 'none'"
+                type="primary"
+                size="small"
+                style="margin-left: 15px"
+                @click="handleAddInvoice"
+                :disabled="!hasUninvoicedAmount"
+              >
+                开票
+              </el-button>
+            </div>
+            <el-descriptions :column="3" border size="small">
+              <el-descriptions-item label="发票类型">
+                <el-tag v-if="contract.invoice_type === 'special'" type="danger" size="small">增值税专票</el-tag>
+                <el-tag v-else-if="contract.invoice_type === 'normal'" type="primary" size="small">增值税普票</el-tag>
+                <el-tag v-else type="info" size="small">无需开票</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="开票公司">{{ contract.invoice_company || contract.party_a_name || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="税号">{{ contract.invoice_tax_id || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="合同金额">
+                <span class="amount-highlight">¥{{ formatMoney(contract.contract_amount) }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="已开票金额">
+                <span :class="{ 'text-success': (contract.invoiced_amount || 0) >= (contract.contract_amount || 0) }">
+                  ¥{{ formatMoney(contract.invoiced_amount || 0) }}
+                </span>
+              </el-descriptions-item>
+              <el-descriptions-item label="待开票金额">
+                <span :class="{ 'amount-highlight': uninvoicedAmount > 0 }">
+                  ¥{{ formatMoney(uninvoicedAmount) }}
+                </span>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="contract.invoice_remark" label="开票备注" :span="3">
+                {{ contract.invoice_remark }}
+              </el-descriptions-item>
+            </el-descriptions>
           </div>
 
-          <el-table v-if="invoices && invoices.length > 0" :data="invoices" size="small" border>
-            <el-table-column prop="invoice_no" label="发票号码" width="160" />
-            <el-table-column prop="invoice_amount" label="开票金额" width="120" align="right">
-              <template #default="{ row }">¥{{ formatMoney(row.invoice_amount) }}</template>
-            </el-table-column>
-            <el-table-column prop="invoice_type" label="发票类型" width="100">
-              <template #default="{ row }">
-                {{ row.invoice_type === 'special' ? '专票' : '普票' }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="invoice_date" label="开票日期" width="100" />
-            <el-table-column prop="status" label="状态" width="80">
-              <template #default="{ row }">
-                <el-tag v-if="row.status === 'issued'" type="success" size="small">已开</el-tag>
-                <el-tag v-else-if="row.status === 'pending'" type="warning" size="small">待开</el-tag>
-                <el-tag v-else-if="row.status === 'voided'" type="danger" size="small">作废</el-tag>
-                <el-tag v-else type="info" size="small">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="title" label="发票抬头" min-width="150" show-overflow-tooltip />
-            <el-table-column prop="owner.name" label="负责人" width="80" />
-          </el-table>
-          <el-empty v-else description="暂无开票记录" />
+          <!-- 开票记录 -->
+          <div class="invoice-records">
+            <div class="section-title">开票记录</div>
+            <el-table v-if="invoices && invoices.length > 0" :data="invoices" size="small" border>
+              <el-table-column prop="invoice_no" label="发票号码" width="160" />
+              <el-table-column prop="invoice_amount" label="开票金额" width="120" align="right">
+                <template #default="{ row }">¥{{ formatMoney(row.invoice_amount) }}</template>
+              </el-table-column>
+              <el-table-column prop="invoice_type" label="发票类型" width="100">
+                <template #default="{ row }">
+                  {{ row.invoice_type === 'special' ? '专票' : '普票' }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="invoice_date" label="开票日期" width="100" />
+              <el-table-column prop="status" label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag v-if="row.status === 'confirmed'" type="success" size="small">已开</el-tag>
+                  <el-tag v-else-if="row.status === 'draft'" type="warning" size="small">待开</el-tag>
+                  <el-tag v-else-if="row.status === 'voided'" type="danger" size="small">作废</el-tag>
+                  <el-tag v-else type="info" size="small">{{ row.status }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="invoice_title" label="发票抬头" min-width="150" show-overflow-tooltip />
+              <el-table-column label="操作" width="100" align="center">
+                <template #default="{ row }">
+                  <el-button
+                    v-if="row.status === 'draft'"
+                    link
+                    type="primary"
+                    size="small"
+                    @click="handleConfirmInvoice(row)"
+                  >
+                    确认开票
+                  </el-button>
+                  <el-button
+                    v-if="row.status === 'confirmed'"
+                    link
+                    type="danger"
+                    size="small"
+                    @click="handleVoidInvoice(row)"
+                  >
+                    作废
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else description="暂无开票记录" />
+          </div>
         </el-tab-pane>
 
         <!-- 跟踪记录 Tab -->
@@ -451,7 +546,171 @@
       </el-form>
       <template #footer>
         <el-button @click="paymentDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitStagePayment" :loading="paymentSubmitting">确认付款</el-button>
+        <el-button type="primary" @click="submitStagePayment" :loading="paymentSubmitting">确认收款</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 发货对话框 -->
+    <el-dialog
+      v-model="shipmentDialogVisible"
+      title="添加发货"
+      width="800px"
+      append-to-body
+      :close-on-click-modal="false"
+    >
+      <el-form :model="shipmentForm" :rules="shipmentFormRules" ref="shipmentFormRef" label-width="100px">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="物流公司">
+              <el-input v-model="shipmentForm.logisticsCompany" placeholder="请输入物流公司" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="快递单号">
+              <el-input v-model="shipmentForm.trackingNo" placeholder="请输入快递单号" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="收货人">
+              <el-input v-model="shipmentForm.contactPerson" placeholder="请输入收货人" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="联系电话">
+              <el-input v-model="shipmentForm.contactPhone" placeholder="请输入联系电话" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="收货地址">
+          <el-input v-model="shipmentForm.shippingAddress" placeholder="请输入收货地址" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="shipmentForm.notes" type="textarea" :rows="2" placeholder="请输入备注（可选）" />
+        </el-form-item>
+        <el-form-item label="发货明细" required>
+          <el-table :data="shipmentForm.items" size="small" border max-height="300">
+            <el-table-column prop="product_name" label="产品名称" min-width="150" show-overflow-tooltip />
+            <el-table-column prop="product_code" label="产品编码" width="110" />
+            <el-table-column prop="contract_quantity" label="合同数量" width="80" align="center" />
+            <el-table-column prop="product_unit" label="单位" width="50" align="center" />
+            <el-table-column prop="already_shipped_quantity" label="已发" width="60" align="center" />
+            <el-table-column label="待发" width="60" align="center">
+              <template #default="{ row }">{{ row.remaining_quantity }}</template>
+            </el-table-column>
+            <el-table-column label="本次发货" width="120" align="center">
+              <template #default="{ row }">
+                <el-input-number
+                  v-model="row.this_shipment_quantity"
+                  :min="0"
+                  :max="row.remaining_quantity"
+                  :precision="0"
+                  :step="1"
+                  size="small"
+                  style="width: 100%"
+                  :disabled="row.remaining_quantity <= 0"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column prop="unit_price" label="单价" width="80" align="right">
+              <template #default="{ row }">¥{{ formatMoney(row.unit_price) }}</template>
+            </el-table-column>
+            <el-table-column label="小计" width="100" align="right">
+              <template #default="{ row }">
+                <span class="amount-highlight">¥{{ formatMoney(row.this_shipment_quantity * row.unit_price) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div class="shipment-summary">
+            本次发货金额：<span class="amount-highlight">¥{{ formatMoney(shipmentTotalAmount) }}</span>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="shipmentDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitShipment" :loading="shipmentSubmitting">确认发货</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 开票对话框 -->
+    <el-dialog
+      v-model="invoiceDialogVisible"
+      title="开票"
+      width="600px"
+      append-to-body
+      :close-on-click-modal="false"
+    >
+      <el-form :model="invoiceForm" :rules="invoiceFormRules" ref="invoiceFormRef" label-width="100px">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="发票类型" prop="invoiceType">
+              <el-select v-model="invoiceForm.invoiceType" placeholder="请选择发票类型" style="width: 100%">
+                <el-option label="增值税专票" value="special" />
+                <el-option label="增值税普票" value="normal" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="开票金额" prop="invoiceAmount">
+              <el-input-number
+                v-model="invoiceForm.invoiceAmount"
+                :min="0.01"
+                :max="uninvoicedAmount"
+                :precision="2"
+                :step="100"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="发票抬头" prop="invoiceTitle">
+          <el-input v-model="invoiceForm.invoiceTitle" placeholder="请输入发票抬头" />
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="税号" prop="taxNumber">
+              <el-input v-model="invoiceForm.taxNumber" placeholder="请输入税号" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="开票日期" prop="invoiceDate">
+              <el-date-picker
+                v-model="invoiceForm.invoiceDate"
+                type="date"
+                placeholder="选择开票日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="公司地址">
+          <el-input v-model="invoiceForm.companyAddress" placeholder="请输入公司地址" />
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="公司电话">
+              <el-input v-model="invoiceForm.companyPhone" placeholder="请输入公司电话" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="开户行">
+              <el-input v-model="invoiceForm.bankName" placeholder="请输入开户行" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="银行账号">
+          <el-input v-model="invoiceForm.bankAccount" placeholder="请输入银行账号" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="invoiceForm.invoiceNote" type="textarea" :rows="2" placeholder="请输入备注（可选）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="invoiceDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitInvoice" :loading="invoiceSubmitting">确认开票</el-button>
       </template>
     </el-dialog>
   </el-drawer>
@@ -470,6 +729,8 @@ import {
   restoreContract
 } from '@/api/contracts'
 import { createPayment } from '@/api/payments'
+import { createShipment } from '@/api/shipments'
+import { createInvoice, confirmInvoice, voidInvoice } from '@/api/invoices'
 
 const props = defineProps({
   modelValue: {
@@ -554,6 +815,70 @@ const paymentFormRules = {
   paymentDate: [{ required: true, message: '请选择收款日期', trigger: 'change' }]
 }
 
+// 发货表单
+const shipmentDialogVisible = ref(false)
+const shipmentSubmitting = ref(false)
+const shipmentFormRef = ref(null)
+const shipmentForm = reactive({
+  logisticsCompany: '',
+  trackingNo: '',
+  contactPerson: '',
+  contactPhone: '',
+  shippingAddress: '',
+  notes: '',
+  items: []
+})
+const shipmentFormRules = {}
+
+// 是否有未发货的产品
+const hasUnshippedItems = computed(() => {
+  if (!contract.value.items || contract.value.items.length === 0) return false
+  return contract.value.items.some(item => (item.quantity - (item.shipped_quantity || 0)) > 0)
+})
+
+// 本次发货总金额
+const shipmentTotalAmount = computed(() => {
+  if (!shipmentForm.items || shipmentForm.items.length === 0) return 0
+  return shipmentForm.items.reduce((sum, item) => {
+    return sum + (item.this_shipment_quantity || 0) * (item.unit_price || 0)
+  }, 0)
+})
+
+// 开票表单
+const invoiceDialogVisible = ref(false)
+const invoiceSubmitting = ref(false)
+const invoiceFormRef = ref(null)
+const invoiceForm = reactive({
+  invoiceType: 'normal',
+  invoiceAmount: 0,
+  invoiceTitle: '',
+  taxNumber: '',
+  invoiceDate: '',
+  companyAddress: '',
+  companyPhone: '',
+  bankName: '',
+  bankAccount: '',
+  invoiceNote: ''
+})
+const invoiceFormRules = {
+  invoiceType: [{ required: true, message: '请选择发票类型', trigger: 'change' }],
+  invoiceAmount: [{ required: true, message: '请输入开票金额', trigger: 'blur' }],
+  invoiceTitle: [{ required: true, message: '请输入发票抬头', trigger: 'blur' }],
+  invoiceDate: [{ required: true, message: '请选择开票日期', trigger: 'change' }]
+}
+
+// 待开票金额
+const uninvoicedAmount = computed(() => {
+  const total = parseFloat(contract.value.contract_amount) || 0
+  const invoiced = parseFloat(contract.value.invoiced_amount) || 0
+  return Math.max(0, total - invoiced)
+})
+
+// 是否有待开票金额
+const hasUninvoicedAmount = computed(() => {
+  return uninvoicedAmount.value > 0
+})
+
 const progress = reactive({
   contractAmount: 0,
   shippedAmount: 0,
@@ -634,6 +959,13 @@ const formatDateTime = (datetime) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// 格式化日期
+const formatDate = (dateStr) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN')
 }
 
 // 获取渠道标签
@@ -726,11 +1058,11 @@ const handleStagePayment = (stage, index) => {
   paymentForm.notes = ''
   paymentForm.attachments = []
 
-  paymentDialogTitle.value = `付款 - ${paymentForm.stageName}`
+  paymentDialogTitle.value = `收款 - ${paymentForm.stageName}`
   paymentDialogVisible.value = true
 }
 
-// 提交阶段付款
+// 提交阶段收款
 const submitStagePayment = async () => {
   if (!paymentFormRef.value) return
 
@@ -748,19 +1080,24 @@ const submitStagePayment = async () => {
       bank_account: paymentForm.bankAccount,
       transaction_no: paymentForm.transactionNo,
       payment_date: paymentForm.paymentDate,
-      payment_note: paymentForm.notes,
-      status: 'confirmed' // 直接确认
+      payment_note: paymentForm.notes
     })
 
-    ElMessage.success('付款成功')
+    // 添加跟踪记录
+    await addContractTrackRecord(props.contractId, {
+      followType: 'payment',
+      content: `收款 ¥${paymentForm.paymentAmount.toFixed(2)}（${paymentForm.stageName}），方式：${paymentForm.paymentMethod}${paymentForm.transactionNo ? '，流水号：' + paymentForm.transactionNo : ''}`
+    })
+
+    ElMessage.success('收款成功')
     paymentDialogVisible.value = false
 
     // 重新加载合同详情以更新付款阶段状态
     await fetchContractDetail(props.contractId)
     emit('refresh')
   } catch (error) {
-    console.error('付款失败:', error)
-    ElMessage.error(error.response?.data?.message || '付款失败')
+    console.error('收款失败:', error)
+    ElMessage.error(error.response?.data?.message || '收款失败')
   } finally {
     paymentSubmitting.value = false
   }
@@ -768,12 +1105,215 @@ const submitStagePayment = async () => {
 
 // 添加发货
 const handleAddShipment = () => {
-  ElMessage.info('添加发货功能开发中')
+  if (!contract.value.items || contract.value.items.length === 0) {
+    ElMessage.warning('暂无产品明细')
+    return
+  }
+
+  // 初始化发货表单
+  shipmentForm.logisticsCompany = ''
+  shipmentForm.trackingNo = ''
+  shipmentForm.contactPerson = contract.value.party_a_representative || ''
+  shipmentForm.contactPhone = contract.value.party_a_phone || ''
+  shipmentForm.shippingAddress = contract.value.delivery_address || contract.value.project_address || ''
+  shipmentForm.notes = ''
+
+  // 填充发货明细 - 只包含有未发货数量的产品
+  shipmentForm.items = contract.value.items
+    .filter(item => (item.quantity - (item.shipped_quantity || 0)) > 0)
+    .map(item => ({
+      item_id: item.item_id,
+      contract_item_id: item.item_id,
+      product_id: item.product_id,
+      product_code: item.product_code,
+      product_name: item.product_name,
+      product_unit: item.product_unit,
+      contract_quantity: item.quantity,
+      already_shipped_quantity: item.shipped_quantity || 0,
+      remaining_quantity: item.quantity - (item.shipped_quantity || 0),
+      this_shipment_quantity: item.quantity - (item.shipped_quantity || 0), // 默认发全部未发数量
+      unit_price: item.unit_price
+    }))
+
+  if (shipmentForm.items.length === 0) {
+    ElMessage.warning('所有产品已发货完成')
+    return
+  }
+
+  shipmentDialogVisible.value = true
+}
+
+// 提交发货
+const submitShipment = async () => {
+  // 检查是否有发货数量
+  const hasShipmentQty = shipmentForm.items.some(item => item.this_shipment_quantity > 0)
+  if (!hasShipmentQty) {
+    ElMessage.warning('请至少填写一个产品的发货数量')
+    return
+  }
+
+  shipmentSubmitting.value = true
+  try {
+    // 只提交有发货数量的明细
+    const itemsToShip = shipmentForm.items
+      .filter(item => item.this_shipment_quantity > 0)
+      .map(item => ({
+        contract_item_id: item.contract_item_id,
+        product_id: item.product_id,
+        product_code: item.product_code,
+        product_name: item.product_name,
+        product_unit: item.product_unit,
+        contract_quantity: item.contract_quantity,
+        already_shipped_quantity: item.already_shipped_quantity,
+        this_shipment_quantity: item.this_shipment_quantity,
+        remaining_quantity: item.remaining_quantity - item.this_shipment_quantity,
+        unit_price: item.unit_price
+      }))
+
+    await createShipment({
+      contract_id: props.contractId,
+      logistics_company: shipmentForm.logisticsCompany,
+      tracking_no: shipmentForm.trackingNo,
+      contact_person: shipmentForm.contactPerson,
+      contact_phone: shipmentForm.contactPhone,
+      shipping_address: shipmentForm.shippingAddress,
+      notes: shipmentForm.notes,
+      items: itemsToShip
+    })
+
+    ElMessage.success('发货成功')
+    shipmentDialogVisible.value = false
+
+    // 重新加载合同详情
+    await fetchContractDetail(props.contractId)
+    emit('refresh')
+  } catch (error) {
+    console.error('发货失败:', error)
+    ElMessage.error(error.response?.data?.message || '发货失败')
+  } finally {
+    shipmentSubmitting.value = false
+  }
 }
 
 // 添加发票
 const handleAddInvoice = () => {
-  ElMessage.info('申请开票功能开发中')
+  if (!hasUninvoicedAmount.value) {
+    ElMessage.warning('已开票完成，无待开票金额')
+    return
+  }
+
+  // 根据合同信息预填发票表单
+  invoiceForm.invoiceType = contract.value.invoice_type === 'special' ? 'special' : 'normal'
+  invoiceForm.invoiceAmount = uninvoicedAmount.value // 默认开全部待开票金额
+  invoiceForm.invoiceTitle = contract.value.invoice_company || contract.value.party_a_name || ''
+  invoiceForm.taxNumber = contract.value.invoice_tax_id || ''
+  invoiceForm.invoiceDate = new Date().toISOString().split('T')[0]
+  invoiceForm.companyAddress = contract.value.party_a_address || ''
+  invoiceForm.companyPhone = contract.value.party_a_phone || ''
+  invoiceForm.bankName = ''
+  invoiceForm.bankAccount = ''
+  invoiceForm.invoiceNote = contract.value.invoice_remark || ''
+
+  invoiceDialogVisible.value = true
+}
+
+// 提交开票
+const submitInvoice = async () => {
+  if (!invoiceFormRef.value) return
+
+  try {
+    await invoiceFormRef.value.validate()
+    invoiceSubmitting.value = true
+
+    // 调用创建发票API
+    await createInvoice({
+      contract_id: props.contractId,
+      customer_id: contract.value.customer_id,
+      invoice_type: invoiceForm.invoiceType,
+      invoice_amount: invoiceForm.invoiceAmount,
+      invoice_title: invoiceForm.invoiceTitle,
+      tax_number: invoiceForm.taxNumber,
+      invoice_date: invoiceForm.invoiceDate,
+      company_address: invoiceForm.companyAddress,
+      company_phone: invoiceForm.companyPhone,
+      bank_name: invoiceForm.bankName,
+      bank_account: invoiceForm.bankAccount,
+      invoice_note: invoiceForm.invoiceNote,
+      status: 'confirmed' // 直接确认开票
+    })
+
+    // 添加跟踪记录
+    await addContractTrackRecord(props.contractId, {
+      followType: 'invoice',
+      content: `开票 ¥${invoiceForm.invoiceAmount.toFixed(2)}，${invoiceForm.invoiceType === 'special' ? '增值税专票' : '增值税普票'}，抬头：${invoiceForm.invoiceTitle}`
+    })
+
+    ElMessage.success('开票成功')
+    invoiceDialogVisible.value = false
+
+    // 重新加载合同详情
+    await fetchContractDetail(props.contractId)
+    emit('refresh')
+  } catch (error) {
+    console.error('开票失败:', error)
+    ElMessage.error(error.response?.data?.message || '开票失败')
+  } finally {
+    invoiceSubmitting.value = false
+  }
+}
+
+// 确认发票
+const handleConfirmInvoice = async (invoice) => {
+  try {
+    await ElMessageBox.confirm('确认要将此发票标记为已开票吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    await confirmInvoice(invoice.invoice_id)
+    ElMessage.success('确认成功')
+
+    // 重新加载合同详情
+    await fetchContractDetail(props.contractId)
+    emit('refresh')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('确认发票失败:', error)
+      ElMessage.error('操作失败')
+    }
+  }
+}
+
+// 作废发票
+const handleVoidInvoice = async (invoice) => {
+  try {
+    const { value: reason } = await ElMessageBox.prompt('请输入作废原因', '作废发票', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /\S+/,
+      inputErrorMessage: '请输入作废原因'
+    })
+
+    await voidInvoice(invoice.invoice_id, { reason })
+
+    // 添加跟踪记录
+    await addContractTrackRecord(props.contractId, {
+      followType: 'invoice',
+      content: `作废发票 ${invoice.invoice_no}，金额 ¥${invoice.invoice_amount}，原因：${reason}`
+    })
+
+    ElMessage.success('作废成功')
+
+    // 重新加载合同详情
+    await fetchContractDetail(props.contractId)
+    emit('refresh')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('作废发票失败:', error)
+      ElMessage.error('操作失败')
+    }
+  }
 }
 
 // 跟踪记录类型标签
@@ -1075,5 +1615,28 @@ const submitSendOut = async () => {
 
 .text-success {
   color: #67c23a;
+}
+
+.shipment-items-section {
+  margin-bottom: 24px;
+}
+
+.shipment-records-section {
+  margin-top: 24px;
+}
+
+.shipment-summary {
+  margin-top: 12px;
+  text-align: right;
+  font-size: 14px;
+  color: #606266;
+}
+
+.invoice-requirements {
+  margin-bottom: 24px;
+}
+
+.invoice-records {
+  margin-top: 24px;
 }
 </style>

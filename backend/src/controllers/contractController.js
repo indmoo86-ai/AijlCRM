@@ -83,7 +83,7 @@ function numberToChineseAmount(num) {
  */
 exports.getContractList = async (req, res) => {
   try {
-    const { page = 1, pageSize = 20, customerId, status, ownerId, startDate, endDate } = req.query;
+    const { page = 1, pageSize = 20, customerId, status, ownerId, startDate, endDate, shipmentStatus, paymentStatus, invoiceStatus } = req.query;
     const offset = (page - 1) * pageSize;
 
     const where = {};
@@ -98,6 +98,72 @@ exports.getContractList = async (req, res) => {
       where.signed_date = { [Op.gte]: startDate };
     } else if (endDate) {
       where.signed_date = { [Op.lte]: endDate };
+    }
+
+    // 发货状态筛选
+    if (shipmentStatus === 'pending') {
+      // 待发货：shipped_amount为0或null
+      where[Op.and] = where[Op.and] || [];
+      where[Op.and].push(
+        sequelize.literal('(shipped_amount = 0 OR shipped_amount IS NULL)')
+      );
+    } else if (shipmentStatus === 'partial') {
+      // 部分发货：shipped_amount > 0 且 < contract_amount
+      where.shipped_amount = { [Op.gt]: 0 };
+      where[Op.and] = where[Op.and] || [];
+      where[Op.and].push(
+        sequelize.literal('shipped_amount < contract_amount')
+      );
+    } else if (shipmentStatus === 'completed') {
+      // 已发完：shipped_amount >= contract_amount
+      where[Op.and] = where[Op.and] || [];
+      where[Op.and].push(
+        sequelize.literal('shipped_amount >= contract_amount AND contract_amount > 0')
+      );
+    }
+
+    // 收款状态筛选
+    if (paymentStatus === 'pending') {
+      // 待收款：received_amount为0或null
+      where[Op.and] = where[Op.and] || [];
+      where[Op.and].push(
+        sequelize.literal('(received_amount = 0 OR received_amount IS NULL)')
+      );
+    } else if (paymentStatus === 'partial') {
+      // 部分收款：received_amount > 0 且 < contract_amount
+      where.received_amount = { [Op.gt]: 0 };
+      where[Op.and] = where[Op.and] || [];
+      where[Op.and].push(
+        sequelize.literal('received_amount < contract_amount')
+      );
+    } else if (paymentStatus === 'completed') {
+      // 已收齐：received_amount >= contract_amount
+      where[Op.and] = where[Op.and] || [];
+      where[Op.and].push(
+        sequelize.literal('received_amount >= contract_amount AND contract_amount > 0')
+      );
+    }
+
+    // 开票状态筛选
+    if (invoiceStatus === 'pending') {
+      // 待开票：invoiced_amount为0或null，且不是无需开票
+      where[Op.and] = where[Op.and] || [];
+      where[Op.and].push(
+        sequelize.literal("(invoiced_amount = 0 OR invoiced_amount IS NULL) AND (invoice_type IS NULL OR invoice_type != 'none')")
+      );
+    } else if (invoiceStatus === 'partial') {
+      // 部分开票：invoiced_amount > 0 且 < contract_amount
+      where.invoiced_amount = { [Op.gt]: 0 };
+      where[Op.and] = where[Op.and] || [];
+      where[Op.and].push(
+        sequelize.literal('invoiced_amount < contract_amount')
+      );
+    } else if (invoiceStatus === 'completed') {
+      // 已开完：invoiced_amount >= contract_amount
+      where[Op.and] = where[Op.and] || [];
+      where[Op.and].push(
+        sequelize.literal('invoiced_amount >= contract_amount AND contract_amount > 0')
+      );
     }
 
     const { count, rows } = await Contract.findAndCountAll({
@@ -276,7 +342,8 @@ exports.getContractDetail = async (req, res) => {
     // 计算进度统计
     const contractAmount = parseFloat(contract.contract_amount) || 0;
     const shippedAmount = shipments.reduce((sum, s) => sum + (parseFloat(s.shipment_amount) || 0), 0);
-    const receivedAmount = payments.filter(p => p.status === 'confirmed').reduce((sum, p) => sum + (parseFloat(p.payment_amount) || 0), 0);
+    // 收款记录默认已确认，不再过滤status（已作废的除外）
+    const receivedAmount = payments.filter(p => p.status !== 'cancelled').reduce((sum, p) => sum + (parseFloat(p.payment_amount) || 0), 0);
     const invoicedAmount = invoices.filter(i => i.status !== 'voided').reduce((sum, i) => sum + (parseFloat(i.invoice_amount) || 0), 0);
 
     // 解析付款条款
@@ -291,9 +358,14 @@ exports.getContractDetail = async (req, res) => {
     let paymentStagesStatus = [];
     if (paymentTerms?.stages) {
       paymentStagesStatus = paymentTerms.stages.map((stage, index) => {
-        // 查找对应阶段的收款记录
-        const stagePayments = payments.filter(p => p.payment_stage === (index + 1) || p.notes?.includes(stage.name));
-        const stagePaid = stagePayments.filter(p => p.status === 'confirmed').reduce((sum, p) => sum + (parseFloat(p.payment_amount) || 0), 0);
+        // 查找对应阶段的收款记录 - 匹配阶段名称
+        const stagePayments = payments.filter(p =>
+          p.payment_stage === stage.name ||
+          p.payment_stage?.includes(stage.name) ||
+          p.payment_note?.includes(stage.name)
+        );
+        // 收款记录默认已确认，不再过滤status
+        const stagePaid = stagePayments.reduce((sum, p) => sum + (parseFloat(p.payment_amount) || 0), 0);
         return {
           ...stage,
           paid_amount: stagePaid,
@@ -939,6 +1011,21 @@ exports.createContractFromQuotation = async (req, res) => {
       return error(res, '报价单不存在', 404);
     }
 
+    // 检查是否已存在有效合同（未作废的合同）
+    const existingContract = await Contract.findOne({
+      where: {
+        source_quotation_id: quotation_id,
+        status: {
+          [Op.ne]: CONTRACT_STATUS.VOIDED
+        }
+      }
+    });
+
+    if (existingContract) {
+      await t.rollback();
+      return error(res, `该报价单已创建合同（${existingContract.contract_no}），不能重复创建。如需重新创建，请先作废原合同。`, 400);
+    }
+
     // 生成合同编号
     const today = new Date();
     const year = today.getFullYear();
@@ -1067,26 +1154,8 @@ exports.createContractFromQuotation = async (req, res) => {
       }
     }
 
-    // 自动生成收款计划（根据付款条款）
-    if (payment_terms?.stages && payment_terms.stages.length > 0) {
-      for (const stage of payment_terms.stages) {
-        await Payment.create({
-          contract_id: contract.contract_id,
-          customer_id: quotation.customer_id,
-          payment_no: `PAY-${contract.contract_no}-${stage.stage}`,
-          payment_amount: stage.amount,
-          payment_stage: `第${stage.stage}期-${stage.name}`,
-          payment_date: new Date(), // 计划日期
-          payment_method: payment_terms.payment_method || '银行电汇',
-          expected_amount: stage.amount,
-          stage_balance_amount: stage.amount,
-          status: 'pending', // 待收款
-          payment_note: `${stage.condition}`,
-          owner_id: quotation.owner_id,
-          created_by: req.user.id
-        }, { transaction: t });
-      }
-    }
+    // 注意：不再自动创建收款记录
+    // 收款记录仅在用户实际收款操作时创建
 
     // 更新合同的线索ID（从报价单获取）
     if (quotation.lead_id) {

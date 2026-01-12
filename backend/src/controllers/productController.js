@@ -106,22 +106,26 @@ exports.createProduct = async (req, res) => {
     const productCode = req.body.productCode || req.body.product_code;
     const productName = req.body.productName || req.body.product_name;
     const categoryId = req.body.categoryId || req.body.category_id;
-    const unitPrice = req.body.unitPrice || req.body.unit_price;
+    const costPrice = req.body.costPrice || req.body.cost_price || 0;
+    const salePrice = req.body.salePrice || req.body.sale_price || 0;
     const unit = req.body.unit;
     const brand = req.body.brand;
     const specifications = req.body.specifications;
     const description = req.body.description;
     const status = req.body.status || 'active';
+    const mainImage = req.body.mainImage || req.body.main_image;
 
     const productData = {
       product_code: productCode,
       product_name: productName,
       category_id: categoryId,
-      unit_price: unitPrice,
+      cost_price: costPrice,
+      sale_price: salePrice,
       unit,
       brand,
       specifications,
       description,
+      main_image: mainImage,
       status,
       created_by: req.user.id
     };

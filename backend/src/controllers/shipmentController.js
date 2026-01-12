@@ -8,14 +8,18 @@ const ContractItem = require('../models/ContractItem');
 const Product = require('../models/Product');
 const Customer = require('../models/Customer');
 const User = require('../models/User');
+const FollowUp = require('../models/FollowUp');
 const { success, error } = require('../utils/response');
 const { Op } = require('sequelize');
+const { sequelize } = require('../config/database');
 
 /**
  * 创建发货单
  * POST /api/shipments
  */
 exports.createShipment = async (req, res) => {
+  const t = await sequelize.transaction();
+
   try {
     // 支持驼峰和下划线两种命名方式
     const shipmentTitle = req.body.shipmentTitle || req.body.shipment_title;
@@ -24,83 +28,60 @@ exports.createShipment = async (req, res) => {
     const contactPerson = req.body.contactPerson || req.body.contact_person;
     const contactPhone = req.body.contactPhone || req.body.contact_phone;
     const plannedShipDate = req.body.plannedShipDate || req.body.planned_ship_date;
+    const actualShipDate = req.body.actualShipDate || req.body.actual_ship_date;
+    const logisticsCompany = req.body.logisticsCompany || req.body.logistics_company;
+    const trackingNo = req.body.trackingNo || req.body.tracking_no;
     const items = req.body.items;
     const notes = req.body.notes;
 
     // 获取合同信息
     const contract = await Contract.findByPk(contractId);
     if (!contract) {
+      await t.rollback();
       return error(res, '合同不存在', 404);
     }
 
     // 生成发货单编号
     const shipment_no = 'SHIP-' + Date.now();
 
-    // 计算发货金额
+    // 计算发货金额和处理明细
     let shipmentAmount = 0;
+    const processedItems = [];
+
     if (items && items.length > 0) {
       for (const item of items) {
-        const quantity = parseFloat(item.thisShipmentQuantity || item.this_shipment_quantity) || 0;
-        const price = parseFloat(item.unitPrice || item.unit_price) || 0;
-        shipmentAmount += quantity * price;
-      }
-    }
+        const thisShipmentQuantity = parseFloat(item.thisShipmentQuantity || item.this_shipment_quantity) || 0;
+        if (thisShipmentQuantity <= 0) continue; // 跳过数量为0的项
 
-    const shipment = await Shipment.create({
-      shipment_no,
-      shipment_title: shipmentTitle,
-      contract_id: contractId,
-      customer_id: contract.customer_id,
-      shipping_address: shippingAddress,
-      contact_person: contactPerson,
-      contact_phone: contactPhone,
-      planned_ship_date: plannedShipDate,
-      shipment_amount: shipmentAmount || 0,
-      status: 'draft',
-      notes,
-      owner_id: req.user.id,
-      created_by: req.user.id
-    });
+        const unitPrice = parseFloat(item.unitPrice || item.unit_price) || 0;
+        shipmentAmount += thisShipmentQuantity * unitPrice;
 
-    // 创建发货单明细
-    if (items && items.length > 0) {
-      for (const item of items) {
         let contractItemId = item.contractItemId || item.contract_item_id;
         const productId = item.productId || item.product_id;
         let productCode = item.productCode || item.product_code;
         let productName = item.productName || item.product_name;
         let productUnit = item.productUnit || item.product_unit;
-        const contractQuantity = item.contractQuantity || item.contract_quantity;
-        const alreadyShippedQuantity = item.alreadyShippedQuantity || item.already_shipped_quantity || 0;
-        const thisShipmentQuantity = item.thisShipmentQuantity || item.this_shipment_quantity;
-        const remainingQuantity = item.remainingQuantity || item.remaining_quantity || 0;
-        const unitPrice = item.unitPrice || item.unit_price;
+        const contractQuantity = parseFloat(item.contractQuantity || item.contract_quantity) || 0;
+        const alreadyShippedQuantity = parseFloat(item.alreadyShippedQuantity || item.already_shipped_quantity) || 0;
 
-        // 从合同明细中查找contract_item_id和contract_quantity
-        let finalContractQuantity = contractQuantity;
-        if (productId && contractId) {
-          const contractItem = await ContractItem.findOne({
-            where: {
-              contract_id: contractId,
-              product_id: productId
-            }
+        // 从合同明细中查找contract_item_id
+        let contractItem = null;
+        if (contractItemId) {
+          contractItem = await ContractItem.findByPk(contractItemId);
+        } else if (productId && contractId) {
+          contractItem = await ContractItem.findOne({
+            where: { contract_id: contractId, product_id: productId }
           });
-          if (contractItem) {
-            if (!contractItemId) {
-              contractItemId = contractItem.item_id;
-            }
-            // 如果没有提供contract_quantity，从合同明细获取
-            if (!finalContractQuantity) {
-              finalContractQuantity = contractItem.quantity;
-            }
-          }
-        }
-        // 如果还是没有contract_quantity，使用this_shipment_quantity作为默认值
-        if (!finalContractQuantity) {
-          finalContractQuantity = thisShipmentQuantity;
         }
 
-        // 如果没有提供product_code、product_name或product_unit，从数据库获取
+        if (contractItem) {
+          contractItemId = contractItem.item_id;
+          productCode = productCode || contractItem.product_code;
+          productName = productName || contractItem.product_name;
+          productUnit = productUnit || contractItem.product_unit;
+        }
+
+        // 如果还缺product信息，从Product表获取
         if (!productCode || !productName || !productUnit) {
           const product = await Product.findByPk(productId);
           if (product) {
@@ -110,32 +91,108 @@ exports.createShipment = async (req, res) => {
           }
         }
 
-        await ShipmentItem.create({
-          shipment_id: shipment.shipment_id,
-          contract_item_id: contractItemId,
-          product_id: productId,
-          product_code: productCode,
-          product_name: productName,
-          product_unit: productUnit,
-          contract_quantity: finalContractQuantity,
-          already_shipped_quantity: alreadyShippedQuantity,
-          this_shipment_quantity: thisShipmentQuantity,
-          remaining_quantity: remainingQuantity || (finalContractQuantity - thisShipmentQuantity),
-          unit_price: unitPrice,
-          subtotal: thisShipmentQuantity * unitPrice
+        const finalContractQuantity = contractQuantity || (contractItem?.quantity) || thisShipmentQuantity;
+        const remainingQuantity = finalContractQuantity - alreadyShippedQuantity - thisShipmentQuantity;
+
+        processedItems.push({
+          contractItemId,
+          contractItem,
+          productId,
+          productCode,
+          productName,
+          productUnit,
+          contractQuantity: finalContractQuantity,
+          alreadyShippedQuantity,
+          thisShipmentQuantity,
+          remainingQuantity,
+          unitPrice
         });
       }
     }
+
+    if (processedItems.length === 0) {
+      await t.rollback();
+      return error(res, '请至少选择一个发货项目', 400);
+    }
+
+    // 创建发货单
+    const shipment = await Shipment.create({
+      shipment_no,
+      shipment_title: shipmentTitle || `${contract.contract_title || contract.contract_no} - 发货`,
+      contract_id: contractId,
+      customer_id: contract.customer_id,
+      shipping_address: shippingAddress,
+      contact_person: contactPerson,
+      contact_phone: contactPhone,
+      planned_ship_date: plannedShipDate,
+      actual_ship_date: actualShipDate || new Date(),
+      logistics_company: logisticsCompany,
+      tracking_no: trackingNo,
+      shipment_amount: shipmentAmount || 0,
+      status: 'shipped', // 直接设为已发货状态
+      notes,
+      owner_id: req.user.id,
+      shipped_by: req.user.id,
+      shipped_at: new Date(),
+      created_by: req.user.id
+    }, { transaction: t });
+
+    // 创建发货单明细并更新合同明细的已发货数量
+    for (const item of processedItems) {
+      // 创建发货单明细
+      await ShipmentItem.create({
+        shipment_id: shipment.shipment_id,
+        contract_item_id: item.contractItemId,
+        product_id: item.productId,
+        product_code: item.productCode,
+        product_name: item.productName,
+        product_unit: item.productUnit,
+        contract_quantity: item.contractQuantity,
+        already_shipped_quantity: item.alreadyShippedQuantity,
+        this_shipment_quantity: item.thisShipmentQuantity,
+        remaining_quantity: item.remainingQuantity,
+        unit_price: item.unitPrice,
+        subtotal: item.thisShipmentQuantity * item.unitPrice
+      }, { transaction: t });
+
+      // 更新合同明细的已发货数量
+      if (item.contractItem) {
+        const newShippedQuantity = (parseFloat(item.contractItem.shipped_quantity) || 0) + item.thisShipmentQuantity;
+        await item.contractItem.update({
+          shipped_quantity: newShippedQuantity
+        }, { transaction: t });
+      }
+    }
+
+    // 更新合同的发货金额
+    const newShippedAmount = parseFloat(contract.shipped_amount || 0) + shipmentAmount;
+    await contract.update({
+      shipped_amount: newShippedAmount,
+      updated_by: req.user.id
+    }, { transaction: t });
+
+    // 添加跟踪记录
+    const itemsSummary = processedItems.map(i => `${i.productName}×${i.thisShipmentQuantity}`).join('、');
+    await FollowUp.create({
+      bizType: 4, // 合同
+      bizId: contractId,
+      followType: 'shipment',
+      content: `发货：${itemsSummary}，金额 ¥${shipmentAmount.toFixed(2)}${trackingNo ? '，快递单号：' + trackingNo : ''}${logisticsCompany ? '，物流：' + logisticsCompany : ''}`,
+      operatorId: req.user.id
+    }, { transaction: t });
+
+    await t.commit();
 
     const responseData = {
       shipmentId: shipment.shipment_id,
       ...shipment.toJSON()
     };
-    return success(res, responseData, '发货单创建成功', 201);
+    return success(res, responseData, '发货成功', 201);
   } catch (err) {
+    await t.rollback();
     console.error('创建发货单失败:', err);
     console.error('错误详情:', err.message);
-    return error(res, '创建发货单失败', 500);
+    return error(res, '创建发货单失败: ' + err.message, 500);
   }
 };
 
@@ -361,46 +418,80 @@ exports.signShipment = async (req, res) => {
  * PUT /api/shipments/:id/cancel
  */
 exports.cancelShipment = async (req, res) => {
+  const t = await sequelize.transaction();
+
   try {
     const { id } = req.params;
     const { cancelReason } = req.body;
 
-    const shipment = await Shipment.findByPk(id);
+    const shipment = await Shipment.findByPk(id, {
+      include: [{ model: ShipmentItem, as: 'items' }]
+    });
     if (!shipment) {
+      await t.rollback();
       return error(res, '发货单不存在', 404);
     }
 
     if (shipment.status === 'delivered') {
+      await t.rollback();
       return error(res, '已签收的发货单不能取消', 400);
     }
 
     if (shipment.status === 'cancelled') {
+      await t.rollback();
       return error(res, '发货单已取消', 400);
     }
 
     // 记录之前的状态，用于判断是否需要回退shipped_amount
-    const wasShipped = shipment.status === 'shipped' || shipment.status === 'delivered';
+    const wasShipped = shipment.status === 'shipped';
 
     await shipment.update({
       status: 'cancelled',
       cancel_reason: cancelReason,
       updated_by: req.user.id
-    });
+    }, { transaction: t });
 
-    // 如果之前已确认发货，回退合同的shipped_amount
+    // 如果之前已发货，回退合同的shipped_amount和合同明细的shipped_quantity
     if (wasShipped) {
+      // 回退合同明细的已发货数量
+      if (shipment.items && shipment.items.length > 0) {
+        for (const shipmentItem of shipment.items) {
+          if (shipmentItem.contract_item_id) {
+            const contractItem = await ContractItem.findByPk(shipmentItem.contract_item_id);
+            if (contractItem) {
+              const newShippedQuantity = Math.max(0, (parseFloat(contractItem.shipped_quantity) || 0) - (parseFloat(shipmentItem.this_shipment_quantity) || 0));
+              await contractItem.update({
+                shipped_quantity: newShippedQuantity
+              }, { transaction: t });
+            }
+          }
+        }
+      }
+
+      // 回退合同的发货金额
       const contract = await Contract.findByPk(shipment.contract_id);
       if (contract) {
         const newShippedAmount = parseFloat(contract.shipped_amount || 0) - parseFloat(shipment.shipment_amount || 0);
         await contract.update({
-          shipped_amount: Math.max(0, newShippedAmount), // 确保不会小于0
+          shipped_amount: Math.max(0, newShippedAmount),
           updated_by: req.user.id
-        });
+        }, { transaction: t });
       }
+
+      // 添加跟踪记录
+      await FollowUp.create({
+        bizType: 4,
+        bizId: shipment.contract_id,
+        followType: 'shipment',
+        content: `取消发货：${shipment.shipment_no}${cancelReason ? '，原因：' + cancelReason : ''}`,
+        operatorId: req.user.id
+      }, { transaction: t });
     }
 
+    await t.commit();
     return success(res, shipment, '发货单取消成功');
   } catch (err) {
+    await t.rollback();
     console.error('取消发货失败:', err);
     return error(res, '取消发货失败', 500);
   }
