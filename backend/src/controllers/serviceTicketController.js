@@ -16,25 +16,28 @@ const { Op } = require('sequelize');
  */
 exports.getTicketList = async (req, res) => {
   try {
-    const { page = 1, pageSize = 20, customerId, status, priority, assignedTo, ticketType } = req.query;
+    const { page = 1, pageSize = 20, customerId, status, assignedTo, ticketType, ticketNo, customerName } = req.query;
     const offset = (page - 1) * pageSize;
 
     const where = {};
     if (customerId) where.customer_id = customerId;
     if (status) where.status = status;
-    if (priority) where.priority = priority;
     if (assignedTo) where.assigned_to = assignedTo;
     if (ticketType) where.ticket_type = ticketType;
+    if (ticketNo) where.ticket_no = { [Op.like]: `%${ticketNo}%` };
+
+    // 客户名称搜索条件
+    const customerWhere = customerName ? { customerName: { [Op.like]: `%${customerName}%` } } : {};
 
     const { count, rows } = await ServiceTicket.findAndCountAll({
       where,
       include: [
-        { model: Customer, as: 'customer', attributes: ['id', 'customerName'] },
+        { model: Customer, as: 'customer', attributes: ['id', 'customerName'], where: customerWhere, required: !!customerName },
         { model: Product, as: 'product', attributes: ['product_id', 'product_code', 'product_name'] },
         { model: Contract, as: 'contract', attributes: ['contract_id', 'contract_no', 'contract_title'] },
         { model: User, as: 'assignee', attributes: ['id', 'username', 'name'] }
       ],
-      order: [['priority', 'DESC'], ['reported_at', 'DESC']],
+      order: [['reported_at', 'DESC']],
       limit: parseInt(pageSize),
       offset: parseInt(offset)
     });
@@ -65,11 +68,19 @@ exports.createTicket = async (req, res) => {
     const customerContactId = req.body.customerContactId || req.body.customer_contact_id;
     const contractId = req.body.contractId || req.body.contract_id;
     const productId = req.body.productId || req.body.product_id;
+    const productName = req.body.productName || req.body.product_name;
+    const productCode = req.body.productCode || req.body.product_code;
     const ticketType = req.body.ticketType || req.body.ticket_type;
     const ticketTitle = req.body.ticketTitle || req.body.ticket_title;
-    const priority = req.body.priority;
+    const priority = req.body.priority || 'medium';
     const problemDescription = req.body.problemDescription || req.body.problem_description;
+    const expectedSolution = req.body.expectedSolution || req.body.expected_solution;
     const expectedResolveDate = req.body.expectedResolveDate || req.body.expected_resolve_date;
+    const contactPhone = req.body.contactPhone || req.body.contact_phone;
+
+    // 费用字段 - 简化为单一预估费用
+    const estimatedCost = req.body.estimatedCost || req.body.estimated_cost || 0;
+    const totalCost = req.body.totalCost || req.body.total_cost || estimatedCost;
 
     // 生成工单编号
     const ticket_no = 'TICKET-' + Date.now();
@@ -80,14 +91,26 @@ exports.createTicket = async (req, res) => {
       customer_contact_id: customerContactId,
       contract_id: contractId,
       product_id: productId,
+      product_name: productName,
+      product_code: productCode,
       ticket_type: ticketType,
       ticket_title: ticketTitle,
       priority,
       problem_description: problemDescription,
       expected_resolve_date: expectedResolveDate,
+      total_cost: totalCost,
       status: 'pending',
       reported_at: new Date(),
       reported_by: req.user.id,
+      created_by: req.user.id
+    });
+
+    // 创建工单日志
+    await ServiceTicketLog.create({
+      ticket_id: ticket.ticket_id,
+      log_type: 'status_change',
+      new_status: 'pending',
+      log_content: `工单创建：${ticketTitle || '新售后工单'}`,
       created_by: req.user.id
     });
 
@@ -112,7 +135,16 @@ exports.getTicketDetail = async (req, res) => {
     const { id } = req.params;
     const ticket = await ServiceTicket.findByPk(id, {
       include: [
-        { model: ServiceTicketLog, as: 'logs', order: [['created_at', 'DESC']] }
+        { model: Customer, as: 'customer', attributes: ['id', 'customerName'] },
+        { model: Product, as: 'product', attributes: ['product_id', 'product_code', 'product_name'] },
+        { model: Contract, as: 'contract', attributes: ['contract_id', 'contract_no', 'contract_title'] },
+        { model: User, as: 'assignee', attributes: ['id', 'username', 'name'] },
+        {
+          model: ServiceTicketLog,
+          as: 'logs',
+          include: [{ model: User, as: 'operator', attributes: ['id', 'username', 'name'] }],
+          order: [['created_at', 'DESC']]
+        }
       ]
     });
 
@@ -159,7 +191,9 @@ exports.updateTicket = async (req, res) => {
 exports.assignTicket = async (req, res) => {
   try {
     const { id } = req.params;
-    const { assignedTo, assignNote } = req.body;
+    // 支持驼峰和下划线命名，如果没有指定则分配给当前用户（接单）
+    const assignedTo = req.body.assignedTo || req.body.assigned_to || req.user.id;
+    const assignNote = req.body.assignNote || req.body.assign_note;
 
     const ticket = await ServiceTicket.findByPk(id);
     if (!ticket) {
@@ -167,10 +201,12 @@ exports.assignTicket = async (req, res) => {
     }
 
     const oldAssignedTo = ticket.assigned_to;
+    const isFirstResponse = !ticket.first_response_at;
 
     await ticket.update({
       assigned_to: assignedTo,
       status: ticket.status === 'pending' ? 'in_progress' : ticket.status,
+      first_response_at: isFirstResponse ? new Date() : ticket.first_response_at,
       updated_by: req.user.id
     });
 
@@ -180,11 +216,11 @@ exports.assignTicket = async (req, res) => {
       log_type: 'assign',
       old_assigned_to: oldAssignedTo,
       new_assigned_to: assignedTo,
-      log_content: assignNote || '工单已分配',
+      log_content: assignNote || '工单已接单处理',
       created_by: req.user.id
     });
 
-    return success(res, ticket, '工单分配成功');
+    return success(res, ticket, '工单接单成功');
   } catch (err) {
     console.error('分配工单失败:', err);
     return error(res, '分配工单失败', 500);
@@ -198,22 +234,19 @@ exports.assignTicket = async (req, res) => {
 exports.resolveTicket = async (req, res) => {
   try {
     const { id } = req.params;
-    const { solution, serviceFee, partsCost, replacedParts } = req.body;
+    // 支持驼峰和下划线命名 - 简化为单一实际费用
+    const solution = req.body.solution || req.body.actual_solution;
+    const actualCost = req.body.actualCost || req.body.actual_cost || req.body.totalCost || req.body.total_cost || 0;
 
     const ticket = await ServiceTicket.findByPk(id);
     if (!ticket) {
       return error(res, '工单不存在', 404);
     }
 
-    const totalCost = (serviceFee || 0) + (partsCost || 0);
-
     await ticket.update({
       status: 'resolved',
       solution,
-      service_fee: serviceFee,
-      parts_cost: partsCost,
-      total_cost: totalCost,
-      replaced_parts: replacedParts,
+      total_cost: actualCost,
       resolved_at: new Date(),
       updated_by: req.user.id
     });
@@ -222,9 +255,9 @@ exports.resolveTicket = async (req, res) => {
     await ServiceTicketLog.create({
       ticket_id: id,
       log_type: 'status_change',
-      old_status: 'in_progress',
+      old_status: ticket.status,
       new_status: 'resolved',
-      log_content: `工单已解决：${solution}`,
+      log_content: `工单已解决：${solution || '无详细说明'}`,
       created_by: req.user.id
     });
 
@@ -291,7 +324,14 @@ exports.closeTicket = async (req, res) => {
 exports.addTicketLog = async (req, res) => {
   try {
     const { id } = req.params;
-    const { logType, logContent, attachmentUrls } = req.body;
+    // 支持驼峰和下划线命名
+    const logType = req.body.logType || req.body.log_type || 'comment';
+    const logContent = req.body.logContent || req.body.log_content;
+    const attachmentUrls = req.body.attachmentUrls || req.body.attachment_urls;
+
+    if (!logContent) {
+      return error(res, '日志内容不能为空', 400);
+    }
 
     const ticket = await ServiceTicket.findByPk(id);
     if (!ticket) {
@@ -300,13 +340,13 @@ exports.addTicketLog = async (req, res) => {
 
     const log = await ServiceTicketLog.create({
       ticket_id: id,
-      log_type: logType || 'comment',
+      log_type: logType,
       log_content: logContent,
       attachment_urls: attachmentUrls,
       created_by: req.user.id
     });
 
-    return success(res, log, '日志添加成功');
+    return success(res, log, '跟踪记录添加成功');
   } catch (err) {
     console.error('添加操作日志失败:', err);
     return error(res, '添加操作日志失败', 500);

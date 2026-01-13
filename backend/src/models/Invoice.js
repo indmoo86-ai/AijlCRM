@@ -44,6 +44,30 @@ const Invoice = sequelize.define('Invoice', {
     allowNull: false,
     comment: '开票金额'
   },
+  tax_rate: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    defaultValue: 0,
+    comment: '税率(%)'
+  },
+  tax_amount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    defaultValue: 0,
+    comment: '税额'
+  },
+  tax_burden_rate: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    defaultValue: 0,
+    comment: '税负成本率(%)'
+  },
+  tax_burden_cost: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    defaultValue: 0,
+    comment: '税负成本'
+  },
   invoice_date: {
     type: DataTypes.DATEONLY,
     allowNull: false,

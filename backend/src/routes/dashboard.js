@@ -33,4 +33,10 @@ router.get('/todo-tasks', dashboardController.getTodoTasks);
 // 获取月度业绩趋势
 router.get('/monthly-trend', dashboardController.getMonthlyTrend);
 
+// 获取待跟踪线索统计
+router.get('/pending-followup-leads', dashboardController.getPendingFollowUpLeads);
+
+// 获取近一个月趋势图数据
+router.get('/monthly-trend-chart', dashboardController.getMonthlyTrendChart);
+
 module.exports = router;

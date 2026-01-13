@@ -178,6 +178,66 @@
               <span style="margin-left: 10px; color: #909399;">天前提醒</span>
             </el-form-item>
 
+            <el-divider content-position="left">发票设置</el-divider>
+
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="专票税点" prop="special_invoice_tax_rate">
+                  <el-input-number
+                    v-model="systemParams.special_invoice_tax_rate"
+                    :min="0"
+                    :max="100"
+                    :precision="2"
+                    controls-position="right"
+                    style="width: 150px;"
+                  />
+                  <span style="margin-left: 10px; color: #909399;">%</span>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="普票税点" prop="normal_invoice_tax_rate">
+                  <el-input-number
+                    v-model="systemParams.normal_invoice_tax_rate"
+                    :min="0"
+                    :max="100"
+                    :precision="2"
+                    controls-position="right"
+                    style="width: 150px;"
+                  />
+                  <span style="margin-left: 10px; color: #909399;">%</span>
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="专票税负成本" prop="special_invoice_tax_burden">
+                  <el-input-number
+                    v-model="systemParams.special_invoice_tax_burden"
+                    :min="0"
+                    :max="100"
+                    :precision="2"
+                    controls-position="right"
+                    style="width: 150px;"
+                  />
+                  <span style="margin-left: 10px; color: #909399;">%</span>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="普票税负成本" prop="normal_invoice_tax_burden">
+                  <el-input-number
+                    v-model="systemParams.normal_invoice_tax_burden"
+                    :min="0"
+                    :max="100"
+                    :precision="2"
+                    controls-position="right"
+                    style="width: 150px;"
+                  />
+                  <span style="margin-left: 10px; color: #909399;">%</span>
+                </el-form-item>
+              </el-col>
+            </el-row>
+
             <el-divider content-position="left">其他设置</el-divider>
 
             <el-form-item label="启用邮件通知">
@@ -484,6 +544,12 @@ const systemParams = reactive({
   quotation_validity_days: 30,
   contract_default_months: 12,
   task_reminder_days: 3,
+  // 发票税率设置
+  special_invoice_tax_rate: 13,
+  normal_invoice_tax_rate: 3,
+  special_invoice_tax_burden: 8,
+  normal_invoice_tax_burden: 3,
+  // 其他设置
   email_notification_enabled: false,
   sms_notification_enabled: false,
   auto_backup_enabled: false

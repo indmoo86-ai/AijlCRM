@@ -70,34 +70,17 @@ router.get('/permissions', checkPermission('system:role:view'), permissionContro
 router.get('/permissions/flat', checkPermission('system:role:view'), permissionController.getPermissionList);
 
 // =====================================================
-// 系统参数路由（暂时占位）
+// 系统参数路由
 // =====================================================
+const systemParamController = require('../controllers/systemParamController');
 
 // 获取系统参数
-router.get('/system-params', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      system_name: '艾居来CRM',
-      company_name: '艾居来智能科技有限公司',
-      contact_phone: '',
-      contact_email: '',
-      quotation_validity_days: 30,
-      contract_default_months: 12,
-      task_reminder_days: 3,
-      email_notification_enabled: false,
-      sms_notification_enabled: false,
-      auto_backup_enabled: false
-    }
-  });
-});
+router.get('/system-params', systemParamController.getSystemParams);
 
 // 更新系统参数
-router.put('/system-params', (req, res) => {
-  res.json({
-    success: true,
-    message: '保存成功'
-  });
-});
+router.put('/system-params', systemParamController.updateSystemParams);
+
+// 获取发票税率设置
+router.get('/invoice-tax-settings', systemParamController.getInvoiceTaxSettings);
 
 module.exports = router;

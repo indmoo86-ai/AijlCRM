@@ -4,6 +4,166 @@ const { sequelize } = require('../config/database');
 const moment = require('moment');
 
 /**
+ * 获取待跟踪线索统计
+ */
+exports.getPendingFollowUpLeads = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const today = moment().startOf('day').toDate();
+    const sevenDaysAgo = moment().subtract(7, 'days').startOf('day').toDate();
+
+    // 待跟踪线索：下次跟进日期 <= 今天，状态为新建或跟进中
+    const pendingCount = await Lead.count({
+      where: {
+        salesOwnerId: userId,
+        status: { [Op.in]: [1, 2] }, // 新建、跟进中
+        nextFollowDate: { [Op.lte]: today }
+      }
+    });
+
+    // 严重逾期：下次跟进日期 < 7天前
+    const severeOverdueCount = await Lead.count({
+      where: {
+        salesOwnerId: userId,
+        status: { [Op.in]: [1, 2] },
+        nextFollowDate: { [Op.lt]: sevenDaysAgo }
+      }
+    });
+
+    // 普通逾期：7天内逾期
+    const normalOverdueCount = pendingCount - severeOverdueCount;
+
+    // 获取待跟踪线索列表（最多10条，按逾期时间排序）
+    const pendingLeads = await Lead.findAll({
+      where: {
+        salesOwnerId: userId,
+        status: { [Op.in]: [1, 2] },
+        nextFollowDate: { [Op.lte]: today }
+      },
+      order: [['nextFollowDate', 'ASC']],
+      limit: 10,
+      attributes: ['id', 'leadNo', 'customerName', 'hotelName', 'nextFollowDate', 'lastFollowTime', 'status', 'intentionLevel']
+    });
+
+    res.json({
+      success: true,
+      data: {
+        total: pendingCount,
+        severeOverdue: severeOverdueCount,
+        normalOverdue: normalOverdueCount,
+        leads: pendingLeads
+      }
+    });
+  } catch (error) {
+    console.error('获取待跟踪线索统计失败:', error);
+    console.error('错误详情:', error.message);
+    res.status(500).json({
+      success: false,
+      message: '获取待跟踪线索统计失败',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * 获取近一个月趋势图数据（线索、报价、合同）
+ */
+exports.getMonthlyTrendChart = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const startDate = moment().subtract(30, 'days').startOf('day').toDate();
+
+    // 生成过去30天的日期数组
+    const dates = [];
+    for (let i = 29; i >= 0; i--) {
+      dates.push(moment().subtract(i, 'days').format('YYYY-MM-DD'));
+    }
+
+    // 查询线索按天统计 (SQLite使用strftime)
+    const leadsData = await Lead.findAll({
+      where: {
+        salesOwnerId: userId,
+        createdAt: { [Op.gte]: startDate }
+      },
+      attributes: [
+        [sequelize.fn('strftime', '%Y-%m-%d', sequelize.col('created_at')), 'date'],
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      group: [sequelize.literal("strftime('%Y-%m-%d', created_at)")],
+      raw: true
+    });
+
+    // 查询报价按天统计（同一线索的多个报价只算一个）
+    const quotationsData = await Quotation.findAll({
+      where: {
+        owner_id: userId,
+        created_at: { [Op.gte]: startDate }
+      },
+      attributes: [
+        [sequelize.fn('strftime', '%Y-%m-%d', sequelize.col('created_at')), 'date'],
+        [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('lead_id'))), 'count']
+      ],
+      group: [sequelize.literal("strftime('%Y-%m-%d', created_at)")],
+      raw: true
+    });
+
+    // 查询合同按天统计
+    const contractsData = await Contract.findAll({
+      where: {
+        owner_id: userId,
+        created_at: { [Op.gte]: startDate }
+      },
+      attributes: [
+        [sequelize.fn('strftime', '%Y-%m-%d', sequelize.col('created_at')), 'date'],
+        [sequelize.fn('COUNT', sequelize.col('contract_id')), 'count']
+      ],
+      group: [sequelize.literal("strftime('%Y-%m-%d', created_at)")],
+      raw: true
+    });
+
+    // 转换为日期map方便查找
+    const leadsMap = {};
+    leadsData.forEach(item => {
+      leadsMap[item.date] = parseInt(item.count);
+    });
+
+    const quotationsMap = {};
+    quotationsData.forEach(item => {
+      quotationsMap[item.date] = parseInt(item.count);
+    });
+
+    const contractsMap = {};
+    contractsData.forEach(item => {
+      contractsMap[item.date] = parseInt(item.count);
+    });
+
+    // 构建完整数据
+    const labels = dates.map(d => moment(d).format('MM-DD'));
+    const leads = dates.map(d => leadsMap[d] || 0);
+    const quotations = dates.map(d => quotationsMap[d] || 0);
+    const contracts = dates.map(d => contractsMap[d] || 0);
+
+    res.json({
+      success: true,
+      data: {
+        labels,
+        leads,
+        quotations,
+        contracts
+      }
+    });
+  } catch (error) {
+    console.error('获取月度趋势图数据失败:', error);
+    console.error('错误详情:', error.message);
+    res.status(500).json({
+      success: false,
+      message: '获取月度趋势图数据失败',
+      error: error.message
+    });
+  }
+};
+
+/**
  * 获取仪表板统计数据
  */
 exports.getDashboardStats = async (req, res) => {

@@ -54,6 +54,13 @@
             >
               恢复合同
             </el-button>
+            <el-button
+              v-if="canInitiateServiceTicket"
+              type="primary"
+              @click="handleInitiateServiceTicket"
+            >
+              发起售后
+            </el-button>
           </div>
 
           <div class="info-section">
@@ -664,13 +671,10 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="发票抬头" prop="invoiceTitle">
-          <el-input v-model="invoiceForm.invoiceTitle" placeholder="请输入发票抬头" />
-        </el-form-item>
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="税号" prop="taxNumber">
-              <el-input v-model="invoiceForm.taxNumber" placeholder="请输入税号" />
+            <el-form-item label="发票号码" prop="invoiceNo">
+              <el-input v-model="invoiceForm.invoiceNo" placeholder="请输入发票号码" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -686,23 +690,11 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="公司地址">
-          <el-input v-model="invoiceForm.companyAddress" placeholder="请输入公司地址" />
+        <el-form-item label="发票抬头" prop="invoiceTitle">
+          <el-input v-model="invoiceForm.invoiceTitle" placeholder="请输入发票抬头" />
         </el-form-item>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="公司电话">
-              <el-input v-model="invoiceForm.companyPhone" placeholder="请输入公司电话" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="开户行">
-              <el-input v-model="invoiceForm.bankName" placeholder="请输入开户行" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="银行账号">
-          <el-input v-model="invoiceForm.bankAccount" placeholder="请输入银行账号" />
+        <el-form-item label="税号">
+          <el-input v-model="invoiceForm.taxNumber" placeholder="请输入税号" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="invoiceForm.invoiceNote" type="textarea" :rows="2" placeholder="请输入备注（可选）" />
@@ -711,6 +703,81 @@
       <template #footer>
         <el-button @click="invoiceDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitInvoice" :loading="invoiceSubmitting">确认开票</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 发起售后对话框 -->
+    <el-dialog
+      v-model="serviceTicketDialogVisible"
+      title="发起售后"
+      width="600px"
+      append-to-body
+      :close-on-click-modal="false"
+    >
+      <el-form :model="serviceTicketForm" :rules="serviceTicketFormRules" ref="serviceTicketFormRef" label-width="100px">
+        <el-form-item label="售后类型" prop="ticketType">
+          <el-select v-model="serviceTicketForm.ticketType" placeholder="请选择售后类型" style="width: 100%">
+            <el-option label="故障报修" value="repair" />
+            <el-option label="技术咨询" value="consultation" />
+            <el-option label="安装调试" value="installation" />
+            <el-option label="配件更换" value="parts_replacement" />
+            <el-option label="退换货" value="return" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="售后产品" prop="productIds">
+          <el-select
+            v-model="serviceTicketForm.productIds"
+            placeholder="请选择产品（可多选）"
+            style="width: 100%"
+            multiple
+            @change="handleServiceProductChange"
+          >
+            <el-option
+              v-for="item in contract.items"
+              :key="item.product_id"
+              :label="`${item.product_name}（${item.product_code}）`"
+              :value="item.product_id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="问题描述" prop="problemDescription">
+          <el-input
+            v-model="serviceTicketForm.problemDescription"
+            type="textarea"
+            :rows="4"
+            placeholder="请详细描述问题"
+          />
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="预估费用">
+              <el-input-number
+                v-model="serviceTicketForm.estimatedCost"
+                :min="0"
+                :precision="2"
+                :step="100"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="期望解决日期">
+              <el-date-picker
+                v-model="serviceTicketForm.expectedResolveDate"
+                type="date"
+                placeholder="选择日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <template #footer>
+        <el-button @click="serviceTicketDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitServiceTicket" :loading="serviceTicketSubmitting">确认发起</el-button>
       </template>
     </el-dialog>
   </el-drawer>
@@ -731,6 +798,7 @@ import {
 import { createPayment } from '@/api/payments'
 import { createShipment } from '@/api/shipments'
 import { createInvoice, confirmInvoice, voidInvoice } from '@/api/invoices'
+import { createServiceTicket } from '@/api/serviceTickets'
 
 const props = defineProps({
   modelValue: {
@@ -851,21 +919,44 @@ const invoiceFormRef = ref(null)
 const invoiceForm = reactive({
   invoiceType: 'normal',
   invoiceAmount: 0,
+  invoiceNo: '',
   invoiceTitle: '',
   taxNumber: '',
   invoiceDate: '',
-  companyAddress: '',
-  companyPhone: '',
-  bankName: '',
-  bankAccount: '',
   invoiceNote: ''
 })
 const invoiceFormRules = {
   invoiceType: [{ required: true, message: '请选择发票类型', trigger: 'change' }],
   invoiceAmount: [{ required: true, message: '请输入开票金额', trigger: 'blur' }],
+  invoiceNo: [{ required: true, message: '请输入发票号码', trigger: 'blur' }],
   invoiceTitle: [{ required: true, message: '请输入发票抬头', trigger: 'blur' }],
   invoiceDate: [{ required: true, message: '请选择开票日期', trigger: 'change' }]
 }
+
+// 售后表单
+const serviceTicketDialogVisible = ref(false)
+const serviceTicketSubmitting = ref(false)
+const serviceTicketFormRef = ref(null)
+const serviceTicketForm = reactive({
+  ticketType: 'repair',
+  productIds: [],
+  problemDescription: '',
+  estimatedCost: 0,
+  expectedResolveDate: ''
+})
+const serviceTicketFormRules = {
+  ticketType: [{ required: true, message: '请选择售后类型', trigger: 'change' }],
+  productIds: [{ required: true, message: '请选择售后产品', trigger: 'change', type: 'array', min: 1 }],
+  problemDescription: [{ required: true, message: '请输入问题描述', trigger: 'blur' }]
+}
+
+// 是否可以发起售后（有发货记录且有付款记录）
+const canInitiateServiceTicket = computed(() => {
+  const hasShipments = shipments.value && shipments.value.length > 0
+  const hasPayments = payments.value && payments.value.length > 0
+  const notVoided = contract.value.status !== 'voided'
+  return hasShipments && hasPayments && notVoided
+})
 
 // 待开票金额
 const uninvoicedAmount = computed(() => {
@@ -1205,13 +1296,10 @@ const handleAddInvoice = () => {
   // 根据合同信息预填发票表单
   invoiceForm.invoiceType = contract.value.invoice_type === 'special' ? 'special' : 'normal'
   invoiceForm.invoiceAmount = uninvoicedAmount.value // 默认开全部待开票金额
+  invoiceForm.invoiceNo = '' // 需要手动填写发票号码
   invoiceForm.invoiceTitle = contract.value.invoice_company || contract.value.party_a_name || ''
   invoiceForm.taxNumber = contract.value.invoice_tax_id || ''
   invoiceForm.invoiceDate = new Date().toISOString().split('T')[0]
-  invoiceForm.companyAddress = contract.value.party_a_address || ''
-  invoiceForm.companyPhone = contract.value.party_a_phone || ''
-  invoiceForm.bankName = ''
-  invoiceForm.bankAccount = ''
   invoiceForm.invoiceNote = contract.value.invoice_remark || ''
 
   invoiceDialogVisible.value = true
@@ -1229,15 +1317,12 @@ const submitInvoice = async () => {
     await createInvoice({
       contract_id: props.contractId,
       customer_id: contract.value.customer_id,
+      invoice_no: invoiceForm.invoiceNo,
       invoice_type: invoiceForm.invoiceType,
       invoice_amount: invoiceForm.invoiceAmount,
       invoice_title: invoiceForm.invoiceTitle,
       tax_number: invoiceForm.taxNumber,
       invoice_date: invoiceForm.invoiceDate,
-      company_address: invoiceForm.companyAddress,
-      company_phone: invoiceForm.companyPhone,
-      bank_name: invoiceForm.bankName,
-      bank_account: invoiceForm.bankAccount,
       invoice_note: invoiceForm.invoiceNote,
       status: 'confirmed' // 直接确认开票
     })
@@ -1316,6 +1401,87 @@ const handleVoidInvoice = async (invoice) => {
   }
 }
 
+// 发起售后
+const handleInitiateServiceTicket = () => {
+  // 重置表单
+  serviceTicketForm.ticketType = 'repair'
+  serviceTicketForm.productIds = []
+  serviceTicketForm.problemDescription = ''
+  serviceTicketForm.estimatedCost = 0
+  serviceTicketForm.expectedResolveDate = ''
+
+  serviceTicketDialogVisible.value = true
+}
+
+// 选择售后产品时（多选）
+const handleServiceProductChange = (productIds) => {
+  // 多选模式，不需要额外处理
+}
+
+// 获取售后类型标签
+const getTicketTypeLabel = (type) => {
+  const map = {
+    'repair': '故障报修',
+    'consultation': '技术咨询',
+    'installation': '安装调试',
+    'parts_replacement': '配件更换',
+    'return': '退换货',
+    'other': '其他'
+  }
+  return map[type] || type
+}
+
+// 提交售后工单
+const submitServiceTicket = async () => {
+  if (!serviceTicketFormRef.value) return
+
+  try {
+    await serviceTicketFormRef.value.validate()
+    serviceTicketSubmitting.value = true
+
+    // 获取选中的产品信息
+    const selectedProducts = contract.value.items?.filter(i => serviceTicketForm.productIds.includes(i.product_id)) || []
+    const productNames = selectedProducts.map(p => p.product_name).join('、')
+    const productCodes = selectedProducts.map(p => p.product_code).join('、')
+
+    // 创建售后工单
+    const ticketData = {
+      customer_id: contract.value.customer_id,
+      contract_id: props.contractId,
+      product_ids: serviceTicketForm.productIds,
+      product_name: productNames,
+      product_code: productCodes,
+      ticket_type: serviceTicketForm.ticketType,
+      ticket_title: `${getTicketTypeLabel(serviceTicketForm.ticketType)} - ${productNames}`,
+      priority: 'medium',
+      problem_description: serviceTicketForm.problemDescription,
+      total_cost: serviceTicketForm.estimatedCost,
+      expected_resolve_date: serviceTicketForm.expectedResolveDate
+    }
+
+    const res = await createServiceTicket(ticketData)
+    const ticketNo = res.data?.ticket_no || res.data?.ticketNo || '新工单'
+
+    // 添加合同跟踪记录
+    await addContractTrackRecord(props.contractId, {
+      followType: 'service_ticket',
+      content: `发起售后工单 ${ticketNo}，类型：${getTicketTypeLabel(serviceTicketForm.ticketType)}，产品：${productNames}，预估费用：¥${(serviceTicketForm.estimatedCost || 0).toFixed(2)}`
+    })
+
+    ElMessage.success('售后工单创建成功')
+    serviceTicketDialogVisible.value = false
+
+    // 重新加载合同详情
+    await fetchContractDetail(props.contractId)
+    emit('refresh')
+  } catch (error) {
+    console.error('创建售后工单失败:', error)
+    ElMessage.error(error.response?.data?.message || '创建售后工单失败')
+  } finally {
+    serviceTicketSubmitting.value = false
+  }
+}
+
 // 跟踪记录类型标签
 const getTrackTypeLabel = (type) => {
   const map = {
@@ -1325,6 +1491,7 @@ const getTrackTypeLabel = (type) => {
     'payment': '付款记录',
     'invoice': '发票记录',
     'shipment': '发货记录',
+    'service_ticket': '发起售后',
     'status_change': '状态变更',
     'other': '其他'
   }
@@ -1340,6 +1507,7 @@ const getTrackTypeColor = (type) => {
     'payment': 'warning',
     'invoice': 'info',
     'shipment': 'primary',
+    'service_ticket': 'danger',
     'status_change': 'danger',
     'other': 'info'
   }

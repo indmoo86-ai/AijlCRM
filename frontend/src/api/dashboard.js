@@ -94,3 +94,23 @@ export function getMonthlyTrend(params) {
     params
   })
 }
+
+/**
+ * 获取待跟踪线索统计
+ */
+export function getPendingFollowUpLeads() {
+  return request({
+    url: '/dashboard/pending-followup-leads',
+    method: 'get'
+  })
+}
+
+/**
+ * 获取近一个月趋势图数据
+ */
+export function getMonthlyTrendChart() {
+  return request({
+    url: '/dashboard/monthly-trend-chart',
+    method: 'get'
+  })
+}

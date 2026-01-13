@@ -74,6 +74,7 @@ exports.createInvoice = async (req, res) => {
     const bankName = req.body.bankName || req.body.bank_name;
     const bankAccount = req.body.bankAccount || req.body.bank_account;
     const invoiceNote = req.body.invoiceNote || req.body.invoice_note;
+    const invoiceNo = req.body.invoiceNo || req.body.invoice_no;
     const invoiceStatus = req.body.status || 'draft'; // 支持直接创建已确认的发票
 
     // 获取合同信息
@@ -82,8 +83,26 @@ exports.createInvoice = async (req, res) => {
       return error(res, '合同不存在', 404);
     }
 
-    // 发票号码在开具时填写
-    const invoice_no = 'INV-' + Date.now();
+    // 获取发票税率设置
+    const SystemParam = require('../models/SystemParam');
+    let taxRate = 0;
+    let taxBurdenRate = 0;
+
+    if (invoiceType === 'special') {
+      taxRate = await SystemParam.getValue('special_invoice_tax_rate', 13);
+      taxBurdenRate = await SystemParam.getValue('special_invoice_tax_burden', 8);
+    } else {
+      taxRate = await SystemParam.getValue('normal_invoice_tax_rate', 3);
+      taxBurdenRate = await SystemParam.getValue('normal_invoice_tax_burden', 3);
+    }
+
+    // 计算税额和税负成本
+    const amount = parseFloat(invoiceAmount) || 0;
+    const taxAmount = (amount * taxRate / 100).toFixed(2);
+    const taxBurdenCost = (amount * taxBurdenRate / 100).toFixed(2);
+
+    // 发票号码：优先使用传入的，否则自动生成
+    const invoice_no = invoiceNo || ('INV-' + Date.now());
 
     const invoice = await Invoice.create({
       invoice_no,
@@ -92,6 +111,10 @@ exports.createInvoice = async (req, res) => {
       payment_id: paymentId,
       invoice_type: invoiceType,
       invoice_amount: invoiceAmount,
+      tax_rate: taxRate,
+      tax_amount: taxAmount,
+      tax_burden_rate: taxBurdenRate,
+      tax_burden_cost: taxBurdenCost,
       invoice_date: invoiceDate,
       invoice_title: invoiceTitle,
       tax_number: taxNumber,

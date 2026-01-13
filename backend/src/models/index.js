@@ -33,6 +33,7 @@ const Payment = require('./Payment');
 const Invoice = require('./Invoice');
 const ServiceTicket = require('./ServiceTicket');
 const ServiceTicketLog = require('./ServiceTicketLog');
+const SystemParam = require('./SystemParam');
 
 // =====================================================
 // 定义关联关系（基于schema_full.sql外键关系）
@@ -464,6 +465,24 @@ Customer.hasMany(ServiceTicket, {
   as: 'serviceTickets'
 });
 
+// ServiceTicket - User 关联（处理人、创建人）
+ServiceTicket.belongsTo(User, {
+  foreignKey: 'assigned_to',
+  as: 'assignee'
+});
+ServiceTicket.belongsTo(User, {
+  foreignKey: 'created_by',
+  as: 'creator'
+});
+User.hasMany(ServiceTicket, {
+  foreignKey: 'assigned_to',
+  as: 'assignedTickets'
+});
+User.hasMany(ServiceTicket, {
+  foreignKey: 'created_by',
+  as: 'createdTickets'
+});
+
 // ServiceTicketLog - ServiceTicket 关联
 ServiceTicketLog.belongsTo(ServiceTicket, {
   foreignKey: 'ticket_id',
@@ -537,5 +556,6 @@ module.exports = {
   Payment,
   Invoice,
   ServiceTicket,
-  ServiceTicketLog
+  ServiceTicketLog,
+  SystemParam
 };

@@ -37,10 +37,9 @@
             clearable
             @clear="handleSearch"
           >
-            <el-option label="待开票" value="pending" />
-            <el-option label="已开票" value="issued" />
-            <el-option label="已邮寄" value="mailed" />
-            <el-option label="已作废" value="void" />
+            <el-option label="草稿" value="draft" />
+            <el-option label="已开" value="confirmed" />
+            <el-option label="已作废" value="voided" />
           </el-select>
         </el-form-item>
         
@@ -80,8 +79,8 @@
 
         <el-table-column prop="invoice_type" label="发票类型" width="100">
           <template #default="{ row }">
-            <span v-if="row.invoice_type === 'vat_normal'">普票</span>
-            <span v-else-if="row.invoice_type === 'vat_special'">专票</span>
+            <el-tag v-if="row.invoice_type === 'special'" type="warning">专票</el-tag>
+            <el-tag v-else-if="row.invoice_type === 'normal'" type="info">普票</el-tag>
             <span v-else>{{ row.invoice_type }}</span>
           </template>
         </el-table-column>
@@ -92,16 +91,27 @@
           </template>
         </el-table-column>
 
+        <el-table-column prop="tax_amount" label="税额" width="100" align="right">
+          <template #default="{ row }">
+            ¥{{ formatAmount(row.tax_amount) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="tax_burden_cost" label="税负成本" width="100" align="right">
+          <template #default="{ row }">
+            ¥{{ formatAmount(row.tax_burden_cost) }}
+          </template>
+        </el-table-column>
+
         <el-table-column prop="invoice_date" label="开票日期" width="100" />
 
         <el-table-column prop="invoice_title" label="发票抬头" min-width="160" show-overflow-tooltip />
 
         <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
-            <el-tag v-if="row.status === 'pending'" type="warning">待开票</el-tag>
-            <el-tag v-else-if="row.status === 'issued'" type="success">已开票</el-tag>
-            <el-tag v-else-if="row.status === 'mailed'" type="primary">已邮寄</el-tag>
-            <el-tag v-else-if="row.status === 'void'" type="danger">已作废</el-tag>
+            <el-tag v-if="row.status === 'draft'" type="info">草稿</el-tag>
+            <el-tag v-else-if="row.status === 'confirmed'" type="success">已开</el-tag>
+            <el-tag v-else-if="row.status === 'voided'" type="danger">已作废</el-tag>
             <el-tag v-else>{{ row.status }}</el-tag>
           </template>
         </el-table-column>
@@ -112,14 +122,14 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="handleView(row)">
                 查看
               </el-button>
               <el-button
-                v-if="row.status === 'pending'"
+                v-if="row.status === 'draft'"
                 link
                 type="success"
                 size="small"
@@ -128,25 +138,13 @@
                 开票
               </el-button>
               <el-button
-                v-if="row.status === 'issued'"
-                link
-                type="primary"
-                size="small"
-                @click="handleMail(row)"
-              >
-                邮寄
-              </el-button>
-              <el-button
-                v-if="row.status === 'issued'"
+                v-if="row.status === 'confirmed'"
                 link
                 type="danger"
                 size="small"
                 @click="handleVoid(row)"
               >
                 作废
-              </el-button>
-              <el-button link type="danger" size="small" @click="handleDelete(row)">
-                删除
               </el-button>
             </div>
           </template>
@@ -202,8 +200,8 @@
           <el-col :span="12">
             <el-form-item label="发票类型" prop="invoice_type">
               <el-select v-model="form.invoice_type" placeholder="请选择" style="width: 100%">
-                <el-option label="增值税普通发票" value="vat_normal" />
-                <el-option label="增值税专用发票" value="vat_special" />
+                <el-option label="普票" value="normal" />
+                <el-option label="专票" value="special" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -292,7 +290,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
-import { getInvoiceList, createInvoice, deleteInvoice, confirmInvoice } from '@/api/invoices'
+import { getInvoiceList, createInvoice, confirmInvoice, voidInvoice } from '@/api/invoices'
 import { getContractList } from '@/api/contracts'
 import dayjs from 'dayjs'
 
@@ -475,24 +473,6 @@ const handleConfirm = async (row) => {
   }
 }
 
-// 确认邮寄
-const handleMail = async (row) => {
-  try {
-    await ElMessageBox.confirm('确定发票已邮寄给客户吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    
-    ElMessage.success('确认邮寄成功')
-    fetchData()
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Mail failed:', error)
-    }
-  }
-}
-
 // 作废
 const handleVoid = async (row) => {
   try {
@@ -507,34 +487,18 @@ const handleVoid = async (row) => {
         return true
       }
     })
-    
+
+    await voidInvoice(row.invoice_id, { voidReason: reason })
     ElMessage.success('作废成功')
     fetchData()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Void failed:', error)
+      ElMessage.error('作废失败')
     }
   }
 }
 
-// 删除
-const handleDelete = async (row) => {
-  try {
-    await ElMessageBox.confirm('确定要删除此发票记录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    
-    await deleteInvoice(row.invoice_id)
-    ElMessage.success('删除成功')
-    fetchData()
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Delete failed:', error)
-    }
-  }
-}
 
 // 提交表单
 const handleFormSubmit = async () => {
