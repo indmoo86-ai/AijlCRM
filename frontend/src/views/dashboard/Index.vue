@@ -30,7 +30,7 @@
               <div class="stat-value">{{ pendingFollowUp.normalOverdue }}</div>
               <div class="stat-label">待跟进</div>
             </div>
-            <div class="stat-item total">
+            <div class="stat-item total" @click="goToOverdueLeads('total')">
               <div class="stat-value">{{ pendingFollowUp.total }}</div>
               <div class="stat-label">总待处理</div>
             </div>
@@ -134,7 +134,15 @@ const goToQuotations = () => {
 }
 
 const goToOverdueLeads = (type) => {
-  router.push(`/leads?filter=${type}`)
+  // type: severe=严重逾期, normal=待跟进, total=全部待处理
+  if (type === 'severe') {
+    router.push('/leads?followStatus=severe')
+  } else if (type === 'normal') {
+    router.push('/leads?followStatus=pending')
+  } else {
+    // 全部待处理：显示所有待跟进+严重逾期
+    router.push('/leads?followStatus=all')
+  }
 }
 
 const goToLeadDetail = (id) => {

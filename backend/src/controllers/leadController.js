@@ -21,7 +21,8 @@ exports.getLeads = async (req, res) => {
       endDate,
       demandCategory,
       intentionLevel,
-      warningLevel
+      warningLevel,
+      followStatus  // 待跟进状态: pending=待跟进, severe=严重逾期
     } = req.query;
 
     const where = {};
@@ -38,6 +39,42 @@ exports.getLeads = async (req, res) => {
     if (warningLevel !== undefined && warningLevel !== '') {
       where.warningLevel = parseInt(warningLevel);
     }
+
+    // 待跟进状态筛选
+    if (followStatus) {
+      const moment = require('moment');
+      const today = moment().endOf('day').toDate();
+      const sevenDaysAgo = moment().subtract(7, 'days').startOf('day').toDate();
+
+      // 只筛选新建或跟进中的线索
+      where.status = { [Op.in]: [1, 2] };
+
+      if (followStatus === 'severe') {
+        // 严重逾期：下次跟进日期超过7天前
+        where.nextFollowDate = {
+          [Op.ne]: null,
+          [Op.lt]: sevenDaysAgo
+        };
+      } else if (followStatus === 'pending') {
+        // 待跟进：到期但未超7天 或 未设置跟进日期
+        where[Op.or] = [
+          {
+            nextFollowDate: {
+              [Op.gte]: sevenDaysAgo,
+              [Op.lte]: today
+            }
+          },
+          { nextFollowDate: null }
+        ];
+      } else if (followStatus === 'all') {
+        // 全部待处理：所有待跟进 + 严重逾期
+        where[Op.or] = [
+          { nextFollowDate: { [Op.lte]: today } },
+          { nextFollowDate: null }
+        ];
+      }
+    }
+
     // 需求分类搜索（demandCategories是JSON数组格式存储）
     if (demandCategory) {
       where.demandCategories = { [Op.like]: `%${demandCategory}%` };

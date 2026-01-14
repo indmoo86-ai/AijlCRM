@@ -63,6 +63,20 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="跟进状态">
+          <el-select
+            v-model="searchForm.followStatus"
+            placeholder="请选择"
+            clearable
+            style="width: 120px"
+            @change="handleSearch"
+          >
+            <el-option label="全部待处理" value="all" />
+            <el-option label="待跟进" value="pending" />
+            <el-option label="严重逾期(>7天)" value="severe" />
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="需求分类">
           <el-select
             v-model="searchForm.demandCategory"
@@ -1105,7 +1119,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Upload, View, Download, Link } from '@element-plus/icons-vue'
 import { getLeadList, createLead, updateLead, addFollowUp, getLeadDetail } from '@/api/leads'
@@ -1119,6 +1133,7 @@ import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, Width
 import { saveAs } from 'file-saver'
 
 const router = useRouter()
+const route = useRoute()
 import dayjs from 'dayjs'
 import { regionData, codeToText } from 'element-china-area-data'
 import { overseasData, getContinentLabel, getCountryLabel } from '@/utils/overseas-data'
@@ -1208,6 +1223,7 @@ const searchForm = reactive({
   customerName: '',
   intentionLevel: '',
   warningLevel: '',  // 预警状态筛选
+  followStatus: '',  // 跟进状态筛选: pending=待跟进, severe=严重逾期, all=全部待处理
   demandCategory: '',
   salesOwnerId: '',
   regionCode: [],
@@ -1421,6 +1437,7 @@ const fetchData = async () => {
       keyword: searchForm.customerName || undefined,
       intentionLevel: searchForm.intentionLevel || undefined,
       warningLevel: searchForm.warningLevel !== '' ? searchForm.warningLevel : undefined,
+      followStatus: searchForm.followStatus || undefined,
       demandCategory: searchForm.demandCategory || undefined,
       salesOwnerId: searchForm.salesOwnerId || undefined,
       province: searchForm.province || undefined,
@@ -1454,11 +1471,14 @@ const handleReset = () => {
   searchForm.customerName = ''
   searchForm.intentionLevel = ''
   searchForm.warningLevel = ''
+  searchForm.followStatus = ''
   searchForm.demandCategory = ''
   searchForm.salesOwnerId = ''
   searchForm.regionCode = []
   searchForm.province = ''
   searchForm.showAll = false
+  // 清除URL参数
+  router.replace({ path: '/leads' })
   handleSearch()
 }
 
@@ -2568,6 +2588,22 @@ const handleContractCreated = (contract) => {
 
 // 组件挂载时获取数据
 onMounted(() => {
+  // 处理URL参数
+  const { followStatus, action } = route.query
+  if (followStatus) {
+    // 从Dashboard跳转过来的跟进状态筛选
+    if (followStatus === 'all') {
+      // 全部待处理：后端会返回所有状态为新建或跟进中的线索（待跟进+严重逾期）
+      searchForm.followStatus = 'all'
+    } else {
+      searchForm.followStatus = followStatus
+    }
+    // 选择跟进状态时自动显示所有意向的线索
+    searchForm.showAll = true
+  }
+  if (action === 'create') {
+    dialogVisible.value = true
+  }
   fetchData()
   fetchUserList()
 })

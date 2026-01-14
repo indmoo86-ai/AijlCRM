@@ -5,42 +5,75 @@ const moment = require('moment');
 
 /**
  * 获取待跟踪线索统计
+ *
+ * 统计逻辑：
+ * - 严重逾期(>7天)：下次跟进日期超过7天前
+ * - 待跟进：
+ *   1. 下次跟进日期到达但未超过7天
+ *   2. 未设置下次跟进日期的新建线索
+ * - 总待处理 = 严重逾期 + 待跟进
  */
 exports.getPendingFollowUpLeads = async (req, res) => {
   try {
     const userId = req.user.id;
-    const today = moment().startOf('day').toDate();
+    const today = moment().endOf('day').toDate(); // 今天结束时间
     const sevenDaysAgo = moment().subtract(7, 'days').startOf('day').toDate();
 
-    // 待跟踪线索：下次跟进日期 <= 今天，状态为新建或跟进中
-    const pendingCount = await Lead.count({
-      where: {
-        salesOwnerId: userId,
-        status: { [Op.in]: [1, 2] }, // 新建、跟进中
-        nextFollowDate: { [Op.lte]: today }
-      }
-    });
-
-    // 严重逾期：下次跟进日期 < 7天前
+    // 严重逾期(>7天)：下次跟进日期 < 7天前
     const severeOverdueCount = await Lead.count({
       where: {
         salesOwnerId: userId,
-        status: { [Op.in]: [1, 2] },
-        nextFollowDate: { [Op.lt]: sevenDaysAgo }
+        status: { [Op.in]: [1, 2] }, // 新建、跟进中
+        nextFollowDate: {
+          [Op.ne]: null,
+          [Op.lt]: sevenDaysAgo
+        }
       }
     });
 
-    // 普通逾期：7天内逾期
-    const normalOverdueCount = pendingCount - severeOverdueCount;
+    // 待跟进：
+    // 1. 下次跟进日期在 7天前 到 今天之间（到期但未超7天）
+    // 2. 或者未设置下次跟进日期（新建未安排跟进）
+    const normalPendingCount = await Lead.count({
+      where: {
+        salesOwnerId: userId,
+        status: { [Op.in]: [1, 2] },
+        [Op.or]: [
+          // 到期但未超7天
+          {
+            nextFollowDate: {
+              [Op.gte]: sevenDaysAgo,
+              [Op.lte]: today
+            }
+          },
+          // 未设置跟进日期的线索
+          {
+            nextFollowDate: null
+          }
+        ]
+      }
+    });
 
-    // 获取待跟踪线索列表（最多10条，按逾期时间排序）
+    // 总待处理
+    const totalPending = severeOverdueCount + normalPendingCount;
+
+    // 获取待跟踪线索列表（最多10条）
+    // 优先显示严重逾期的，然后是待跟进的
     const pendingLeads = await Lead.findAll({
       where: {
         salesOwnerId: userId,
         status: { [Op.in]: [1, 2] },
-        nextFollowDate: { [Op.lte]: today }
+        [Op.or]: [
+          { nextFollowDate: { [Op.lte]: today } },
+          { nextFollowDate: null }
+        ]
       },
-      order: [['nextFollowDate', 'ASC']],
+      order: [
+        // 先按是否有跟进日期排序（有日期的优先）
+        [sequelize.literal('CASE WHEN next_follow_date IS NULL THEN 1 ELSE 0 END'), 'ASC'],
+        // 再按跟进日期升序（越早的越紧急）
+        ['nextFollowDate', 'ASC']
+      ],
       limit: 10,
       attributes: ['id', 'leadNo', 'customerName', 'hotelName', 'nextFollowDate', 'lastFollowTime', 'status', 'intentionLevel']
     });
@@ -48,9 +81,9 @@ exports.getPendingFollowUpLeads = async (req, res) => {
     res.json({
       success: true,
       data: {
-        total: pendingCount,
+        total: totalPending,
         severeOverdue: severeOverdueCount,
-        normalOverdue: normalOverdueCount,
+        normalOverdue: normalPendingCount, // 这里改名为待跟进更合适，但保持字段名兼容前端
         leads: pendingLeads
       }
     });
@@ -83,7 +116,7 @@ exports.getMonthlyTrendChart = async (req, res) => {
     const leadsData = await Lead.findAll({
       where: {
         salesOwnerId: userId,
-        createdAt: { [Op.gte]: startDate }
+        created_at: { [Op.gte]: startDate }
       },
       attributes: [
         [sequelize.fn('strftime', '%Y-%m-%d', sequelize.col('created_at')), 'date'],
