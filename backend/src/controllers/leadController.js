@@ -693,3 +693,235 @@ exports.deleteLead = async (req, res) => {
     return error(res, '删除失败', 500);
   }
 };
+
+// Excel导入线索
+exports.importLeadsFromExcel = async (req, res) => {
+  const ExcelJS = require('exceljs');
+
+  try {
+    if (!req.file) {
+      return error(res, '请上传Excel文件', 400);
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+    const worksheet = workbook.getWorksheet(1);
+
+    if (!worksheet) {
+      return error(res, 'Excel文件格式错误', 400);
+    }
+
+    const importResults = {
+      total: 0,
+      success: 0,
+      skipped: 0,
+      failed: 0,
+      details: []
+    };
+
+    // 查找姜文颖用户（新媒体负责人）
+    const jiangWenying = await User.findOne({
+      where: { name: { [Op.like]: '%姜文颖%' } }
+    });
+
+    if (!jiangWenying) {
+      console.warn('未找到用户"姜文颖"，新媒体线索将分配给当前用户');
+    }
+
+    const newMediaOwnerId = jiangWenying ? jiangWenying.id : req.user.id;
+
+    // 从第2行开始读取（第1行是标题）
+    const rows = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        rows.push(row);
+      }
+    });
+
+    // 反向处理（从最后几条开始，因为新数据通常在末尾）
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const row = rows[i];
+      const rowNumber = rows.length - i + 1;
+
+      importResults.total++;
+
+      try {
+        // 解析Excel行数据
+        const phone = String(row.getCell(1).value || '').trim();
+        const customerName = String(row.getCell(2).value || '').trim();
+        const hotelName = String(row.getCell(3).value || customerName).trim();
+        const province = String(row.getCell(4).value || '').trim();
+        const city = String(row.getCell(5).value || '').trim();
+        const district = String(row.getCell(6).value || '').trim();
+        const address = String(row.getCell(7).value || '').trim();
+        const roomCount = parseInt(row.getCell(8).value) || null;
+        const channelSource = String(row.getCell(9).value || '').trim();
+        const firstDemand = String(row.getCell(10).value || '').trim();
+        const wechat = String(row.getCell(11).value || '').trim();
+        const intentionLevel = parseInt(row.getCell(12).value) || 1;
+        const trackingNotes = String(row.getCell(13).value || '').trim(); // 跟踪记录
+
+        // 必填字段验证
+        if (!phone || !customerName) {
+          importResults.failed++;
+          importResults.details.push({
+            row: rowNumber,
+            phone,
+            customerName,
+            status: 'failed',
+            reason: '手机号和客户名称不能为空'
+          });
+          continue;
+        }
+
+        // 方案B：按手机号去重，仅导入不存在的新数据
+        const existingLead = await Lead.findOne({
+          where: { phone }
+        });
+
+        if (existingLead) {
+          importResults.skipped++;
+          importResults.details.push({
+            row: rowNumber,
+            phone,
+            customerName,
+            status: 'skipped',
+            reason: '手机号已存在'
+          });
+          continue;
+        }
+
+        // 识别渠道来源（抖音、视频号、小红书）
+        let normalizedChannel = 'other';
+        const channelLower = channelSource.toLowerCase();
+
+        if (channelLower.includes('抖音') || channelLower.includes('douyin')) {
+          normalizedChannel = 'douyin';
+        } else if (channelLower.includes('视频号') || channelLower.includes('weixin_video')) {
+          normalizedChannel = 'weixin_video';
+        } else if (channelLower.includes('小红书') || channelLower.includes('xiaohongshu')) {
+          normalizedChannel = 'xiaohongshu';
+        }
+
+        // 判断状态：有跟踪记录=优先跟进(2)，无跟踪记录=持续跟进(1)
+        // 注意：新增的数据中没有"已签约"状态
+        const hasTrackingNotes = trackingNotes && trackingNotes.length > 0;
+        const leadStatus = hasTrackingNotes ? 2 : 1; // 2=跟进中/优先跟进，1=新建/持续跟进
+
+        // 准备线索数据
+        const leadData = {
+          leadNo: await Lead.generateLeadNo(),
+          customerName,
+          hotelName: hotelName || customerName,
+          province,
+          city,
+          district,
+          address,
+          roomCount,
+          phone,
+          wechat,
+          channelSource: normalizedChannel,
+          firstDemand,
+          status: leadStatus,
+          intentionLevel,
+          createdBy: req.user.id
+        };
+
+        // 新媒体线索自动分配给姜文颖
+        if (['douyin', 'weixin_video', 'xiaohongshu'].includes(normalizedChannel)) {
+          leadData.mediaOwnerId = newMediaOwnerId;
+          leadData.salesOwnerId = newMediaOwnerId; // 默认销售负责人也设为姜文颖
+        } else {
+          leadData.salesOwnerId = req.user.id;
+        }
+
+        // 查找或创建客户
+        let customer = null;
+        if (phone && province) {
+          customer = await Customer.findOne({
+            where: { phone, province }
+          });
+        }
+
+        // 创建线索
+        const lead = await Lead.create(leadData);
+
+        if (customer) {
+          // 关联已有客户
+          await lead.update({ customerId: customer.id });
+        } else {
+          // 创建新客户
+          const customerNo = await Customer.generateCustomerNo();
+          customer = await Customer.create({
+            customerNo,
+            customerName: customerName || hotelName,
+            customerType: 1,
+            province,
+            city,
+            district,
+            address,
+            roomCount,
+            phone,
+            salesOwnerId: leadData.salesOwnerId,
+            sourceLeadId: lead.id,
+            totalAmount: 0,
+            contractCount: 0,
+            referralCount: 0
+          });
+          await lead.update({ customerId: customer.id });
+        }
+
+        // 如果有跟踪记录，创建跟进记录
+        if (hasTrackingNotes) {
+          await FollowUp.create({
+            bizType: 1,
+            bizId: lead.id,
+            followType: 'phone',
+            content: trackingNotes,
+            operatorId: req.user.id
+          });
+
+          // 更新线索的最后跟进时间
+          await lead.update({
+            lastFollowTime: new Date()
+          });
+        } else {
+          // 创建导入记录
+          await FollowUp.create({
+            bizType: 1,
+            bizId: lead.id,
+            followType: 'create',
+            content: `从Excel导入线索，来源：${channelSource}`,
+            operatorId: req.user.id
+          });
+        }
+
+        importResults.success++;
+        importResults.details.push({
+          row: rowNumber,
+          phone,
+          customerName,
+          status: 'success',
+          leadId: lead.id,
+          customerId: customer.id
+        });
+
+      } catch (rowErr) {
+        console.error(`第${rowNumber}行导入失败:`, rowErr);
+        importResults.failed++;
+        importResults.details.push({
+          row: rowNumber,
+          status: 'failed',
+          reason: rowErr.message
+        });
+      }
+    }
+
+    return success(res, importResults, `导入完成：成功${importResults.success}条，跳过${importResults.skipped}条，失败${importResults.failed}条`);
+
+  } catch (err) {
+    console.error('Excel导入错误:', err);
+    console.error('错误详情:', err.message);
+    return error(res, '导入失败: ' + err.message, 500);
+  }
+};

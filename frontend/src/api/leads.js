@@ -84,3 +84,17 @@ export function deleteLead(id) {
     method: 'delete'
   })
 }
+
+/**
+ * Excel导入线索
+ */
+export function importLeadsFromExcel(formData) {
+  return request({
+    url: '/leads/import',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}

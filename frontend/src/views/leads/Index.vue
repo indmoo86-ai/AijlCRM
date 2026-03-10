@@ -4,9 +4,14 @@
       <template #header>
         <div class="card-header">
           <span>线索管理</span>
-          <el-button type="primary" :icon="Plus" @click="handleCreate">
-            新建线索
-          </el-button>
+          <div>
+            <el-button type="success" :icon="Upload" @click="handleImport">
+              Excel导入
+            </el-button>
+            <el-button type="primary" :icon="Plus" @click="handleCreate">
+              新建线索
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -531,6 +536,60 @@
       </template>
     </el-dialog>
 
+    <!-- Excel导入对话框 -->
+    <el-dialog
+      v-model="importDialogVisible"
+      title="Excel导入线索"
+      width="600px"
+      @close="resetImportForm"
+    >
+      <el-alert
+        title="导入说明"
+        type="info"
+        :closable="false"
+        style="margin-bottom: 20px"
+      >
+        <ul style="margin: 10px 0 0 0; padding-left: 20px; line-height: 1.8">
+          <li>仅导入Excel中不存在的新数据（按手机号去重）</li>
+          <li>有跟踪记录的数据将标记为"优先跟进"</li>
+          <li>新媒体渠道（抖音、视频号、小红书）自动分配给姜文颖</li>
+          <li>Excel列格式：手机号、客户名称、酒店名称、省份、城市、区县、地址、房间数、渠道来源、需求描述、微信、意向程度、跟踪记录</li>
+        </ul>
+      </el-alert>
+
+      <el-upload
+        ref="importUploadRef"
+        :auto-upload="false"
+        :limit="1"
+        accept=".xlsx,.xls"
+        :on-change="handleFileChange"
+        :on-exceed="handleExceed"
+        drag
+      >
+        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <div class="el-upload__text">
+          将Excel文件拖到此处，或<em>点击上传</em>
+        </div>
+        <template #tip>
+          <div class="el-upload__tip">
+            支持.xlsx和.xls格式，文件大小不超过10MB
+          </div>
+        </template>
+      </el-upload>
+
+      <div v-if="importProgress.show" style="margin-top: 20px">
+        <el-progress :percentage="importProgress.percentage" :status="importProgress.status"></el-progress>
+        <p style="margin-top: 10px; color: #666; font-size: 14px">{{ importProgress.message }}</p>
+      </div>
+
+      <template #footer>
+        <el-button @click="importDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="importLoading" :disabled="!importFile" @click="handleImportSubmit">
+          开始导入
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 详情抽屉 -->
     <el-drawer
       v-model="detailDrawerVisible"
@@ -903,8 +962,8 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Plus, Search, Refresh, Upload, View, Download, Link } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Search, Refresh, Upload, View, Download, Link, UploadFilled } from '@element-plus/icons-vue'
 import { getLeadList, createLead, updateLead, addFollowUp, getLeadDetail } from '@/api/leads'
 import { getUserList } from '@/api/users'
 import { exportContractWord } from '@/api/contracts'
@@ -931,6 +990,18 @@ const followUpLoading = ref(false)
 const followUpFormRef = ref(null)
 const uploadRef = ref(null)
 const currentLeadId = ref(null)
+
+// Excel导入相关
+const importDialogVisible = ref(false)
+const importLoading = ref(false)
+const importUploadRef = ref(null)
+const importFile = ref(null)
+const importProgress = ref({
+  show: false,
+  percentage: 0,
+  status: '',
+  message: ''
+})
 
 // 获取当前用户（从localStorage）
 const currentUser = computed(() => {
@@ -1994,6 +2065,93 @@ const handleContractCreated = (contract) => {
   // 刷新详情数据
   if (detailData.lead) {
     handleView(detailData.lead)
+  }
+}
+
+// Excel导入相关方法
+const handleImport = () => {
+  importDialogVisible.value = true
+  resetImportForm()
+}
+
+const resetImportForm = () => {
+  importFile.value = null
+  importProgress.value = {
+    show: false,
+    percentage: 0,
+    status: '',
+    message: ''
+  }
+  if (importUploadRef.value) {
+    importUploadRef.value.clearFiles()
+  }
+}
+
+const handleFileChange = (file) => {
+  importFile.value = file.raw
+}
+
+const handleExceed = () => {
+  ElMessage.warning('只能上传一个Excel文件')
+}
+
+const handleImportSubmit = async () => {
+  if (!importFile.value) {
+    ElMessage.warning('请先选择Excel文件')
+    return
+  }
+
+  try {
+    importLoading.value = true
+    importProgress.value = {
+      show: true,
+      percentage: 30,
+      status: 'active',
+      message: '正在读取Excel文件...'
+    }
+
+    const formData = new FormData()
+    formData.append('file', importFile.value)
+
+    importProgress.value.percentage = 50
+    importProgress.value.message = '正在导入数据...'
+
+    const { importLeadsFromExcel } = await import('@/api/leads')
+    const response = await importLeadsFromExcel(formData)
+
+    importProgress.value.percentage = 100
+    importProgress.value.status = 'success'
+    importProgress.value.message = '导入完成'
+
+    // 显示导入结果
+    const { success, skipped, failed, total } = response.data
+
+    ElMessageBox.alert(
+      `
+        <div style="line-height: 1.8">
+          <p><strong>导入总数：</strong>${total} 条</p>
+          <p style="color: #67C23A"><strong>成功：</strong>${success} 条</p>
+          <p style="color: #E6A23C"><strong>跳过（已存在）：</strong>${skipped} 条</p>
+          <p style="color: #F56C6C"><strong>失败：</strong>${failed} 条</p>
+        </div>
+      `,
+      '导入结果',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确定',
+        callback: () => {
+          importDialogVisible.value = false
+          fetchData()
+        }
+      }
+    )
+  } catch (error) {
+    console.error('Excel导入失败:', error)
+    importProgress.value.status = 'exception'
+    importProgress.value.message = '导入失败：' + (error.message || '未知错误')
+    ElMessage.error('导入失败：' + (error.message || '未知错误'))
+  } finally {
+    importLoading.value = false
   }
 }
 
